@@ -80,7 +80,7 @@ export async function logOrgAudit(entry: OrgAuditEntry): Promise<void> {
         event: null,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[logOrgAudit] Failed to write audit log (non-fatal):", error);
     // Never throw - audit logging must not break primary flows
   }
@@ -130,7 +130,7 @@ export async function logOrgAuditBatch(entries: OrgAuditEntry[]): Promise<void> 
     });
 
     await prisma.orgAuditLog.createMany({ data });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`[logOrgAuditBatch] Failed to write ${entries.length} audit logs (non-fatal):`, error);
     // Never throw - audit logging must not break primary flows
   }

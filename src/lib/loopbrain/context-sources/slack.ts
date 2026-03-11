@@ -179,7 +179,7 @@ export async function syncSlackContext(
       synced: result.synced,
       channels: result.channels,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warn('[SlackSync] Sync failed', {
       workspaceId,
       error: error instanceof Error ? error.message : String(error),
@@ -259,7 +259,7 @@ export async function loadSlackContextFromStore(
     }
 
     return messages.slice(0, limit)
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warn('[SlackContext] Failed to load from store', {
       workspaceId,
       error: error instanceof Error ? error.message : String(error),
@@ -572,7 +572,7 @@ export async function getSlackContextForProject(
     let allChannels: Array<{ id: string; name: string }> = []
     try {
       allChannels = await getSlackChannels(workspaceId)
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to fetch Slack channels list', {
         workspaceId,
         error: error instanceof Error ? error.message : String(error)
@@ -662,7 +662,7 @@ export async function getSlackContextForProject(
           filteredCount: filteredMessages.length,
           relevance
         })
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn('Failed to fetch messages for Slack channel', {
           workspaceId,
           channel: channelHint,
@@ -671,7 +671,7 @@ export async function getSlackContextForProject(
         // Continue with other channels even if one fails
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get Slack context for project', {
       workspaceId,
       error: error instanceof Error ? error.message : String(error)

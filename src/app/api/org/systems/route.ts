@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" } as any,
     })
     return NextResponse.json({ systems })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       select: { id: true } as any,
     })
     return NextResponse.json({ ok: true, id: created.id })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }
@@ -89,7 +89,7 @@ export async function PATCH(req: NextRequest) {
     })
 
     return NextResponse.json({ ok: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

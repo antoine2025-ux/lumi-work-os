@@ -183,7 +183,7 @@ export async function searchSlackMessages(
           threadTs: msg.threadTs,
         })
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('[SlackSearch] Failed to search channel', {
         workspaceId,
         channelId: ch.id,

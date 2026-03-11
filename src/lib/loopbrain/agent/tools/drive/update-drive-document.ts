@@ -44,7 +44,7 @@ export const updateDriveDocumentTool: LoopbrainTool = {
         },
         humanReadable: `Updated document (${p.mode} mode) — ${result.webViewLink}`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof DriveNotConnectedError) {
         return {
           success: false,

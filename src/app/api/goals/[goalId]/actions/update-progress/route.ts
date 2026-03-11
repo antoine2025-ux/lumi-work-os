@@ -81,7 +81,7 @@ export async function POST(
       affectedEntities: [{ type: 'goal', id: goalId }],
       workflowsTriggered: workflowResults.length,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

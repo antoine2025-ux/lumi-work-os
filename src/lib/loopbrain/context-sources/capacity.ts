@@ -433,7 +433,7 @@ export async function buildUnifiedCapacity(
     });
 
     return snapshot;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[UnifiedCapacity] Failed to build snapshot", {
       workspaceId,
       personId,
@@ -506,7 +506,7 @@ export async function buildTeamCapacitySummary(
         } else if (snapshot.effectiveCapacity.hasCapacity) {
           membersWithCapacity++;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn("[UnifiedCapacity] Failed to build member snapshot", {
           teamId,
           personId: position.userId,
@@ -555,7 +555,7 @@ export async function buildTeamCapacitySummary(
     });
 
     return summary;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[UnifiedCapacity] Failed to build team summary", {
       workspaceId,
       teamId,
@@ -621,7 +621,7 @@ async function loadCalendarEvents(
       });
     }
     return items;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warn("[UnifiedCapacity] Failed to load Google Calendar events", {
       personId,
       error,

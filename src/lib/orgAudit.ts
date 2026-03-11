@@ -67,7 +67,7 @@ export async function logOrgAudit(
         newValues: undefined,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[org-audit-log] Failed to write audit log", error);
     // Intentionally swallow error – audit log is non-critical.
   }

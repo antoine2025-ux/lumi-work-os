@@ -68,7 +68,7 @@ export async function evaluateWorkflowRules(
       try {
         await executeAction(action, context)
         actionResults.push({ action: action.type, success: true })
-      } catch (error) {
+      } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
         actionResults.push({
           action: action.type,

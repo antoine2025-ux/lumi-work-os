@@ -72,7 +72,7 @@ export async function GET(
     })
 
     return NextResponse.json({ users: assignableUsers })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

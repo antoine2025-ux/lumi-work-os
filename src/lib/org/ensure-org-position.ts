@@ -44,7 +44,7 @@ export async function ensureOrgPositionForUser(
         teamId,
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     // Position might already exist from race, or other transient error
     logger.warn('[ensureOrgPositionForUser] Could not create OrgPosition', {
       workspaceId,

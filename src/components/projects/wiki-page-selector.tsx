@@ -119,7 +119,7 @@ export function WikiPageSelector({
             setWikiPages([])
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading wiki pages:', error)
       } finally {
         setIsLoadingPages(false)

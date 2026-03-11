@@ -19,7 +19,7 @@ export function clearReactQueryCache(queryClient: QueryClient) {
     // Clear all queries
     queryClient.clear()
     console.log('✅ React Query cache cleared')
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Failed to clear React Query cache:', error)
   }
 }
@@ -47,7 +47,7 @@ export async function clearServerCache() {
     const result = await response.json()
     console.log('✅ Server cache cleared:', result)
     return result
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Failed to clear server cache:', error)
     throw error
   }

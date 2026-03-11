@@ -537,7 +537,7 @@ export async function buildOrgLoopbrainContextBundleForWorkspace(
             `[OrgBundle] Persisted ${savedItems.length} role ContextItems to Context Store`
           );
         }
-      } catch (err) {
+      } catch (err: unknown) {
         // Fail-safe: log but do not crash Org bundle building
         console.error(
           "[OrgBundle] Failed to upsert role context items",
@@ -561,7 +561,7 @@ export async function buildOrgLoopbrainContextBundleForWorkspace(
         }))
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Silently fail if RoleContext building fails (dev-only feature)
     if (process.env.NODE_ENV === "development") {
       console.warn("[OrgBundle] Failed to build RoleContexts:", error);
@@ -581,7 +581,7 @@ export async function buildOrgLoopbrainContextBundleForWorkspace(
         `[OrgBundle] Loaded ${storedRoleContextItems.length} role ContextItems from Context Store`
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Fail-safe: log but continue without stored roles
     if (process.env.NODE_ENV === "development") {
       console.warn(

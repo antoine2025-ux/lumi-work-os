@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.json({ people: out.slice(0, take) })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

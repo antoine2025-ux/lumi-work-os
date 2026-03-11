@@ -80,8 +80,7 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(auth.workspaceId)
 
     const body = AssistantMessageSchema.parse(await request.json())
-    const { sessionId, message } = body
-    const _phase = (body as any).phase
+    const { sessionId, message, phase: _phase } = body
 
     // Get the session
     const session = await prisma.chatSession.findUnique({
@@ -130,8 +129,6 @@ export async function POST(request: NextRequest) {
         'product', 'policy', 'device', 'security' // Common terms
       ].filter(Boolean)
       
-      console.log('🔍 Trying search strategies:', searchStrategies)
-      
       // Create a timeout promise
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Wiki search timeout')), 5000)
@@ -140,7 +137,6 @@ export async function POST(request: NextRequest) {
       for (const searchTerm of searchStrategies) {
         if (wikiResults.length > 0) break // Stop if we found results
         
-        console.log('🔍 Searching wiki for:', searchTerm)
         const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3001'
         
         try {
@@ -153,20 +149,15 @@ export async function POST(request: NextRequest) {
             const wikiData = await wikiResponse.json()
             if (wikiData.results && wikiData.results.length > 0) {
               wikiResults = wikiData.results
-              console.log('📚 Wiki search found:', wikiResults.length, 'results for:', searchTerm)
               break
             }
           }
-        } catch (searchError) {
-          console.log('⚠️ Wiki search failed for:', searchTerm, searchError.message)
+        } catch (_searchError) {
           continue // Try next search term
         }
       }
       
-      if (wikiResults.length === 0) {
-        console.log('📚 No wiki results found for any search strategy')
-      }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error retrieving wiki knowledge:', error)
     }
 
@@ -298,18 +289,9 @@ Be conversational, helpful, and guide them through the project creation process 
     
     const openai = getOpenAIClient()
     if (!openai) {
-      console.log('OpenAI API key not set, using mock response')
       aiResponse = getMockResponse(session, userMessage, conversationHistory.length)
     } else {
       try {
-        console.log('🤖 Sending to OpenAI:')
-        console.log('🔑 OpenAI API Key exists:', !!process.env.OPENAI_API_KEY)
-        console.log('🔑 API Key length:', process.env.OPENAI_API_KEY?.length || 0)
-        console.log('📝 System prompt length:', systemPrompt.length)
-        console.log('📝 Wiki results count:', wikiResults.length)
-        console.log('📝 System prompt preview:', systemPrompt.substring(0, 500) + '...')
-        console.log('💬 Conversation history length:', conversationHistory.length)
-        
         // Create timeout promise for OpenAI call - increased to 30 seconds
         const openaiTimeout = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('OpenAI API timeout')), 30000)
@@ -354,8 +336,7 @@ Be conversational, helpful, and guide them through the project creation process 
       ]) as any
 
         aiResponse = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process your request."
-        console.log('✅ AI response received, length:', aiResponse.length)
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('❌ OpenAI API error:', error.message || error)
         console.error('❌ Error details:', error.response?.data || error)
         
@@ -365,7 +346,6 @@ Be conversational, helpful, and guide them through the project creation process 
         } else if (error.message?.includes('rate limit')) {
           aiResponse = "I'm currently experiencing high demand. Please wait a moment and try again, or feel free to ask a simpler question in the meantime."
         } else {
-          console.log('⚠️ Falling back to mock response due to API error')
           aiResponse = getMockResponse(session, message, conversationHistory.length)
         }
       }
@@ -428,7 +408,6 @@ Be conversational, helpful, and guide them through the project creation process 
 
     // Update session phase if changed
     if (nextPhase !== session.phase) {
-      console.log(`Phase transition: ${session.phase} -> ${nextPhase}`)
       await prisma.chatSession.update({
         where: { id: sessionId },
         data: { phase: nextPhase }
@@ -443,7 +422,7 @@ Be conversational, helpful, and guide them through the project creation process 
       shouldAutoCreateProject: shouldAutoCreateProject
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

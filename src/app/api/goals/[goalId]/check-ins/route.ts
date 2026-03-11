@@ -60,7 +60,7 @@ export async function GET(
     })
 
     return NextResponse.json(checkIns)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -185,7 +185,7 @@ export async function POST(
     })
 
     return NextResponse.json(checkIn, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

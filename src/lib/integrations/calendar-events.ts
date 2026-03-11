@@ -98,7 +98,7 @@ export async function createCalendarEvent(
       eventId: created.id ?? undefined,
       htmlLink: created.htmlLink ?? undefined,
     }
-  } catch (err) {
+  } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     const isScopeError =
       message.includes('insufficient') ||

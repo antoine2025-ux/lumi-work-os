@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
       })
       
       if (!user) {
-        console.log('[check-workspace-by-email] No user found for email:', checkEmail)
         return NextResponse.json({ workspaceId: null, hasWorkspace: false })
       }
       
@@ -52,15 +51,14 @@ export async function GET(request: NextRequest) {
       }
       
       return NextResponse.json({ workspaceId: null, hasWorkspace: false, userId: user.id })
-    } catch (dbError: any) {
-      console.error('[check-workspace-by-email] Database error:', dbError.message)
-      console.error('[check-workspace-by-email] Error stack:', dbError.stack)
-      return NextResponse.json({ 
+    } catch (dbError: unknown) {
+      const message = dbError instanceof Error ? dbError.message : 'Unknown error'
+      return NextResponse.json({
         error: 'Database query failed',
-        details: dbError.message 
+        details: message 
       }, { status: 500 })
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[check-workspace-by-email] Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

@@ -40,7 +40,7 @@ export function OrgIssueResolutionActions({
       await onResolve(pendingAction, note || undefined);
       setPendingAction(null);
       setNote("");
-    } catch (e) {
+    } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to update resolution");
     } finally {
       setIsSubmitting(false);

@@ -5,16 +5,13 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { SliteAdapter } from '@/lib/migrations/adapters/slite-adapter'
 import { ClickUpAdapter } from '@/lib/migrations/adapters/clickup-adapter'
 import { StartMigrationSchema } from '@/lib/validations/workspace'
+import { IntegrationType } from '@prisma/client'
 
 // POST /api/migrations - Start a new migration
 export async function POST(request: NextRequest) {
   try {
-    console.log('=== MIGRATION API CALLED ===')
-    
     // Get authenticated user with development fallback
     const auth = await getUnifiedAuth(request)
-    console.log('🔐 Authenticated user:', auth.user.email, auth.isDevelopment ? '(dev mode)' : '(production)')
-    
     const body = StartMigrationSchema.parse(await request.json())
     const { platform, apiKey, workspaceId, additionalConfig } = body
 
@@ -26,12 +23,9 @@ export async function POST(request: NextRequest) {
     
     switch (platform.toLowerCase()) {
       case 'slite':
-        console.log('Starting Slite migration with API key:', apiKey.substring(0, 10) + '...')
         const sliteAdapter = new SliteAdapter(apiKey)
         const sliteDocs = await sliteAdapter.fetchAllDocuments()
-        console.log('Fetched Slite documents:', sliteDocs.length)
         migrationItems = await sliteAdapter.convertToMigrationItems(sliteDocs)
-        console.log('Converted migration items:', migrationItems.length)
         break
         
       case 'clickup':
@@ -69,7 +63,7 @@ export async function POST(request: NextRequest) {
     const migrationSession = await prisma.integration.create({
       data: {
         workspaceId: workspace.id,
-        type: platform.toUpperCase() as any,
+        type: platform.toUpperCase() as IntegrationType,
         name: `${platform} Migration Session`,
         config: {
           status: 'preview',

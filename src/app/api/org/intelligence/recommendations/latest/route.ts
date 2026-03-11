@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import type { Prisma } from '@prisma/client'
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { buildRecommendations } from "@/server/org/intelligence/recommendations/build";
@@ -57,9 +58,10 @@ export async function GET(request: NextRequest) {
 
     // Step 5: Build recommendations from findings
     const findings = Array.isArray(latest.findingsJson)
-      ? (latest.findingsJson as any[])
+      ? latest.findingsJson
       : [];
-    const recommendations = buildRecommendations(findings as any);
+    // @ts-expect-error — buildRecommendations expects OrgIntelligenceFinding[] but we have JsonArray from DB
+    const recommendations = buildRecommendations(findings);
 
     return NextResponse.json(
       {
@@ -68,16 +70,17 @@ export async function GET(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Recommendations are currently unavailable.";
+    const stack = error instanceof Error ? error.stack : undefined;
     console.error("[GET /api/org/intelligence/recommendations/latest] Error:", error);
-    console.error("[GET /api/org/intelligence/recommendations/latest] Error stack:", error?.stack);
+    console.error("[GET /api/org/intelligence/recommendations/latest] Error stack:", stack);
 
-    // Always return empty state for optional endpoint - never 500
     return NextResponse.json(
       {
         snapshot: null,
         recommendations: [],
-        hint: error?.message || "Recommendations are currently unavailable.",
+        hint: message,
       },
       { status: 200 }
     );

@@ -55,7 +55,7 @@ export function useOrgOverviewStats(): UseOrgOverviewStatsResult {
           openInvitesCount: 0, // Not available in new endpoint
         });
         setIsLoading(false);
-      } catch (err) {
+      } catch (err: unknown) {
         if (cancelled) return;
         console.error("[useOrgOverviewStats]", err);
         setError("Failed to load org overview stats.");

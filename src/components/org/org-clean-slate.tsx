@@ -119,7 +119,7 @@ export function OrgCleanSlate({ workspaceId, onStructureCreated, colors }: OrgCl
           ))
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading departments:', error)
     }
   }
@@ -138,7 +138,7 @@ export function OrgCleanSlate({ workspaceId, onStructureCreated, colors }: OrgCl
           ))
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading teams:', error)
     }
   }
@@ -157,7 +157,7 @@ export function OrgCleanSlate({ workspaceId, onStructureCreated, colors }: OrgCl
           ))
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading positions:', error)
     }
   }

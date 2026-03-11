@@ -51,7 +51,7 @@ export function LoadingInitializer() {
     try {
       await Promise.allSettled(promises)
       console.log('[LoadingInitializer] All dashboard data prefetching complete')
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[LoadingInitializer] Some prefetch requests failed:', error)
     }
   }, [])

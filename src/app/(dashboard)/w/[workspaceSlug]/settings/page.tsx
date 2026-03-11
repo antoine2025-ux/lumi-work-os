@@ -155,7 +155,7 @@ export default function SettingsPage() {
           description: workspace.description || "",
           slug: workspace.slug
         })
-      } catch (err) {
+      } catch (err: unknown) {
         // Only log real errors (network issues, etc.), not permission errors
         if (err instanceof Error && !err.message.includes('permission')) {
           // Silent handling for permission errors
@@ -453,7 +453,7 @@ export default function SettingsPage() {
       setWorkspaceData(updatedWorkspace)
       setEditMode(false)
       
-    } catch (err) {
+    } catch (err: unknown) {
       // Handle 403/401 gracefully
       if (err instanceof Error && err.message.includes('permission')) {
         setError('You don\'t have permission to update workspace settings')
@@ -518,7 +518,7 @@ export default function SettingsPage() {
       // and hard-redirects to /login.
       await teardownWorkspaceSession(queryClient)
       
-    } catch (err) {
+    } catch (err: unknown) {
       // Handle 403/401 gracefully
       if (err instanceof Error && err.message.includes('permission')) {
         setError('You don\'t have permission to delete this workspace')

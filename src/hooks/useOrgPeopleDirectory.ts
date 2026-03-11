@@ -65,7 +65,7 @@ export function useOrgPeopleDirectory(
         // Support both { data: { people } } (current) and { people } (future) shapes
         setPeople(json.data?.people ?? json.people ?? []);
         setIsLoading(false);
-      } catch (err) {
+      } catch (err: unknown) {
         if (cancelled) return;
         console.error("[useOrgPeopleDirectory]", err);
         setError("Failed to load people directory.");

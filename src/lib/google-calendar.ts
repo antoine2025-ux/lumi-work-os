@@ -59,11 +59,7 @@ export async function getGoogleCalendarClient(): Promise<CalendarClientResult> {
 
   // Handle token refresh — persist new tokens to DB so they survive the session
   oauth2Client.on('tokens', (tokens) => {
-    if (tokens.refresh_token) {
-      console.log('[Calendar] Token refreshed, new refresh_token provided')
-    }
     if (tokens.access_token) {
-      console.log('[Calendar] Token refreshed, new access_token provided')
       prismaUnscoped.account.updateMany({
         where: { user: { email: userEmail }, provider: 'google' },
         data: {

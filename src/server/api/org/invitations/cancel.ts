@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ invitation: updated }, { status: 200 });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("[ORG_INVITATION_CANCEL_ERROR]", err);
     return NextResponse.json(
       { error: "Something went wrong while cancelling the invitation." },

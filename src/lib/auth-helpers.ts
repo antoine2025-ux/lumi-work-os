@@ -23,7 +23,7 @@ export async function getAuthenticatedUser(_request: NextRequest) {
     })
 
     return user
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error getting authenticated user:', error)
     return null
   }

@@ -67,7 +67,7 @@ export async function GET(
     })
 
     return NextResponse.json({ members })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -169,7 +169,7 @@ export async function POST(
     })
 
     return NextResponse.json({ member }, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

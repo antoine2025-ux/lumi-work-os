@@ -62,7 +62,7 @@ export async function loopbrainSendSlackMessage(
       success: true,
       ts: result.ts
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Loopbrain Slack message error', {
       workspaceId: params.workspaceId,
       error: error instanceof Error ? error.message : String(error)
@@ -118,7 +118,7 @@ export async function loopbrainReadSlackChannel(
       success: true,
       messages
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Loopbrain Slack read error', {
       workspaceId: params.workspaceId,
       error: error instanceof Error ? error.message : String(error)
@@ -137,7 +137,7 @@ export async function isSlackAvailable(workspaceId: string): Promise<boolean> {
   try {
     const integration = await getSlackIntegration(workspaceId)
     return integration !== null
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error checking Slack availability', {
       workspaceId,
       error: error instanceof Error ? error.message : String(error)

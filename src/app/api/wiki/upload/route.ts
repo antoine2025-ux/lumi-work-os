@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       mimeType,
       attachmentId: attachment.id,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Wiki upload error:', error)
     return handleApiError(error, request)
   }

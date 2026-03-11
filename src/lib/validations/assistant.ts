@@ -32,6 +32,7 @@ export const ChatStreamSchema = z.object({
     role: z.enum(['user', 'assistant', 'system']),
     content: z.string(),
   })).optional(),
+  model: z.enum(['gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo']).optional(),
 })
 
 // ============================================================================
@@ -47,6 +48,7 @@ export const AssistantCreateSessionSchema = z.object({
 export const AssistantMessageSchema = z.object({
   message: nonEmptyString.max(10000),
   sessionId: nonEmptyString,
+  phase: z.string().optional(),
 })
 
 /** POST /api/assistant/stream */
@@ -58,6 +60,7 @@ export const AssistantStreamSchema = z.object({
 /** POST /api/assistant/create-project */
 export const AssistantCreateProjectSchema = z.object({
   sessionId: nonEmptyString,
+  templateId: z.string().uuid().optional(),
   projectData: z.object({
     name: nonEmptyString.max(255),
     description: z.string().optional(),
@@ -80,6 +83,7 @@ export const AssistantGenerateDraftSchema = z.object({
 export const AssistantSessionsCreateSchema = z.object({
   title: z.string().max(255).optional(),
   intent: z.enum(['doc_gen', 'project_creation', 'assist']).optional(),
+  target: z.string().optional(),
 })
 
 // ============================================================================
@@ -106,6 +110,8 @@ export const AssistantSessionUpdateByIdSchema = z.object({
   draftTitle: z.string().max(500).optional(),
   draftBody: z.string().optional(),
   phase: z.string().optional(),
+  requirementNotes: z.string().optional(),
+  draftFormat: z.string().optional(),
 })
 
 // ============================================================================

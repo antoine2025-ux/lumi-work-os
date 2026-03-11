@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true, invite: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

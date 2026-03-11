@@ -57,7 +57,7 @@ export async function buildContextObjectForProject(
       ...contextObject,
       workspaceId,
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Log but don't throw - indexing failures shouldn't block
     console.error('Failed to build project context object', {
       workspaceId,

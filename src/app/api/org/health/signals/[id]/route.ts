@@ -44,7 +44,7 @@ export async function PATCH(
     })
 
     return NextResponse.json({ ok: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

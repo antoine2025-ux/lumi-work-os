@@ -101,7 +101,7 @@ export function CreateEventDialog({
 
       resetForm()
       onOpenChange(false)
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof CalendarScopeError) {
         onNeedsReAuth?.()
         return

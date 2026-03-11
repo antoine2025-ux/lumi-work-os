@@ -297,7 +297,7 @@ const createProjectTool: LoopbrainTool = {
         data: { id: project.id, name: project.name },
         humanReadable: `Created project "${project.name}" (${project.id})`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('createProject tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to create project' }
     }
@@ -333,7 +333,7 @@ const createTaskTool: LoopbrainTool = {
         data: { id: task.id, title: task.title, projectId: task.projectId },
         humanReadable: `Created task "${task.title}" (${task.id})`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('createTask tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to create task' }
     }
@@ -364,7 +364,7 @@ const createEpicTool: LoopbrainTool = {
         data: { id: epic.id, title: epic.title, projectId: epic.projectId },
         humanReadable: `Created epic "${epic.title}" (${epic.id})`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('createEpic tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to create epic' }
     }
@@ -393,7 +393,7 @@ const assignTaskTool: LoopbrainTool = {
         data: { taskId: task.id, assigneeId: p.assigneeId },
         humanReadable: `Assigned task "${task.title}" to ${name}`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('assignTask tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to assign task' }
     }
@@ -427,7 +427,7 @@ const createTodoTool: LoopbrainTool = {
         data: { id: todo.id, title: todo.title },
         humanReadable: `Created to-do "${todo.title}"`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('createTodo tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to create to-do' }
     }
@@ -514,7 +514,7 @@ const readWikiPageTool: LoopbrainTool = {
         },
         humanReadable: `Read wiki page "${page.title}" (${page.slug})${truncated ? ' — content truncated at 5000 chars' : ''}`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('readWikiPage tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to read wiki page' }
     }
@@ -547,7 +547,7 @@ const createWikiPageTool: LoopbrainTool = {
         data: { id: page.id, slug: page.slug, title: page.title },
         humanReadable: `Created wiki page "${page.title}" (/wiki/${page.slug})`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('createWikiPage tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to create wiki page' }
     }
@@ -620,7 +620,7 @@ const draftWikiPageTool: LoopbrainTool = {
         },
         humanReadable: `Created wiki page "${page.title}" — AI is now drafting content about: ${p.topic}`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('draftWikiPage tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to create draft wiki page' }
     }
@@ -659,7 +659,7 @@ const createGoalTool: LoopbrainTool = {
         data: { id: goal.id, title: goal.title },
         humanReadable: `Created goal "${goal.title}" (${goal.id})`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('createGoal tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to create goal' }
     }
@@ -694,7 +694,7 @@ const addPersonToProjectTool: LoopbrainTool = {
         data: { projectId: p.projectId, userId: p.userId, membershipId: member.id },
         humanReadable: `Added ${user?.name ?? p.userId} to project as ${p.role}`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('addPersonToProject tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to add person to project' }
     }
@@ -724,7 +724,7 @@ const updateTaskStatusTool: LoopbrainTool = {
         data: { taskId: task.id, status: task.status },
         humanReadable: `Updated task "${task.title}" status to ${p.status}`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('updateTaskStatus tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to update task status' }
     }
@@ -756,7 +756,7 @@ const updateProjectTool: LoopbrainTool = {
         data: { id: project.id, name: project.name },
         humanReadable: `Updated project "${project.name}" (${project.id})`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('updateProject tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to update project' }
     }
@@ -791,7 +791,7 @@ const linkProjectToGoalTool: LoopbrainTool = {
         data: { id: link.id, projectId: p.projectId, goalId: p.goalId },
         humanReadable: `Linked project "${link.project.name}" to goal "${link.goal.title}"`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('linkProjectToGoal tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to link project to goal' }
     }
@@ -822,7 +822,7 @@ const addSubtaskTool: LoopbrainTool = {
         data: { id: subtask.id, title: subtask.title, taskId: subtask.taskId },
         humanReadable: `Created subtask "${subtask.title}" (${subtask.id})`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('addSubtask tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to create subtask' }
     }
@@ -1021,7 +1021,7 @@ const listProjectsTool: LoopbrainTool = {
         data: { projects: projects as unknown as Record<string, unknown>[] },
         humanReadable: `Found ${projects.length} project(s)`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('listProjects tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to list projects' }
     }
@@ -1071,7 +1071,7 @@ const listPeopleTool: LoopbrainTool = {
         data: { people: people as unknown as Record<string, unknown>[] },
         humanReadable: `Found ${people.length} workspace member(s)`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('listPeople tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to list people' }
     }
@@ -1120,7 +1120,7 @@ const listTasksByAssigneeTool: LoopbrainTool = {
         data: { tasks: mapped as unknown as Record<string, unknown>[], count: mapped.length },
         humanReadable: `Found ${mapped.length} task(s) assigned to person ${p.personId}${p.projectId ? ` in project` : ''}`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('listTasksByAssignee tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to list tasks by assignee' }
     }
@@ -1176,7 +1176,7 @@ const bulkReassignTasksTool: LoopbrainTool = {
         data: { reassignedCount: result.count, assigneeId: p.newAssigneeId, assigneeName: assignee.user?.name ?? 'Unknown' },
         humanReadable: `Reassigned ${result.count} task(s) to ${assignee.user?.name ?? p.newAssigneeId}`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('bulkReassignTasks tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to reassign tasks' }
     }
@@ -1230,7 +1230,7 @@ const removeProjectMemberTool: LoopbrainTool = {
       }
 
       return { success: false, error: 'Person is not a member of this project', humanReadable: `This person is not a member of "${project.name}".` }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('removeProjectMember tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to remove project member' }
     }

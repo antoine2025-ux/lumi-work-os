@@ -72,7 +72,7 @@ export function AuditTrail({ workspaceId, entityType, entityId, userId }: AuditT
       const data = await response.json()
       setLogs(data.logs)
       setError(null)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load audit logs')
     } finally {
       setLoading(false)

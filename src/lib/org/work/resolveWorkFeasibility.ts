@@ -130,7 +130,7 @@ export async function resolveWorkFeasibility(
       hasBlockedImpacts: hasBlockedImpacts ?? false,
       requiresEscalation: false, // Will be set by P5 if needed
     };
-  } catch (err) {
+  } catch (err: unknown) {
     // Non-blocking: log error but continue without impact context
     console.warn("[resolveWorkFeasibility] Failed to resolve impact:", err);
   }
@@ -380,7 +380,7 @@ export async function resolveWorkFeasibility(
       workTags: workTagsResult.tags,
       workTagsSource: workTagsResult.source,
     };
-  } catch (err) {
+  } catch (err: unknown) {
     // Non-blocking: log error but continue with null alignmentSummary
     console.warn("[resolveWorkFeasibility] Failed to compute alignment summary:", err);
   }

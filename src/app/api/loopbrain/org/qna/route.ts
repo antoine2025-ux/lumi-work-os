@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         source: "org-qna-llm",
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

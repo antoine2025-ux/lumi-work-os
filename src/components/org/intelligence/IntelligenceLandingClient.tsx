@@ -85,7 +85,7 @@ export function IntelligenceLandingClient({ isAdmin }: Props) {
       }
 
       setData(result);
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load intelligence data");
     } finally {
       setLoading(false);

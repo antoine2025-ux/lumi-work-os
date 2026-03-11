@@ -83,7 +83,7 @@ export function PendingActionsSection({ requests, workspaceSlug }: PendingAction
       setExpandedRequest(null);
       setDenialReason("");
       router.refresh();
-    } catch (error) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
         description:

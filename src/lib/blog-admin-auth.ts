@@ -10,7 +10,7 @@ export async function isBlogAdmin(): Promise<boolean> {
     const cookieStore = await cookies()
     const adminCookie = cookieStore.get("loopwell_blog_admin")
     return adminCookie?.value === "authenticated"
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error reading cookies in blog admin auth:", error)
     return false
   }
@@ -38,7 +38,7 @@ export async function requireBlogAdmin(): Promise<void> {
 export async function checkBlogAdmin(): Promise<boolean> {
   try {
     return await isBlogAdmin()
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error checking blog admin auth:", error)
     return false
   }

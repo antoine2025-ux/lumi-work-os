@@ -124,7 +124,7 @@ export function useUserStatus(): UseUserStatusReturn {
       
       const data = await fetchUserStatus()
       setUserStatus(data)
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch user status'
       setError(errorMessage)
       console.error('Error fetching user status:', err)
@@ -148,7 +148,7 @@ export function useUserStatus(): UseUserStatusReturn {
         
         const data = await fetchUserStatus()
         setUserStatus(data)
-      } catch (err) {
+      } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch user status'
         setError(errorMessage)
         console.error('Error fetching user status:', err)

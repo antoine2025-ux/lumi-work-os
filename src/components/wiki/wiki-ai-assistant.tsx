@@ -273,7 +273,7 @@ export function WikiAIAssistant({
                 ))
                 return
               }
-            } catch (e) {
+            } catch (e: unknown) {
               if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
                 console.error('Error parsing stream data:', e)
               }
@@ -281,7 +281,7 @@ export function WikiAIAssistant({
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error streaming page content:', error)
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -326,7 +326,7 @@ export function WikiAIAssistant({
             const data = await response.json()
             setSessionId(data.sessionId)
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Failed to create chat session:', error)
         }
       }
@@ -745,7 +745,7 @@ export function WikiAIAssistant({
                 }))
               }
             }
-          } catch (error) {
+          } catch (error: unknown) {
             console.error('Error fetching workspaces:', error)
           }
         }
@@ -900,7 +900,7 @@ export function WikiAIAssistant({
               throw apiError
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('❌ Error creating page:', error)
           const errorMessage: Message = {
             id: (Date.now() + 1).toString(),
@@ -916,7 +916,7 @@ export function WikiAIAssistant({
           setPendingPageLocation(null)
           setIsLoading(false)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error in location parsing flow:', error)
         const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
@@ -1050,7 +1050,7 @@ export function WikiAIAssistant({
         timestamp: new Date()
       }
       setMessages(prev => [...prev, assistantMessage])
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error calling Loopbrain:', error)
       // Extract user-friendly error message
       const errorMessage: Message = {
@@ -1100,7 +1100,7 @@ export function WikiAIAssistant({
         timestamp: new Date()
       }
       setMessages(prev => [...prev, assistantMessage])
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -1803,7 +1803,7 @@ export function WikiAIAssistant({
             
             // Close dialog - page will handle streaming
             setShowWorkspaceSelectDialog(false)
-          } catch (error) {
+          } catch (error: unknown) {
             throw error
           } finally {
             setIsCreatingPage(false)

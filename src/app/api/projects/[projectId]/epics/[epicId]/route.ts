@@ -68,7 +68,7 @@ export async function GET(
     }
 
     return NextResponse.json(epic)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -148,14 +148,12 @@ export async function PATCH(
       }
     )
 
-    // Asynchronously upsert epic context for Loopbrain
-    // Log errors but don't block the main response
-    console.log('[LB-EPIC] upsertEpicContext called after update:', epicId)
+    // Asynchronously upsert epic context for Loopbrain (non-blocking)
     upsertEpicContext(epicId)
       .catch((error) => logger.error('Failed to upsert epic context after update', { epicId, error }))
 
     return NextResponse.json(epic)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -220,7 +218,7 @@ export async function DELETE(
     )
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

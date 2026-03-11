@@ -112,7 +112,7 @@ export function QuickCreatePageDialog({
       onOpenChange(false)
       setPageTitle('')
       router.push(`/wiki/${page.slug}?edit=true`)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create page')
     } finally {
       setSubmitting(false)

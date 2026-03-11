@@ -25,7 +25,7 @@ import { syncOrgContextBundleToStoreForWorkspace } from "@/lib/org/org-context-s
 async function rebuildOrgContext(workspaceId: string): Promise<void> {
   try {
     await syncOrgContextBundleToStoreForWorkspace(workspaceId);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(
       `Failed to rebuild org context for workspace ${workspaceId}:`,
       error

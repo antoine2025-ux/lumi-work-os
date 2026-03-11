@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const snapshot = await buildOrgSnapshotV1(workspaceId)
     return NextResponse.json({ ok: true, snapshot })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

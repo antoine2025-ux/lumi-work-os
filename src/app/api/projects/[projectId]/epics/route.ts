@@ -170,9 +170,7 @@ export async function POST(
       }
     )
 
-    // Asynchronously upsert epic context for Loopbrain
-    // Log errors but don't block the main response
-    console.log('[LB-EPIC] upsertEpicContext called after create:', epic.id)
+    // Asynchronously upsert epic context for Loopbrain (non-blocking)
     upsertEpicContext(epic.id)
       .catch((error) => logger.error('Failed to upsert epic context after creation', { epicId: epic.id, error }))
 

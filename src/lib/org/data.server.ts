@@ -217,7 +217,7 @@ const _getOrgPeople = async (
         
         searchUserIds = matchingUsers.map(u => u.id);
         searchTitle = searchTerm;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[getOrgPeople] Search query failed:", error);
         searchTitle = searchTerm;
       }
@@ -1034,7 +1034,7 @@ export const getOrgAdminActivity = cache(async (
             }
           : null,
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[getOrgAdminActivity] Failed to load admin activity:", error);
       // Return empty array instead of throwing
       return [];

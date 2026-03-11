@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Loopbrain] Failed to get org context", { error });
     return NextResponse.json(
       { ok: false, error: "Internal server error" },

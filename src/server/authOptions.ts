@@ -51,25 +51,14 @@ const getBaseUrl = () => {
 };
 
 const baseUrl = getBaseUrl();
-console.log('🔐 [NextAuth] Base URL for callbacks:', baseUrl);
-console.log('🔐 [NextAuth] Expected callback URL:', `${baseUrl}/api/auth/callback/google`);
 
 export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === "development",
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async signIn({ user, account, profile }) {
-      console.log('🔐 [NextAuth] signIn callback triggered', {
-        provider: account?.provider,
-        hasEmail: !!user.email,
-        email: user.email,
-        hasAccount: !!account,
-        hasProfile: !!profile
-      });
-
+    async signIn({ user, account, profile: _profile }) {
       // For credentials provider (E2E tests), user is already set up in authorize()
       if (account?.provider === 'e2e-credentials') {
-        console.log('🔐 [NextAuth] E2E credentials sign-in, user already set up');
         return true;
       }
       
@@ -80,14 +69,10 @@ export const authOptions: NextAuthOptions = {
           await prisma.$connect();
 
           if (!user.email) {
-            console.error('❌ [NextAuth] No email provided in user object');
-            console.error('❌ [NextAuth] User object:', JSON.stringify(user, null, 2));
+            logger.error('[NextAuth] No email provided in user object during signIn')
             return false;
           }
-          
-          console.log('🔐 [NextAuth] Creating/updating user:', user.email);
-          console.log('🔐 [NextAuth] User data:', { email: user.email, name: user.name, image: user.image });
-          
+
           // Use prismaUnscoped to avoid workspace scoping issues during sign-in
           // During authentication, we don't have a workspace context yet
           const dbUser = await prismaUnscoped.user.upsert({
@@ -104,27 +89,17 @@ export const authOptions: NextAuthOptions = {
               emailVerified: new Date(),
             }
           });
-          console.log('✅ [NextAuth] User created/updated successfully:', dbUser.id);
           // Attach database user ID to user object for JWT callback
           user.id = dbUser.id;
           return true;
         } catch (error: unknown) {
-          console.error('❌ [NextAuth] Error creating/updating user:', error);
-          const err = error as { message?: string; code?: string; stack?: string; name?: string };
-          console.error('❌ Error message:', err?.message);
-          console.error('❌ Error code:', err?.code);
-          console.error('❌ Error stack:', err?.stack);
-          console.error('❌ [NextAuth] User data:', { email: user.email, name: user.name });
-          console.error('❌ [NextAuth] Error details:', error instanceof Error ? {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-          } : error);
-
-          // If it's a database connection error, log it but don't fail auth
-          if (err?.code === 'P1001' || err?.message?.includes('connect') || err?.message?.includes('timeout')) {
-            console.error('⚠️ Database connection issue - allowing auth to proceed');
-          }
+          const err = error as { message?: string; code?: string; name?: string };
+          logger.error('[NextAuth] Error creating/updating user', {
+            email: user.email,
+            errorMessage: err?.message,
+            errorCode: err?.code,
+            errorName: err?.name,
+          });
 
           // Don't fail authentication for database errors - let user in
           // The user can still authenticate, we'll handle DB issues later
@@ -149,7 +124,6 @@ export const authOptions: NextAuthOptions = {
             });
             if (dbUser) {
               session.user.id = dbUser.id;
-              console.log('✅ Session: Set user ID from database lookup:', dbUser.id);
             }
           } catch (prismaError: unknown) {
             const sessionErr = prismaError instanceof Error ? prismaError : new Error(String(prismaError));
@@ -187,9 +161,6 @@ export const authOptions: NextAuthOptions = {
             if (dbUser) {
               token.id = dbUser.id;
               token.sub = dbUser.id; // Set sub for session callback
-              console.log('✅ JWT: Set user ID from database:', dbUser.id);
-            } else {
-              console.warn('⚠️ JWT: User not found in database:', user.email);
             }
           } catch (prismaError: unknown) {
             const jwtErr = prismaError instanceof Error ? prismaError : new Error(String(prismaError));
@@ -222,7 +193,7 @@ export const authOptions: NextAuthOptions = {
               token.isFirstTime = true;
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('[NextAuth] Error fetching workspace membership:', error);
           // Don't fail auth - workspace will be fetched via API fallback
         }
@@ -238,9 +209,8 @@ export const authOptions: NextAuthOptions = {
           if (dbUser) {
             token.id = dbUser.id;
             token.sub = dbUser.id;
-            console.log('✅ JWT: Set user ID from token email:', dbUser.id);
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('❌ Error looking up user by token email:', error);
         }
       }
@@ -266,13 +236,11 @@ export const authOptions: NextAuthOptions = {
               token.role = membership.role;
               token.isFirstTime = false;
               token.onboardingComplete = membership.workspace.onboardingCompletedAt !== null;
-              console.log('✅ JWT: Set workspaceId from DB fallback:', membership.workspaceId);
             } else {
               token.isFirstTime = true;
-              console.log('✅ JWT: User has no workspace (isFirstTime=true)');
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('[NextAuth] Error fetching workspace in jwt callback fallback:', error);
           // Don't fail auth - workspace will be fetched via API fallback
         }
@@ -310,7 +278,7 @@ export const authOptions: NextAuthOptions = {
                 token.onboardingComplete = membership.workspace.onboardingCompletedAt !== null;
               }
             }
-          } catch (error) {
+          } catch (error: unknown) {
             console.error('[NextAuth] Error updating workspace in token:', error);
           }
         }
@@ -324,10 +292,8 @@ export const authOptions: NextAuthOptions = {
         // On subsequent sign-ins, it sends access_token but NOT refresh_token
         if (account.refresh_token) {
           token.refreshToken = account.refresh_token;
-          console.log('[NextAuth] Stored refresh_token in JWT');
-        } else {
-          console.log('[NextAuth] No refresh_token from provider, preserving existing token');
         }
+        // else: Keep existing token.refreshToken (don't overwrite with null)
         // else: Keep existing token.refreshToken (don't overwrite with null)
         
         token.expiresAt = account.expires_at;
@@ -340,7 +306,6 @@ export const authOptions: NextAuthOptions = {
         // Extract the path from the ngrok URL and redirect to localhost
         const urlObj = new URL(url);
         const localhostUrl = `http://localhost:3000${urlObj.pathname}${urlObj.search}`;
-        console.log('🔄 Redirecting from ngrok to localhost:', localhostUrl);
         return localhostUrl;
       }
       
@@ -435,22 +400,16 @@ export const authOptions: NextAuthOptions = {
           password: { label: 'Test Password', type: 'password' }
         },
         async authorize(credentials) {
-          console.log('[E2E Auth] authorize called with credentials:', JSON.stringify(credentials, null, 2));
-          
           // Validate test password
           const testPassword = process.env.E2E_TEST_PASSWORD;
-          console.log('[E2E Auth] E2E_TEST_PASSWORD set:', !!testPassword);
-          
+
           if (!testPassword) {
-            console.error('[E2E Auth] E2E_TEST_PASSWORD not set');
             return null;
           }
-          
+
           const providedPassword = credentials?.password;
-          console.log('[E2E Auth] Provided password matches:', providedPassword === testPassword);
-          
+
           if (providedPassword !== testPassword) {
-            console.error('[E2E Auth] Invalid test password. Expected:', testPassword?.substring(0, 3) + '..., got:', providedPassword?.substring(0, 3) + '...');
             return null;
           }
           
@@ -510,15 +469,12 @@ export const authOptions: NextAuthOptions = {
               });
             }
             
-            console.log('[E2E Auth] Test user authenticated:', user.id);
-            
             return {
               id: user.id,
               email: user.email,
               name: user.name,
             };
-          } catch (error) {
-            console.error('[E2E Auth] Error creating test user:', error);
+          } catch (_error: unknown) {
             return null;
           }
         }

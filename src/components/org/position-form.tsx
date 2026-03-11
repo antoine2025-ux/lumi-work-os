@@ -103,7 +103,7 @@ export function PositionForm({
         const userData = await response.json()
         setUsers(userData)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading users:', error)
     }
   }
@@ -122,7 +122,7 @@ export function PositionForm({
       
       await onSave(cleanedData)
       onClose()
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving position:', error)
     } finally {
       setLoading(false)

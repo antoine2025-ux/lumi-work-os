@@ -6,6 +6,7 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import { UndoDuplicateMergeSchema } from '@/lib/validations/org';
+import type { Prisma } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,8 +23,8 @@ export async function POST(req: NextRequest) {
     if (!log || log.workspaceId !== workspaceId) return NextResponse.json({ ok: false }, { status: 404 });
     if (log.undoneAt) return NextResponse.json({ ok: false, error: "Already undone" }, { status: 400 });
 
-    const snapshot = log.snapshot as any;
-    const rewireSnapshot = (log.reportRewireSnapshot as any) || {};
+    const snapshot = log.snapshot as { title?: string; level?: number; parentId?: string | null; teamId?: string | null; isActive?: boolean } | null;
+    const rewireSnapshot = (log.reportRewireSnapshot as { rewiredReportIds?: string[] }) || {};
     const ids: string[] = Array.isArray(rewireSnapshot.rewiredReportIds) ? rewireSnapshot.rewiredReportIds : [];
 
     // Transaction: restore merged record, unarchive, set mergedIntoId null, and reverse report rewires
@@ -32,11 +33,11 @@ export async function POST(req: NextRequest) {
       await tx.orgPosition.update({
         where: { id: log.mergedId },
         data: {
-          title: snapshot.title || null,
-          level: snapshot.level || 1,
-          parentId: snapshot.parentId || null,
-          teamId: snapshot.teamId || null,
-          isActive: snapshot.isActive !== undefined ? snapshot.isActive : true,
+          title: snapshot?.title || null,
+          level: snapshot?.level || 1,
+          parentId: snapshot?.parentId || null,
+          teamId: snapshot?.teamId || null,
+          isActive: snapshot?.isActive !== undefined ? snapshot.isActive : true,
           archivedAt: null,
           archivedReason: null,
           mergedIntoId: null,
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

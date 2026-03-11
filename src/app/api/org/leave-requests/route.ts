@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
         leaveType: leaveRequest.leaveType,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

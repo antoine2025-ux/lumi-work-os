@@ -43,7 +43,7 @@ export default function BlogAdminPage() {
       }
       const data = await response.json()
       setPosts(data.posts)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load posts")
     } finally {
       setLoading(false)
@@ -66,7 +66,7 @@ export default function BlogAdminPage() {
 
       // Refresh list
       fetchPosts()
-    } catch (err) {
+    } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to delete post")
     }
   }

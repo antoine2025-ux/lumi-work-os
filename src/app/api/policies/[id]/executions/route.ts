@@ -75,7 +75,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

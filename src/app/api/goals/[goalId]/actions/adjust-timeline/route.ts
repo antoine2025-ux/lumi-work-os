@@ -108,7 +108,7 @@ export async function POST(
       },
       affectedEntities,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

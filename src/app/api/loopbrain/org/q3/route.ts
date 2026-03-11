@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       result,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

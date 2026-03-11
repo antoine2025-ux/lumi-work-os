@@ -48,7 +48,7 @@ function parseStructuredResponse(responseText: string): LoopwellAIResponse | nul
 
     // Fallback: return null if parsing fails
     return null
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error parsing structured response:', error)
     return null
   }
@@ -77,7 +77,7 @@ async function generateChatTitle(userMessage: string, aiResponse: LoopwellAIResp
 
     const words = userMessage.split(' ').slice(0, 4).join(' ')
     return `${intentLabels[aiResponse.intent] || 'Chat'}: ${words.substring(0, 30)}`
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error generating chat title:', error)
     const words = userMessage.split(' ').slice(0, 4)
     return words.join(' ').replace(/[^\w\s]/g, '') || 'New Chat'
@@ -87,8 +87,6 @@ async function generateChatTitle(userMessage: string, aiResponse: LoopwellAIResp
 // POST /api/ai/chat - Chat with LoopwellAI assistant
 export async function POST(request: NextRequest) {
   try {
-    console.log('📥 POST /api/ai/chat - Starting request processing')
-    
     // Authenticate user
     let auth
     try {
@@ -129,12 +127,6 @@ export async function POST(request: NextRequest) {
     if (!sessionId) {
       return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
     }
-
-    console.log('📨 Received chat request:')
-    console.log('  - Message:', message)
-    console.log('  - Session ID:', sessionId)
-    console.log('  - Model:', model)
-    console.log('  - Context:', context)
 
     // Get chat session
     const chatSession = await prisma.chatSession.findUnique({
@@ -604,12 +596,6 @@ SELF-CHECKLIST (run before replying)
 
 Remember to return your response as JSON in triple backticks with the exact structure specified in the system prompt.`
 
-    console.log('🤖 Generating LoopwellAI response...')
-    console.log('   Model:', model)
-    console.log('   Has API key:', !!process.env.OPENAI_API_KEY)
-    console.log('   Conversation history length:', conversationHistory.length)
-    console.log('   System prompt length:', systemPrompt.length)
-    
     let aiResponse
     try {
       aiResponse = await generateAIResponse(
@@ -622,16 +608,11 @@ Remember to return your response as JSON in triple backticks with the exact stru
           maxTokens: 3000 // Increased for structured JSON
         }
       )
-      console.log('✅ AI response received, length:', aiResponse.content?.length || 0)
     } catch (aiError) {
-      console.error('❌ Error generating AI response:', aiError)
-      console.error('   Error type:', aiError instanceof Error ? aiError.constructor.name : typeof aiError)
-      console.error('   Error message:', aiError instanceof Error ? aiError.message : String(aiError))
       throw new Error(`AI generation failed: ${aiError instanceof Error ? aiError.message : 'Unknown error'}`)
     }
 
     // Parse structured response
-    console.log('🔍 Parsing structured response...')
     let structuredResponse: LoopwellAIResponse | null = parseStructuredResponse(aiResponse.content)
 
     // Fallback if parsing fails - create a simple answer response
@@ -672,12 +653,7 @@ Remember to return your response as JSON in triple backticks with the exact stru
 
     structuredResponse.citations = matchedCitations
 
-    console.log('✅ LoopwellAI response generated:')
-    console.log('  - Intent:', structuredResponse.intent)
-    console.log('  - Confidence:', structuredResponse.confidence)
-    console.log('  - Citations:', structuredResponse.citations.length)
-        
-        // Save user message
+    // Save user message
         await prisma.chatMessage.create({
           data: {
             sessionId,
@@ -705,10 +681,7 @@ Remember to return your response as JSON in triple backticks with the exact stru
 
     // Update session timestamp and generate title if needed
         if (chatSession.title === 'New Chat') {
-          console.log('🎯 Generating smart title for new chat...')
       const smartTitle = await generateChatTitle(message, structuredResponse)
-          console.log('📝 Generated title:', smartTitle)
-          
           await prisma.chatSession.update({
             where: { id: sessionId },
             data: { 
@@ -730,7 +703,7 @@ Remember to return your response as JSON in triple backticks with the exact stru
       usage: aiResponse.usage
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

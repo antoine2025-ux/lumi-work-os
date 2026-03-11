@@ -209,7 +209,7 @@ export function WorkRequestDetailClient({ id }: { id: string }) {
         fetchFeasibility({ log: true });
         fetchImpact();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
@@ -229,7 +229,7 @@ export function WorkRequestDetailClient({ id }: { id: string }) {
       if (shouldLog) {
         hasLoggedRef.current = true;
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Feasibility fetch error:", err);
     } finally {
       setFeasibilityLoading(false);
@@ -244,7 +244,7 @@ export function WorkRequestDetailClient({ id }: { id: string }) {
       if (!response.ok) throw new Error("Failed to fetch impact");
       const data = await response.json();
       setImpactData(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Impact fetch error:", err);
     } finally {
       setImpactLoading(false);
@@ -261,7 +261,7 @@ export function WorkRequestDetailClient({ id }: { id: string }) {
       const data = await response.json();
       // Update with fresh resolution from response
       setImpactData(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Delete impact error:", err);
     }
   };
@@ -273,7 +273,7 @@ export function WorkRequestDetailClient({ id }: { id: string }) {
       });
       if (!response.ok) throw new Error("Failed to close request");
       fetchRequest();
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unknown error");
     }
   };

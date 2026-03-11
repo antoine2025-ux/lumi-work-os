@@ -329,7 +329,7 @@ export async function loadGmailThreads(
     });
 
     return threads;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warn("[GmailContext] Failed to load Gmail threads", {
       userId,
       workspaceId,
@@ -456,7 +456,7 @@ export async function syncGmailContext(
       synced: result.synced,
       skipped: result.skipped,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warn("[GmailSync] Sync failed", { userId, workspaceId, error });
   }
 
@@ -541,7 +541,7 @@ export async function loadGmailContextFromStore(
       hasAttachments: t.hasAttachments,
       attachmentNames: t.attachmentNames,
     }));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warn("[GmailContext] Failed to load from store", {
       userId,
       workspaceId,

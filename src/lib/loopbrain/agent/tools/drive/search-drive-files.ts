@@ -54,7 +54,7 @@ export const searchDriveFilesTool: LoopbrainTool = {
             ? `Found ${files.length} file(s) matching "${p.query}"`
             : `No files found matching "${p.query}"`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof DriveNotConnectedError) {
         return {
           success: false,

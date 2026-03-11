@@ -91,7 +91,7 @@ export function WorkspaceOnboardingModal({
           }))
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading templates:', error)
     } finally {
       setIsLoading(false)
@@ -136,7 +136,6 @@ export function WorkspaceOnboardingModal({
       const data = await response.json()
 
       if (data.success) {
-        console.log('Workspace created successfully:', data)
         // PHASE B2: Removed workspace creation flags - update session to refresh JWT
         // Update session to refresh JWT with new workspaceId
         await updateSession()
@@ -147,7 +146,7 @@ export function WorkspaceOnboardingModal({
         console.error('Error creating workspace:', data.error)
         alert(`Error creating workspace: ${data.error}`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating workspace:', error)
       alert('Failed to create workspace. Please try again.')
     } finally {

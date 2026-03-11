@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
           }
           
           controller.close()
-        } catch (error) {
+        } catch (error: unknown) {
           controller.error(error)
         }
       }
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         'Connection': 'keep-alive',
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Streaming error:', error)
     return NextResponse.json({ error: 'Streaming failed' }, { status: 500 })
   }

@@ -41,7 +41,7 @@ export function GoalDetail({ goal, currentUser, workspaceSlug }: Props) {
       if (response.ok) {
         router.push(`/w/${workspaceSlug}/goals`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to delete goal:', error)
     } finally {
       setIsDeleting(false)
@@ -65,7 +65,7 @@ export function GoalDetail({ goal, currentUser, workspaceSlug }: Props) {
         // Refresh the page to show updated progress
         window.location.reload()
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Sync] Failed:', error)
       alert('Sync failed. Please try again.')
     } finally {

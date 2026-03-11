@@ -155,7 +155,7 @@ export async function onOrgPositionChanged(params: {
         `[OrgLiveUpdate] Updated role ContextItem for position ${positionId}`
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Fail-safe: log but don't crash the mutation
     console.error(
       `[OrgLiveUpdate] Failed to update role ContextItem for position ${positionId}:`,
@@ -191,7 +191,7 @@ export async function onRoleCardChanged(params: {
         `[OrgLiveUpdate] Updated role ContextItem for roleCard ${roleCardId}`
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Fail-safe: log but don't crash the mutation
     console.error(
       `[OrgLiveUpdate] Failed to update role ContextItem for roleCard ${roleCardId}:`,
@@ -223,7 +223,7 @@ export async function onOrgPositionDeleted(params: {
         `[OrgLiveUpdate] Archived role ContextItem for position ${positionId}`
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Fail-safe: log but don't crash the mutation
     console.error(
       `[OrgLiveUpdate] Failed to archive role ContextItem for position ${positionId}:`,
@@ -255,7 +255,7 @@ export async function onRoleCardDeleted(params: {
         `[OrgLiveUpdate] Archived role ContextItem for roleCard ${roleCardId}`
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Fail-safe: log but don't crash the mutation
     console.error(
       `[OrgLiveUpdate] Failed to archive role ContextItem for roleCard ${roleCardId}:`,

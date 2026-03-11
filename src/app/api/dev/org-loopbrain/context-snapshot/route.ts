@@ -77,7 +77,7 @@ export async function GET() {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(
       "[dev/org-loopbrain/context-snapshot] Failed to compute Org context snapshot",
       error

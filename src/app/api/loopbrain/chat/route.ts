@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
             workspaceId,
           })
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to ensure org context synced', {
           ...baseContext,
           workspaceId,
@@ -137,8 +137,6 @@ export async function POST(request: NextRequest) {
 
     // Route: agent loop is the default. Set LOOPBRAIN_LEGACY=true to use the old orchestrator.
     if (process.env.LOOPBRAIN_LEGACY === 'true') {
-      console.log('[Loopbrain] Using LEGACY orchestrator')
-
       // Build LoopbrainRequest (workspaceId and userId from auth, never from client)
       const loopbrainRequest: LoopbrainRequest = {
         workspaceId, // Always from auth
@@ -191,7 +189,6 @@ export async function POST(request: NextRequest) {
       // Return response
       return NextResponse.json(result)
     } else {
-      console.log('[Loopbrain] Using agent loop')
       try {
         const conversationId = body.conversationId || crypto.randomUUID()
 
@@ -272,7 +269,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: message }, { status: 500 })
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

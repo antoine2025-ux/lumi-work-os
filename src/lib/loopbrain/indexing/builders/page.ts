@@ -59,7 +59,7 @@ export async function buildContextObjectForPage(
       ...contextObject,
       workspaceId,
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to build page context object', {
       workspaceId,
       entityId,

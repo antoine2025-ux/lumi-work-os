@@ -93,7 +93,7 @@ export function EditRoleCardSkillDialog({
       });
 
       onSaved();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[EditRoleCardSkillDialog] Save error:", err);
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {

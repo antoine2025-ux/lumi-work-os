@@ -113,7 +113,7 @@ async function runGmailSync(
           if (syncResult.synced > 0) {
             await emitEmailEventsForNewThreads(integration.workspaceId, userId);
           }
-        } catch (err) {
+        } catch (err: unknown) {
           const msg =
             err instanceof Error ? err.message : String(err);
           result.errors.push(
@@ -124,7 +124,7 @@ async function runGmailSync(
     }
 
     logger.info("[gmail-sync] Cron complete", { ...result });
-  } catch (err) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push(`Fatal: ${msg}`);
     logger.error("[gmail-sync] Cron failed", { error: err });
@@ -169,7 +169,7 @@ async function emitEmailEventsForNewThreads(
         await emitEvent(POLICY_EVENTS.EMAIL_RECEIVED, event);
       }
     }
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[gmail-sync] Failed to emit policy events", {
       workspaceId,
       userId,

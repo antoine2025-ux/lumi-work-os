@@ -135,7 +135,7 @@ export function NormalizedSkillPicker({
         setQuery("");
         setIsOpen(false);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[NormalizedSkillPicker] Create error:", err);
       setError("Failed to create skill");
     } finally {

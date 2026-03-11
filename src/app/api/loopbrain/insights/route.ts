@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(response);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }
@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
       ...batch,
       stored: store,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

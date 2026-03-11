@@ -46,7 +46,7 @@ export async function getAuthenticatedUser(): Promise<AuthResult> {
     // No session found - require Google OAuth authentication
     throw new Error('No authenticated session found. Please log in through Google OAuth.')
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Authentication error:', error)
     throw new Error('Authentication failed')
   }

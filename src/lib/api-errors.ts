@@ -371,7 +371,7 @@ export function formatErrorResponse(error: ApiError, includeDetails: boolean = f
  * ```typescript
  * try {
  *   // ... route logic
- * } catch (error) {
+ * } catch (error: unknown) {
  *   return handleApiError(error, request)
  * }
  * ```

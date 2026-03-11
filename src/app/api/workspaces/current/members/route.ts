@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       members: membersWithPositions,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -34,7 +34,7 @@ export async function POST(
     })
 
     return NextResponse.json({ message: 'Page added to favorites', page: updatedPage })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }
@@ -68,7 +68,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: 'Page removed from favorites', page: updatedPage })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

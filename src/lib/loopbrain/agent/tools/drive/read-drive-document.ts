@@ -56,7 +56,7 @@ export const readDriveDocumentTool: LoopbrainTool = {
           ? `Read "${doc.fileName}" (truncated — file exceeds size limit)`
           : `Read "${doc.fileName}" (${doc.mimeType})`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof DriveNotConnectedError) {
         return {
           success: false,

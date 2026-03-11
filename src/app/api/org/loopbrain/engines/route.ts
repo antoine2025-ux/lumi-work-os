@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, engines, config: cfg || null });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, config: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

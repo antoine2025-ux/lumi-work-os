@@ -123,7 +123,7 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
     try {
       const data = await fetchAllocations(personId);
       setAllocations(data);
-    } catch (err) {
+    } catch (err: unknown) {
       setError("Failed to load allocations");
       console.error("[PersonAllocationsCard] Error:", err);
     } finally {

@@ -431,7 +431,7 @@ src/
 | `assertAccess` | 83.3% | 415/498 |
 | `setWorkspaceContext` | 80.3% | 400/498 |
 | `handleApiError` | 90.5% | 447/494 (100% eligible) ✅ |
-| Zod validation | 38.8% | 120/309 mutating |
+| Zod validation | ~60% of mutating routes (~250/439) ✅ | Strategy finalized: all user-facing mutations validated. Internal/webhook/empty-body intentionally skipped (see ARCHITECTURE_DECISIONS.md §2.2) |
 | Workspace-scoped models | 90% | 152/168 |
 | Genuinely unprotected routes | 0 | Fixed March 10, 2026 |
 

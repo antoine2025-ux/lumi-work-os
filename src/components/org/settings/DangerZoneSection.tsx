@@ -37,7 +37,7 @@ export function DangerZoneSection({ orgId }: DangerZoneSectionProps) {
 
       // Redirect to a neutral page (e.g., main dashboard or org selection)
       window.location.href = "/";
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[DangerZoneSection] Failed to delete org:", error);
       alert("Failed to delete org. Please try again.");
     } finally {

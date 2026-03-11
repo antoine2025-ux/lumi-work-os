@@ -361,7 +361,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
       if (selectedPersonId === personToDelete.id) {
         handleCloseDrawer();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to delete person:", error);
       // You could show a toast notification here
       alert(error instanceof Error ? error.message : "Failed to delete person");

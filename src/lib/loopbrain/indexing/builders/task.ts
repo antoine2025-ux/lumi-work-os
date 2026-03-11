@@ -57,7 +57,7 @@ export async function buildContextObjectForTask(
       ...contextObject,
       workspaceId,
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to build task context object', {
       workspaceId,
       entityId,

@@ -116,7 +116,7 @@ export function WorkspaceMembers() {
           setToastMessage({ type: 'error', message: 'Failed to load invites' })
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Only log real network errors, not permission errors
       if (error instanceof Error && !error.message.includes('permission')) {
         // Silent handling for permission errors

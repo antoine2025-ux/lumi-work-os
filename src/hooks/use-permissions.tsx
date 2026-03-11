@@ -58,7 +58,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         setContext(permissionContext)
         setPermissions(calculatedPermissions)
         setError(null)
-      } catch (err) {
+      } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to load permissions')
       } finally {
         setLoading(false)

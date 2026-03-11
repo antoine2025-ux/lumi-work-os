@@ -109,7 +109,7 @@ export function WikiSectionView({ page }: WikiSectionViewProps) {
       queryClient.invalidateQueries({ queryKey: ["sidebar-pages"] })
       window.dispatchEvent(new CustomEvent("workspacePagesRefreshed"))
       router.push(`/wiki/${newPage.slug}?edit=true`)
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
         title: "Failed to create page",
         description: err instanceof Error ? err.message : "Unknown error",

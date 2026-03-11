@@ -180,7 +180,7 @@ export function useApiAction<TData = unknown, TBody = unknown>(
           data: data ?? null,
           error: null,
         };
-      } catch (err) {
+      } catch (err: unknown) {
         const end = nowMs();
         const durationMs = end - start;
 

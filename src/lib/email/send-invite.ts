@@ -57,12 +57,6 @@ export async function sendWorkspaceInvite({
   const inviteLink = `${baseUrl}/invite/${inviteToken}`
 
   if (!resend) {
-    console.log('📧 [DEV MODE] Would send invite email:')
-    console.log('   To:', to)
-    console.log('   Workspace:', workspaceName)
-    console.log('   Inviter:', inviterName)
-    console.log('   Role:', role)
-    console.log('   Link:', inviteLink)
     return { success: true, messageId: 'dev-mode' }
   }
 
@@ -81,9 +75,8 @@ export async function sendWorkspaceInvite({
       return { success: false, error: error.message }
     }
 
-    console.log('✅ Invite email sent:', data?.id)
     return { success: true, messageId: data?.id }
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('Email send error:', err)
     return {
       success: false,

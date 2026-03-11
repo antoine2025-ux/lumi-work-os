@@ -75,7 +75,7 @@ export async function executeAction(
       default:
         throw new LoopbrainError('BAD_REQUEST', 400, `Unknown action type: ${(action as { type: string }).type}`)
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Preserve the actual error cause
     let finalError: LoopbrainError
     
@@ -776,7 +776,7 @@ async function executeOrgApproveLeave(
       action: action.action,
       denialReason: action.denialReason,
     })
-  } catch (err) {
+  } catch (err: unknown) {
     if (err instanceof LeaveRequestError) {
       const codeMap = {
         NOT_FOUND: 'BAD_REQUEST',

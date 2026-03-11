@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const notes = await getMyPersonalNotes(auth.user.userId, auth.workspaceId)
     return NextResponse.json(notes)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

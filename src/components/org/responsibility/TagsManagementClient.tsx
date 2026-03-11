@@ -65,7 +65,7 @@ function TagsTab() {
       if (data.ok) {
         setTags(data.tags);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to fetch tags:", error);
     } finally {
       setLoading(false);
@@ -93,7 +93,7 @@ function TagsTab() {
       } else {
         alert(data.error || "Failed to create tag");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to create tag:", error);
     } finally {
       setCreating(false);
@@ -107,7 +107,7 @@ function TagsTab() {
         method: "DELETE",
       });
       fetchTags();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to archive tag:", error);
     }
   };
@@ -289,7 +289,7 @@ function ProfilesTab({ initialRoleType }: { initialRoleType?: string | null }) {
       if (data.ok) {
         setProfiles(data.profiles);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to fetch profiles:", error);
     } finally {
       setLoading(false);

@@ -170,7 +170,7 @@ export function createCollabServer(): InstanceType<typeof Server> {
           pageId,
           contentNodes: (json as { content?: unknown[] })?.content?.length ?? 0,
         })
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[Hocuspocus] onStoreDocument FAILED:', err)
       }
     },

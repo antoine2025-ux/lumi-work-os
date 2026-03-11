@@ -75,7 +75,7 @@ export function useFavorites(): UseFavoritesReturn {
       } else {
         setError(data.error || 'Failed to load favorites')
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError('Failed to load favorites')
       console.error('Error loading favorites:', err)
     } finally {
@@ -103,7 +103,7 @@ export function useFavorites(): UseFavoritesReturn {
         setError(data.error || 'Failed to add to favorites')
         return false
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError('Failed to add to favorites')
       console.error('Error adding to favorites:', err)
       return false
@@ -126,7 +126,7 @@ export function useFavorites(): UseFavoritesReturn {
         setError(data.error || 'Failed to remove from favorites')
         return false
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError('Failed to remove from favorites')
       console.error('Error removing from favorites:', err)
       return false
@@ -188,7 +188,7 @@ export function useFavoriteStatus(pageId: string) {
       } else {
         setError(data.error || 'Failed to check favorite status')
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError('Failed to check favorite status')
       console.error('Error checking favorite status:', err)
     } finally {
@@ -233,7 +233,7 @@ export function useFavoriteStatus(pageId: string) {
           return false
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError('Failed to toggle favorite')
       console.error('Error toggling favorite:', err)
       return false

@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
         personCount: s._count.personSkills,
       })),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
       },
       created: true,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

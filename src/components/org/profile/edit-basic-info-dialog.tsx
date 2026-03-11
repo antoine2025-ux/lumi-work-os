@@ -96,7 +96,7 @@ export function EditBasicInfoDialog({
       toast({ title: "Profile updated", description: "Your name and title have been saved." });
       setOpen(false);
       router.refresh();
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
         title: "Error",
         description:

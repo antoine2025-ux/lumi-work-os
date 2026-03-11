@@ -111,7 +111,7 @@ export async function GET(
     }
 
     return NextResponse.json(task)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -298,7 +298,7 @@ export async function PUT(
     const response = task as Record<string, unknown>
     if (capacityWarning) response.capacityWarning = capacityWarning
     return NextResponse.json(response)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -346,7 +346,7 @@ export async function DELETE(
     return NextResponse.json({ 
       message: 'Task deleted successfully' 
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -203,7 +203,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       
       // Trigger a custom event to refresh favorites in the sidebar
       window.dispatchEvent(new CustomEvent('favoritesChanged'))
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error toggling favorite:', error)
     }
   }
@@ -258,7 +258,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       } else {
         router.push('/spaces/home')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting page:', error)
       alert(`Failed to delete page: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
@@ -323,7 +323,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                   sessionStorage.removeItem('pendingPageDraft')
                 }
               }
-            } catch (error) {
+            } catch (error: unknown) {
               console.error('❌ Error parsing pending draft:', error)
               sessionStorage.removeItem('pendingPageDraft')
             }
@@ -360,7 +360,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
           setLoadError({ status: response.status, message: errorMessage })
           setPageData(null)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading page:', error)
         setLoadError({ status: 0, message: 'Network error — could not reach server' })
         setPageData(null)
@@ -475,7 +475,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                 }
                 return
               }
-            } catch (e) {
+            } catch (e: unknown) {
               // Skip invalid JSON lines
               if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
                 console.error('Error parsing stream data:', e)
@@ -486,7 +486,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       }
 
       setIsSaving(false)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Error streaming page content:', error)
       setIsSaving(false)
     }
@@ -517,7 +517,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
           setRelatedPages(related)
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading related pages:', error)
       setRelatedPages([])
     }
@@ -556,7 +556,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
         setPageData(updatedPage)
         // Do NOT set setIsEditing(false) - keep user in edit mode
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving page:', error)
       throw error // Re-throw for autosave error handling
     } finally {
@@ -582,7 +582,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       if (pageData?.contentFormat === 'JSON' && editorRef.current?.saveNow) {
         try {
           await editorRef.current.saveNow()
-        } catch (e) {
+        } catch (e: unknown) {
           console.error('Failed to save before closing:', e)
         }
       } else if (pageData?.contentFormat === 'HTML') {
@@ -599,7 +599,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
               : updated
           )
         }
-      } catch (e) {
+      } catch (e: unknown) {
         console.error('Failed to refresh page data after Done:', e)
       }
       syncedContentRef.current = null
@@ -644,7 +644,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
         setPageData(updatedPage)
         // Page will now render with TipTap editor since contentFormat is JSON
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error upgrading page:', error)
       alert(`Failed to upgrade page: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {

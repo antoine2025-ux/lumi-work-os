@@ -4,7 +4,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
-import { AdjustAllocationSchema } from '@/lib/validations/org';
+import { AdjustAllocationSchema } from '@/lib/validations/org'
+import { OrgHealthSignalType } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,40 +22,40 @@ export async function POST(req: NextRequest) {
 
     // Normalize allocations for person proportionally (v0)
     const rows = await prisma.capacityAllocation.findMany({
-      where: { orgId: workspaceId, personId } as any, // orgId is a Prisma field
-      select: { id: true, percent: true } as any,
+      where: { workspaceId, personId },
+      select: { id: true, percent: true },
       take: 1000,
     })
 
-    const total = rows.reduce((s, r) => s + Number((r as any).percent ?? 0), 0)
+    const total = rows.reduce((s, r) => s + Number(r.percent ?? 0), 0)
     if (total <= 0) return NextResponse.json({ ok: true, updated: 0 })
 
     const ops = rows.map((r) => {
-      const cur = Number((r as any).percent ?? 0)
+      const cur = Number(r.percent ?? 0)
       const next = Math.max(0, Math.round((cur / total) * target))
       return prisma.capacityAllocation.update({
-        where: { id: (r as any).id } as any,
-        data: { percent: next } as any,
+        where: { id: r.id },
+        data: { percent: next },
       })
     })
 
-    await prisma.$transaction(ops as any)
+    await prisma.$transaction(ops)
 
     await prisma.orgHealthSignal.updateMany({
       where: {
-        orgId: workspaceId, // orgId is a Prisma field
-        type: "DATA_QUALITY" as any,
+        workspaceId,
+        type: "DATA_QUALITY" as OrgHealthSignalType,
         resolvedAt: null,
         dismissedAt: null,
         title: "Over-allocation",
         contextType: "PERSON",
         contextId: personId,
-      } as any,
+      },
       data: { resolvedAt: new Date() },
     })
 
     return NextResponse.json({ ok: true, updated: rows.length })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

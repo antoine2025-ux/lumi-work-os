@@ -93,7 +93,7 @@ export function PersonalSpaceView() {
           return []
         }
         return r.json()
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Failed to load personal notes:", error)
         return []
       }

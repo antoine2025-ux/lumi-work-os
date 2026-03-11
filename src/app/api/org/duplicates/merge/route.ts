@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

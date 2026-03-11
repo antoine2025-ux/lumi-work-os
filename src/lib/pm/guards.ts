@@ -5,6 +5,9 @@ import { prisma } from '@/lib/db'
 type ProjectWithMembers = Project & { members: ProjectMember[] }
 type MemberResult = Pick<ProjectMember, 'userId' | 'role' | 'projectId'>
 
+// Flexible user type that accepts both NextAuth User and minimal user objects from getUnifiedAuth
+type UserLike = User | { id: string; email?: string | null; name?: string | null }
+
 /**
  * Assert that the authenticated user has access to the project
  * Throws error if access is denied, returns project and user data if granted
@@ -13,12 +16,12 @@ type MemberResult = Pick<ProjectMember, 'userId' | 'role' | 'projectId'>
  * ProjectSpace is not in the current schema; access is based on workspace + project members/creator/owner.
  */
 export async function assertProjectAccess(
-  user: User,
+  user: UserLike,
   projectId: string,
   requiredRole: ProjectRole = ProjectRole.VIEWER,
   workspaceId?: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<{ user: User; project: any; member: any }> {
+): Promise<{ user: UserLike; project: any; member: any }> {
   if (!user || !user.id) {
     throw new Error('Unauthorized: User not authenticated.')
   }
@@ -132,11 +135,11 @@ function hasRequiredRole(userRole: ProjectRole, requiredRole: ProjectRole): bool
  * Check if user has write access to project (MEMBER or higher)
  */
 export async function assertProjectWriteAccess(
-  user: User,
+  user: UserLike,
   projectId: string,
   workspaceId?: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<{ user: User; project: any; member: any }> {
+): Promise<{ user: UserLike; project: any; member: any }> {
   return assertProjectAccess(user, projectId, ProjectRole.MEMBER, workspaceId)
 }
 
@@ -144,11 +147,11 @@ export async function assertProjectWriteAccess(
  * Check if user has admin access to project (ADMIN or higher)
  */
 export async function assertProjectAdminAccess(
-  user: User,
+  user: UserLike,
   projectId: string,
   workspaceId?: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<{ user: User; project: any; member: any }> {
+): Promise<{ user: UserLike; project: any; member: any }> {
   return assertProjectAccess(user, projectId, ProjectRole.ADMIN, workspaceId)
 }
 
@@ -211,7 +214,7 @@ export async function hasProjectAccess(
     }
 
     return false
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error checking project access:', error)
     return false
   }

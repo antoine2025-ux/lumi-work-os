@@ -48,7 +48,7 @@ export async function GET(
       ok: true,
       positionId: roleCard.positionId,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

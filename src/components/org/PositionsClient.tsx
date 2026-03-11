@@ -105,7 +105,7 @@ export function PositionsClient({ positions, teams, roleTemplates, workspaceId }
       }
 
       router.refresh();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting role template:', error);
       alert(error instanceof Error ? error.message : 'Failed to delete role template');
     } finally {

@@ -198,7 +198,7 @@ export async function GET(request: NextRequest) {
         total: items.length,
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

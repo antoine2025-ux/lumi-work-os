@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     const baseUrl = getAppBaseUrl();
     const inviteLink = `${baseUrl}/invite/${updated.token}`;
     return NextResponse.json({ ok: true, invite: updated, inviteLink, workspaceName: workspace?.name ?? "your workspace" });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

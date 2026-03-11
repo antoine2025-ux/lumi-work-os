@@ -129,7 +129,6 @@ Generate a comprehensive onboarding plan for this role.`
 
     const openai = getOpenAIClient()
     if (!openai) {
-      console.log('OpenAI API key not set, using fallback task generator')
       // Fallback: Generate a structured plan based on role and duration
       const roleBasedTasks = generateFallbackTasks(validatedData.role, validatedData.seniority, validatedData.department, validatedData.durationDays)
       
@@ -171,7 +170,6 @@ Generate a comprehensive onboarding plan for this role.`
         }
         planData = JSON.parse(jsonMatch[0])
       } catch (_parseError) {
-        console.error('Failed to parse OpenAI response:', responseText)
         throw new Error('Invalid JSON response from AI')
       }
 
@@ -182,9 +180,7 @@ Generate a comprehensive onboarding plan for this role.`
 
         // Limit tasks to 30 as specified
         tasks = planData.tasks.slice(0, 30)
-      } catch (openaiError) {
-        console.error('OpenAI API failed, using fallback:', openaiError)
-        
+      } catch (_openaiError) {
         // Fallback: Generate a structured plan based on role and duration
         const roleBasedTasks = generateFallbackTasks(validatedData.role, validatedData.seniority, validatedData.department, validatedData.durationDays)
         
@@ -249,7 +245,7 @@ Generate a comprehensive onboarding plan for this role.`
       message: planData.planName.includes('AI') ? 'AI-generated plan created successfully!' : 'Plan created successfully using fallback system!',
     }, { status: 201 })
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

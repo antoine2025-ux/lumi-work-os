@@ -107,7 +107,7 @@ export function AddObjectiveDialog({ isOpen, onClose, goalId }: Props) {
           dueDate: '',
         }])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to create objective:', error)
     } finally {
       setIsLoading(false)

@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     }));
 
     return NextResponse.json({ ok: true, roles: simplified });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

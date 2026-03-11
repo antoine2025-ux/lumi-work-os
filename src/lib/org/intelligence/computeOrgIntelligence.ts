@@ -402,7 +402,7 @@ async function computeSkillGapSignals(
           );
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Skip teams that fail skill analysis
       console.warn(`Failed to analyze skills for team ${team.id}:`, error);
     }

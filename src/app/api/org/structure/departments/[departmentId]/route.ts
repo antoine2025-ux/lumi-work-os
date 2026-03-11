@@ -61,7 +61,7 @@ export async function PUT(
     }).catch(() => {});
 
     return NextResponse.json({ ok: true, department: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }
@@ -171,13 +171,11 @@ export async function DELETE(
       actorId: userId,
     }).catch((e) => console.error("[DELETE /api/org/structure/departments/[departmentId]] Audit error:", e));
 
-    console.log(`[DELETE /api/org/structure/departments/[departmentId]] Deleted department ${departmentId} by user ${userId}`);
-
     return NextResponse.json(
       { ok: true },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

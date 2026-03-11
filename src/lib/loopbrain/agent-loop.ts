@@ -332,12 +332,9 @@ async function executePendingPlan(
   // Execute each write tool
   const results: LoopbrainMessage[] = []
   let clientAction: LoopbrainClientAction | undefined
-  console.log('[PendingPlan] executing', session.pendingPlan.toolCalls.length, 'tool(s):', session.pendingPlan.toolCalls.map(tc => tc.name).join(', '))
   for (const toolCall of session.pendingPlan.toolCalls) {
-    console.log('[PendingPlan] calling executeWriteTool for:', toolCall.name)
     const result = await executeWriteTool(toolCall, params.workspaceId, params.userId, agentCtx)
     const isError = typeof result === 'object' && result !== null && 'error' in result
-    console.log('[PendingPlan] tool result for', toolCall.name, '— isError:', isError, JSON.stringify(result))
 
     // Extract clientAction from tool results (e.g. draftWikiPage redirect)
     if (!isError && typeof result === 'object' && result !== null && 'clientAction' in result) {
@@ -508,13 +505,6 @@ async function callLLMWithTools(
     throw new Error(`Provider ${provider.name} does not support tool calling`)
   }
 
-  console.log('[Agent Loop] LLM request:', {
-    provider: provider.name,
-    model: LOOPBRAIN_MODEL,
-    toolCount: tools.length,
-    messageCount: messages.length,
-  })
-
   try {
     const response = await provider.generateWithTools({
       model: LOOPBRAIN_MODEL,
@@ -525,14 +515,8 @@ async function callLLMWithTools(
       maxTokens: 4000,
     })
 
-    console.log('[Agent Loop] LLM response:', {
-      hasToolCalls: !!response.toolCalls?.length,
-      toolCallCount: response.toolCalls?.length ?? 0,
-      toolNames: response.toolCalls?.map((tc) => tc.name),
-    })
-
     return response
-  } catch (error) {
+  } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error'
     if (msg.includes('invalid model') || msg.includes('not found')) {
       throw new Error(
@@ -579,7 +563,7 @@ async function executeReadTool(
             snippet: (t.snippet || t.bodyPreview).slice(0, 200),
           })),
         }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -608,11 +592,10 @@ async function executeReadTool(
           try {
             const session = await getServerSession(authOptions)
             if (session?.refreshToken) {
-              console.log('[AgentLoop] refresh_token null in DB, found in JWT session')
               hasRefreshToken = true
             }
-          } catch (err) {
-            console.error('[AgentLoop] JWT session fallback failed:', err)
+          } catch (_err: unknown) {
+            // JWT session fallback is best-effort
           }
         }
 
@@ -646,7 +629,7 @@ async function executeReadTool(
             status: e.status,
           })),
         }
-      } catch (err) {
+      } catch (err: unknown) {
         return {
           error: `Calendar error: ${err instanceof Error ? err.message : String(err)}`,
         }
@@ -676,7 +659,7 @@ async function executeReadTool(
             threadTs: m.threadTs,
           })),
         }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -707,7 +690,7 @@ async function executeReadTool(
           take: 20,
         })
         return { projects }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -782,7 +765,7 @@ async function executeReadTool(
           }
         })
         return { people }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -846,7 +829,7 @@ async function executeReadTool(
           return await filterPersonData(profile, agentCtx)
         }
         return profile
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -898,7 +881,7 @@ async function executeReadTool(
         return {
           pages: pages.map((p) => ({ pageId: p.id, title: p.title, slug: p.slug, score: 1 })),
         }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -928,7 +911,7 @@ async function executeReadTool(
             userName: r.userName ?? null,
           })),
         }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -998,7 +981,7 @@ async function executeReadTool(
           })
         )
         return { members: summaries }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1057,7 +1040,7 @@ async function executeReadTool(
             .slice(0, 5)
             .map((t) => ({ id: t.id, title: t.title })),
         }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1071,7 +1054,7 @@ async function executeReadTool(
         return result.success
           ? result.data ?? { message: result.humanReadable }
           : { error: result.error ?? result.humanReadable }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1085,7 +1068,7 @@ async function executeReadTool(
         return result.success
           ? result.data ?? { message: result.humanReadable }
           : { error: result.error ?? result.humanReadable }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1099,7 +1082,7 @@ async function executeReadTool(
         return result.success
           ? result.data ?? { message: result.humanReadable }
           : { error: result.error ?? result.humanReadable }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1113,7 +1096,7 @@ async function executeReadTool(
         return result.success
           ? result.data ?? { message: result.humanReadable }
           : { error: result.error ?? result.humanReadable }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1130,7 +1113,6 @@ async function executeWriteTool(
   userId: string,
   agentCtx?: AgentContext,
 ): Promise<unknown> {
-  console.log('[WriteToolExec]', toolCall.name, JSON.stringify(toolCall.arguments))
   setWorkspaceContext(workspaceId)
   const context: AgentContext = agentCtx ?? { workspaceId, userId, workspaceSlug: '', userRole: 'MEMBER' }
   const args = toolCall.arguments
@@ -1144,7 +1126,7 @@ async function executeWriteTool(
         return result.success
           ? { id: result.data?.id, title: result.data?.title, projectId: result.data?.projectId }
           : { error: result.error ?? result.humanReadable }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1157,7 +1139,7 @@ async function executeWriteTool(
         return result.success
           ? { taskId: result.data?.taskId, assigneeId: result.data?.assigneeId }
           : { error: result.error ?? result.humanReadable }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1167,7 +1149,6 @@ async function executeWriteTool(
       // resolution path as the read tool (prismaUnscoped.account.findFirst).
       // The LLM sends { title, startTime, endTime } (per tool-schemas.ts); we map
       // them to the integration's { summary, startDateTime, endDateTime } shape.
-      console.log('[WriteToolExec] createCalendarEvent executing with userId:', userId, 'workspaceId:', workspaceId)
       try {
         const { title, startTime, endTime, description, attendees, location, timeZone } = args as {
           title?: string
@@ -1179,7 +1160,6 @@ async function executeWriteTool(
           timeZone?: string
         }
         if (!title || !startTime || !endTime) {
-          console.log('[WriteToolExec] createCalendarEvent missing required fields:', { title, startTime, endTime })
           return { error: 'createCalendarEvent requires title, startTime, and endTime' }
         }
         const result = await createCalendarEvent({
@@ -1193,11 +1173,10 @@ async function executeWriteTool(
           location,
           timeZone,
         })
-        console.log('[WriteToolExec] createCalendarEvent result:', JSON.stringify(result))
         return result.success
           ? { eventId: result.eventId, htmlLink: result.htmlLink }
           : { error: result.userMessage ?? result.error }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[WriteToolExec] createCalendarEvent threw:', err)
         return { error: String(err) }
       }
@@ -1212,7 +1191,7 @@ async function executeWriteTool(
         return result.success
           ? { messageId: result.data?.messageId, threadId: result.data?.threadId }
           : { error: result.error ?? result.humanReadable }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1226,21 +1205,19 @@ async function executeWriteTool(
         return result.success
           ? { id: result.data?.id, slug: result.data?.slug, title: result.data?.title }
           : { error: result.error ?? result.humanReadable }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
 
     case 'draftWikiPage': {
       try {
-        console.log('[Agent Loop] draftWikiPage: executing tool', { args })
         const tool = toolRegistry.get('draftWikiPage')
         if (!tool) return { error: 'draftWikiPage tool not registered' }
         const result = await tool.execute(args, context)
         if (!result.success) return { error: result.error ?? result.humanReadable }
 
         const data = result.data ?? {}
-        console.log('[Agent Loop] draftWikiPage: tool result', { id: data.id, slug: data.slug, hasClientAction: !!data._clientAction, hasDraftTask: !!data._draftTask })
 
         // Fire-and-forget: stream LLM content into the page via Hocuspocus.
         // The HTTP response returns immediately so the client can navigate.
@@ -1248,7 +1225,6 @@ async function executeWriteTool(
           | { pageId: string; topic: string; outline?: string[] }
           | undefined
         if (draftTask) {
-          console.log('[Agent Loop] draftWikiPage: launching streamDraftToPage', { pageId: draftTask.pageId, topic: draftTask.topic })
           void streamDraftToPage({
             pageId: draftTask.pageId,
             workspaceId,
@@ -1264,7 +1240,7 @@ async function executeWriteTool(
           title: data.title,
           clientAction: data._clientAction,
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[Agent Loop] draftWikiPage: error', err)
         return { error: String(err) }
       }
@@ -1293,7 +1269,7 @@ async function executeWriteTool(
         return result.ok
           ? { id: result.result?.entityId, message: result.result?.message }
           : { error: result.error?.message }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1315,7 +1291,7 @@ async function executeWriteTool(
         return result.success
           ? { personId, projectId, membershipId: result.data?.membershipId }
           : { error: result.error ?? result.humanReadable }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1335,7 +1311,7 @@ async function executeWriteTool(
         return result.ok
           ? { personId, managerId, message: result.result?.message }
           : { error: result.error?.message }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1362,7 +1338,7 @@ async function executeWriteTool(
         return result.ok
           ? { id: result.result?.entityId, name, message: result.result?.message }
           : { error: result.error?.message }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1375,7 +1351,7 @@ async function executeWriteTool(
         return result.success
           ? result.data ?? { message: result.humanReadable }
           : { error: result.error ?? result.humanReadable }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }
@@ -1388,7 +1364,7 @@ async function executeWriteTool(
         return result.success
           ? result.data ?? { message: result.humanReadable }
           : { error: result.error ?? result.humanReadable }
-      } catch (err) {
+      } catch (err: unknown) {
         return { error: String(err) }
       }
     }

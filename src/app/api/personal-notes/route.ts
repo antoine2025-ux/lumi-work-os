@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json(notes)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(note)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

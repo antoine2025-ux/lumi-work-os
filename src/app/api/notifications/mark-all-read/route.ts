@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ count: result.count })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

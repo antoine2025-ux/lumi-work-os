@@ -49,16 +49,18 @@ export async function PUT(
     let updated;
     try {
       updated = await updateAvailability(personId, status);
-    } catch (updateError: any) {
+    } catch (updateError: unknown) {
+      const updateMsg = updateError instanceof Error ? updateError.message : 'Unknown error';
+      const updateCode = updateError && typeof updateError === 'object' && 'code' in updateError ? (updateError as { code: string }).code : undefined;
+      const updateStack = updateError instanceof Error ? updateError.stack : undefined;
       console.error("[PUT /api/org/people/[personId]/availability] updateAvailability failed:", {
         personId,
         status,
-        error: updateError?.message,
-        code: updateError?.code,
-        stack: updateError?.stack,
+        error: updateMsg,
+        code: updateCode,
+        stack: updateStack,
       });
-      // Re-throw with more context
-      throw new Error(`Failed to update availability: ${updateError?.message || 'Unknown error'}`);
+      throw new Error(`Failed to update availability: ${updateMsg}`);
     }
 
     // Step 6: Emit Loopbrain context (persist + trigger indexing non-blocking)
@@ -70,12 +72,14 @@ export async function PUT(
         entity: { type: "person", id: personId },
         payload: { status },
       });
-    } catch (contextError: any) {
-      console.warn("[PUT /api/org/people/[personId]/availability] Failed to emit context object (non-blocking):", contextError?.message);
+    } catch (contextError: unknown) {
+      const ctxMsg = contextError instanceof Error ? contextError.message : String(contextError);
+      const ctxCode = contextError && typeof contextError === 'object' && 'code' in contextError ? (contextError as { code: string }).code : undefined;
+      console.warn("[PUT /api/org/people/[personId]/availability] Failed to emit context object (non-blocking):", ctxMsg);
       if (process.env.NODE_ENV !== "production") {
         console.warn("[PUT /api/org/people/[personId]/availability] Context error details:", {
-          message: contextError?.message,
-          code: contextError?.code,
+          message: ctxMsg,
+          code: ctxCode,
         });
       }
     }
@@ -88,7 +92,7 @@ export async function PUT(
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

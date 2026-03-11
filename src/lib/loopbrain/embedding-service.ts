@@ -76,7 +76,7 @@ export async function embedText(input: string): Promise<number[]> {
     }
 
     return vector
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to generate embedding', { error, model: EMBEDDING_MODEL })
     if (error instanceof Error) {
       throw new Error(`Embedding generation failed: ${error.message}`)

@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     try {
       const result = await engine.run({ workspaceId: wsId });
       results.push({ workspaceId: wsId, ...result });
-    } catch (err) {
+    } catch (err: unknown) {
       results.push({
         workspaceId: wsId,
         ok: false,

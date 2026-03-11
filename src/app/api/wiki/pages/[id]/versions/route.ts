@@ -51,7 +51,7 @@ export async function GET(
     })
 
     return NextResponse.json(versions)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
 
     const resp = await answerQ8({ projectId, project });
     return NextResponse.json(resp);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

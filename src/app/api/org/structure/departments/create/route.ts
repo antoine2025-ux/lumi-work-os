@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     }).catch((e) => console.error("[POST /api/org/structure/departments/create] Audit log error (non-fatal):", e));
 
     return NextResponse.json(dept, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

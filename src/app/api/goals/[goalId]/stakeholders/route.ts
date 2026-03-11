@@ -53,7 +53,7 @@ export async function GET(
     })
 
     return NextResponse.json(stakeholders)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -152,7 +152,7 @@ export async function POST(
     })
 
     return NextResponse.json(stakeholder, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -216,7 +216,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -30,7 +30,7 @@ export async function GET() {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[dev/org-context-preview] Failed to build org context bundle", error);
 
     return NextResponse.json(

@@ -378,7 +378,7 @@ function JDDialog({
       if (!res.ok) throw new Error(data.error ?? "Failed to save");
       onSaved();
       onClose();
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setSaving(false);

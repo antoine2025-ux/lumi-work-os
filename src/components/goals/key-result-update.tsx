@@ -46,7 +46,7 @@ export function KeyResultUpdate({ goalId, keyResult, isOpen, onClose }: Props) {
         router.refresh()
         onClose()
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to update key result:', error)
     } finally {
       setIsLoading(false)

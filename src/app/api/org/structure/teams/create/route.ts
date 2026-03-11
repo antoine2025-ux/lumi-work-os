@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     }).catch((e) => console.error("[POST /api/org/structure/teams/create] Audit log error (non-fatal):", e));
 
     return NextResponse.json(team, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

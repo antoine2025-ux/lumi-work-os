@@ -53,7 +53,7 @@ export async function GET(
     })
 
     return NextResponse.json(approvals)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -136,7 +136,7 @@ export async function POST(
     })
 
     return NextResponse.json(approvals, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -228,7 +228,7 @@ export async function PATCH(
     })
 
     return NextResponse.json(updated)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

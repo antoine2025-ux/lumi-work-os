@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, positions: items });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     }).catch((e) => console.error("[POST /api/org/positions] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ id: position.id, title: position.title, level: position.level }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

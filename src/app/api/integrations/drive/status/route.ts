@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const connected = !!userTokens?.accessToken
 
     return NextResponse.json({ connected })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

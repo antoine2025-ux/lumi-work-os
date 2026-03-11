@@ -97,7 +97,7 @@ export function PersonSkillsCard({ personId, canEdit = false }: PersonSkillsCard
       } else {
         setError("Failed to load skills");
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[PersonSkillsCard] Error:", err);
       setError("Failed to load skills");
     } finally {
@@ -116,7 +116,7 @@ export function PersonSkillsCard({ personId, canEdit = false }: PersonSkillsCard
     try {
       await OrgApi.removePersonSkill(personId, personSkillId);
       setSkills((prev) => prev.filter((s) => s.id !== personSkillId));
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[PersonSkillsCard] Delete error:", err);
     } finally {
       setDeletingId(null);

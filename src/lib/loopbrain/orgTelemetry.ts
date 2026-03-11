@@ -100,7 +100,7 @@ export async function logOrgLoopbrainQuery(input: OrgTelemetryInput) {
         referencedTags: tags,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     // Telemetry must never break the main flow
     console.error("[OrgTelemetry] Failed to log org Loopbrain query", error);
   }

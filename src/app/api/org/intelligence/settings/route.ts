@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const settings = await getOrCreateIntelligenceSettings();
 
     return NextResponse.json({ settings }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -85,7 +85,7 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

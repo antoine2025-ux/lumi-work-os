@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
       totalActions: actions.length,
       actions,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -55,7 +55,7 @@ export function ProjectDailySummaries({
       } else {
         console.error('Failed to load daily summaries:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading daily summaries:', error)
     } finally {
       setIsLoading(false)
@@ -81,7 +81,7 @@ export function ProjectDailySummaries({
         console.error('Failed to generate summary:', errorData)
         alert(`Failed to generate summary: ${errorData.error}`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error generating summary:', error)
       alert('Failed to generate summary. Please try again.')
     } finally {
@@ -107,7 +107,7 @@ export function ProjectDailySummaries({
         console.error('Failed to update setting:', errorData)
         alert(`Failed to update setting: ${errorData.error}`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating setting:', error)
       alert('Failed to update setting. Please try again.')
     } finally {

@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       folders,
       recentPages,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

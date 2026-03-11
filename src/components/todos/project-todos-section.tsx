@@ -64,7 +64,7 @@ export function ProjectTodosSection({ projectId, className }: ProjectTodosSectio
       if (!response.ok) throw new Error('Failed to update todo')
       
       queryClient.invalidateQueries({ queryKey: ['todos', 'project', projectId] })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error toggling todo:', error)
     }
   }, [queryClient, projectId])

@@ -83,7 +83,7 @@ export function UserAssignmentModal({
     try {
       await onAssign(selectedUserId)
       onClose()
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error assigning user:', error)
     } finally {
       setLoading(false)

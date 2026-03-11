@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
         orgName: result.workspace.name || "Organization",
         role: "MEMBER",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         return NextResponse.json({ 
           ok: false, 
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       }
       throw error;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

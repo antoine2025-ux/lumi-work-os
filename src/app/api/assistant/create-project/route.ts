@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { getDefaultSpaceForUser } from '@/lib/spaces/get-default-space'
 import { AssistantCreateProjectSchema } from '@/lib/validations/assistant'
+import { Priority, ProjectTaskStatus, type Prisma } from '@prisma/client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,8 +24,7 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(auth.workspaceId)
 
     const body = AssistantCreateProjectSchema.parse(await request.json())
-    const { sessionId, projectData } = body
-    const templateId = (body as any).templateId
+    const { sessionId, projectData, templateId } = body
 
     // Get the session to extract project information from conversation
     const session = await prisma.chatSession.findUnique({
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         name,
         description,
         status: 'ACTIVE',
-        priority: priority as any,
+        priority: priority as Priority,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         department,
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (template && template.templateData) {
-        const templateData = template.templateData as any
+        const templateData = template.templateData as { tasks?: Array<{ title: string; description?: string; status?: string; priority?: string; tags?: string[] }> }
         
         if (templateData.tasks && Array.isArray(templateData.tasks)) {
           for (const taskTemplate of templateData.tasks) {
@@ -124,16 +124,15 @@ export async function POST(request: NextRequest) {
                   workspaceId: auth.workspaceId, // Always use authenticated workspace
                   title: taskTemplate.title || 'Untitled Task',
                   description: taskTemplate.description || '',
-                  status: taskTemplate.status || 'TODO',
-                  priority: taskTemplate.priority || 'MEDIUM',
+                  status: (taskTemplate.status as ProjectTaskStatus | undefined) || 'TODO',
+                  priority: (taskTemplate.priority as Priority | undefined) || 'MEDIUM',
                   tags: taskTemplate.tags || [],
                   createdById: auth.user.userId,
                   assigneeId: auth.user.userId
                 }
               })
-              console.log('Created task:', task.title)
-            } catch (error) {
-              console.error('Error creating task:', error)
+            } catch (_error: unknown) {
+              // non-blocking task creation failure
             }
           }
         }
@@ -167,22 +166,21 @@ export async function POST(request: NextRequest) {
 
     for (const taskTemplate of initialTasks) {
       try {
-        const task = await prisma.task.create({
-          data: {
-            projectId: project.id,
-            workspaceId: auth.workspaceId, // Always use authenticated workspace
-            title: taskTemplate.title,
-            description: taskTemplate.description,
-            status: taskTemplate.status as any,
-            priority: taskTemplate.priority as any,
-            tags: taskTemplate.tags,
-            createdById: auth.user.userId,
-            assigneeId: auth.user.userId
-          }
-        })
-        console.log('Created task:', task.title)
-      } catch (error) {
-        console.error('Error creating task:', error)
+              const task = await prisma.task.create({
+                data: {
+                  projectId: project.id,
+                  workspaceId: auth.workspaceId, // Always use authenticated workspace
+                  title: taskTemplate.title,
+                  description: taskTemplate.description,
+                  status: (taskTemplate.status as ProjectTaskStatus) || 'TODO',
+                  priority: (taskTemplate.priority as Priority) || 'MEDIUM',
+                  tags: taskTemplate.tags || [],
+                  createdById: auth.user.userId,
+                  assigneeId: auth.user.userId
+                }
+              })
+      } catch (_error: unknown) {
+        // non-blocking task creation failure
       }
     }
 
@@ -208,7 +206,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

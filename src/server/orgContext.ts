@@ -105,7 +105,7 @@ export async function getActiveOrgContext(request?: NextRequest) {
 
     // No org found in either system
     return { userId, orgId: null, orgName: null, role: "VIEWER" as const };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[getActiveOrgContext] Error:", error);
     return { userId: null, orgId: null, orgName: null, role: "VIEWER" as const };
   }

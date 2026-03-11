@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     const unowned = await findUnownedEntities(workspaceId)
     const filtered = type ? unowned.filter((u) => String(u.entityType).toUpperCase() === type) : unowned
     return NextResponse.json({ unowned: filtered.slice(0, take) })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

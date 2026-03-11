@@ -161,7 +161,7 @@ class OpenAIProvider implements AIProvider {
         } : undefined,
         model: model
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('OpenAI API error:', error)
       throw new Error(`OpenAI API error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
@@ -191,7 +191,7 @@ class OpenAIProvider implements AIProvider {
           yield content
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('OpenAI streaming error:', error)
       throw new Error(`OpenAI streaming error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
@@ -350,7 +350,7 @@ class GeminiProvider implements AIProvider {
         } : undefined,
         model: model
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Google API error:', error)
       throw new Error(`Google API error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
@@ -450,7 +450,7 @@ class GeminiProvider implements AIProvider {
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Google streaming error:', error)
       throw new Error(`Google streaming error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
@@ -528,7 +528,7 @@ class AnthropicProvider implements AIProvider {
         } : undefined,
         model: model
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Anthropic API error:', error)
       throw new Error(`Anthropic API error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
@@ -568,7 +568,7 @@ class AnthropicProvider implements AIProvider {
           yield chunk.delta.text
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Anthropic streaming error:', error)
       throw new Error(`Anthropic streaming error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }

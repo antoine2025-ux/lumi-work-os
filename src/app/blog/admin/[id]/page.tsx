@@ -52,7 +52,7 @@ export default function EditBlogPostPage() {
       setContent(post.content)
       setCategory(post.category || "NEWS")
       setStatus(post.status)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load post")
     } finally {
       setLoading(false)
@@ -98,7 +98,7 @@ export default function EditBlogPostPage() {
 
       // Redirect to admin list
       router.push("/blog/admin")
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to update post")
       setSaving(false)
     }

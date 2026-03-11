@@ -141,7 +141,7 @@ export default function TodosPage() {
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['todos'] })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error toggling todo:', error)
     }
   }, [queryClient])

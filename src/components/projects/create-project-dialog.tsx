@@ -6,10 +6,13 @@ import { useWorkspace } from "@/lib/workspace-context"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, Loader2, Target, Calendar, X, Users, Globe, Lock, User, Hash, Circle, AlertTriangle, FileText } from "lucide-react"
+import { CalendarDatePicker } from "@/components/ui/calendar-date-picker"
 import { setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
 import type { ProjectTemplateData } from "@/lib/projects/templates"
 import { PROJECT_TEMPLATES } from "@/lib/projects/templates"
@@ -21,6 +24,31 @@ interface Space {
   icon?: string | null
   color?: string | null
   visibility: string
+  type?: string | null
+  slug?: string | null
+}
+
+interface ProjectToEdit {
+  id: string
+  name: string
+  excerpt?: string | null
+  description?: string | null
+  status: 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED'
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+  startDate?: string | null
+  endDate?: string | null
+  color?: string | null
+  ownerId?: string | null
+  assignees?: Array<{ id: string; user: { id: string; name: string; email: string } }>
+  owner?: { id: string; name: string; email: string } | null
+  projectSpace?: {
+    id: string
+    name: string
+    visibility: 'PUBLIC' | 'TARGETED'
+  } | null
+  projectSpaceId?: string | null
+  teamId?: string | null
+  slackChannelHints?: string[]
 }
 
 interface CreateProjectDialogProps {
@@ -29,6 +57,10 @@ interface CreateProjectDialogProps {
   initialWorkspaceId?: string
   initialSpaceId?: string
   onProjectCreated?: (project: { id: string; name: string }) => void
+  // Edit mode props
+  mode?: 'create' | 'edit'
+  project?: ProjectToEdit | null
+  onProjectUpdated?: (project: ProjectToEdit) => void
 }
 
 interface ProjectFormData {
@@ -55,6 +87,17 @@ const priorityOptions = [
   { value: 'URGENT' as const, label: 'Urgent', color: 'bg-red-100 text-red-800' }
 ]
 
+const colorOptions = [
+  { value: '#3b82f6', label: 'Blue' },
+  { value: '#10b981', label: 'Green' },
+  { value: '#f59e0b', label: 'Yellow' },
+  { value: '#ef4444', label: 'Red' },
+  { value: '#8b5cf6', label: 'Purple' },
+  { value: '#06b6d4', label: 'Cyan' },
+  { value: '#f97316', label: 'Orange' },
+  { value: '#84cc16', label: 'Lime' }
+]
+
 // Helper to get task count from template
 function getTaskCount(template: ProjectTemplateData): number {
   return template.taskGroups.reduce((sum, group) => sum + group.tasks.length, 0)
@@ -74,7 +117,10 @@ export function CreateProjectDialog({
   onOpenChange,
   initialWorkspaceId,
   initialSpaceId,
-  onProjectCreated
+  onProjectCreated,
+  mode = 'create',
+  project,
+  onProjectUpdated
 }: CreateProjectDialogProps) {
   const { currentWorkspace } = useWorkspace()
   const [isLoading, setIsLoading] = useState(false)
@@ -109,6 +155,11 @@ export function CreateProjectDialog({
   // Owner and team members (assignees)
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>('')
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([])
+  
+  // Color and team
+  const [projectColor, setProjectColor] = useState<string>('#3B82F6')
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('')
+  const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([])
 
   // Template selection (null = Blank Project)
   const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplateData | null>(null)
@@ -116,7 +167,7 @@ export function CreateProjectDialog({
   // Expanded option state (only one pill expanded at a time)
   const [expandedOption, setExpandedOption] = useState<
     'template' | 'visibility' | 'owner' | 'assignees' | 
-    'channels' | 'status' | 'priority' | 'startDate' | 'endDate' | null
+    'channels' | 'status' | 'priority' | 'startDate' | 'endDate' | 'color' | 'team' | null
   >(null)
 
   // Resolve workspaceId: use initialWorkspaceId if provided, otherwise use current workspace
@@ -145,68 +196,136 @@ export function CreateProjectDialog({
           })) ?? []
         )
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workspace members:', error)
     } finally {
       setLoadingMembers(false)
     }
   }, [resolvedWorkspaceId])
 
+  const loadProjectSpaceMembers = async (projectSpaceId: string) => {
+    try {
+      const response = await fetch(`/api/project-spaces/${projectSpaceId}/members`)
+      if (response.ok) {
+        const data = await response.json()
+        setSelectedMemberIds(data.members?.map((m: { userId: string }) => m.userId) || [])
+      }
+    } catch (error: unknown) {
+      console.error('Error loading ProjectSpace members:', error)
+    }
+  }
+
   const loadSpaces = useCallback(async () => {
     try {
       setLoadingSpaces(true)
       
-      // Load available spaces
+      // Load available spaces (exclude Company Wiki — it's for docs only, not projects)
       const spacesResponse = await fetch('/api/spaces')
       if (spacesResponse.ok) {
         const spacesData = await spacesResponse.json()
-        setSpaces(spacesData.spaces ?? [])
-      }
-      
-      // Load default space suggestion
-      const defaultResponse = await fetch('/api/spaces/default')
-      if (defaultResponse.ok) {
-        const defaultData = await defaultResponse.json()
-        if (defaultData.defaultSpaceId) {
-          setDefaultSpaceId(defaultData.defaultSpaceId)
-          
-          // Pre-select the default space if no space is already selected
+        const allSpaces = spacesData.spaces ?? []
+        const projectSpaces = allSpaces.filter(
+          (s: Space) =>
+            (s.type !== 'WIKI' || !s.type) && (s.slug ?? '') !== 'company-wiki'
+        )
+        setSpaces(projectSpaces)
+
+        // Load default space suggestion
+        const defaultResponse = await fetch('/api/spaces/default')
+        if (defaultResponse.ok) {
+          const defaultData = await defaultResponse.json()
+          const defaultId = defaultData.defaultSpaceId ?? null
+          setDefaultSpaceId(defaultId)
+
+          // Resolve selected space: use initialSpaceId only if it's a valid project space
+          const isValidInitial = initialSpaceId && projectSpaces.some((s: Space) => s.id === initialSpaceId)
+          const fallbackId = defaultId && projectSpaces.some((s: Space) => s.id === defaultId) ? defaultId : projectSpaces[0]?.id ?? ''
           if (!selectedSpaceId && !initialSpaceId) {
-            setSelectedSpaceId(defaultData.defaultSpaceId)
+            setSelectedSpaceId(fallbackId)
+          } else if (initialSpaceId && !isValidInitial) {
+            setSelectedSpaceId(fallbackId)
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading spaces:', error)
     } finally {
       setLoadingSpaces(false)
     }
   }, [selectedSpaceId, initialSpaceId])
 
-  // Reset form when dialog opens
+  // Reset form when dialog opens or populate from project in edit mode
   useEffect(() => {
     if (open) {
-      setFormData({
-        name: '',
-        excerpt: '',
-        description: '',
-        status: 'ACTIVE',
-        priority: 'MEDIUM',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: '',
-      })
-      setChannelInput('')
-      setChannelList([])
-      setErrors({})
-      setVisibility('PUBLIC')
-      setSelectedMemberIds([])
-      setSelectedOwnerId('')
-      setSelectedAssigneeIds([])
-      setSelectedSpaceId(initialSpaceId ?? '')
-      setSelectedTemplate(null)
-      setExpandedOption(null)
+      if (mode === 'edit' && project) {
+        // Populate form with existing project data
+        setFormData({
+          name: project.name,
+          excerpt: project.excerpt || '',
+          description: project.description || '',
+          status: project.status,
+          priority: project.priority,
+          startDate: project.startDate ? project.startDate.split('T')[0] : '',
+          endDate: project.endDate ? project.endDate.split('T')[0] : '',
+        })
+        setChannelInput('')
+        setChannelList(project.slackChannelHints || [])
+        setErrors({})
+        
+        // Set visibility based on projectSpace
+        const currentVisibility = project.projectSpace?.visibility || 
+                                  (project.projectSpaceId ? 'TARGETED' : 'PUBLIC')
+        setVisibility(currentVisibility)
+        
+        // Set space
+        setSelectedSpaceId(project.projectSpaceId || '')
+        
+        // Set owner
+        setSelectedOwnerId(project.ownerId || '')
+        
+        // Set assignees
+        setSelectedAssigneeIds(project.assignees?.map(a => a.user.id) || [])
+        
+        // Set color and team
+        setProjectColor(project.color || '#3B82F6')
+        setSelectedTeamId(project.teamId || '')
+        
+        // Load ProjectSpace members if TARGETED
+        if (currentVisibility === 'TARGETED' && project.projectSpaceId) {
+          loadProjectSpaceMembers(project.projectSpaceId)
+        } else {
+          setSelectedMemberIds([])
+        }
+        
+        // No template in edit mode
+        setSelectedTemplate(null)
+        setExpandedOption(null)
+      } else {
+        // Create mode - reset to defaults
+        setFormData({
+          name: '',
+          excerpt: '',
+          description: '',
+          status: 'ACTIVE',
+          priority: 'MEDIUM',
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: '',
+        })
+        setChannelInput('')
+        setChannelList([])
+        setErrors({})
+        setVisibility('PUBLIC')
+        setSelectedMemberIds([])
+        setSelectedOwnerId('')
+        setSelectedAssigneeIds([])
+        setProjectColor('#3B82F6')
+        setSelectedTeamId('')
+        setSelectedSpaceId(initialSpaceId ?? '')
+        setSelectedTemplate(null)
+        setExpandedOption(null)
+      }
     }
-  }, [open, initialSpaceId])
+  }, [open, mode, project, initialSpaceId])
 
   // Load workspace members whenever dialog opens (for owner and assignee pickers)
   useEffect(() => {
@@ -223,6 +342,16 @@ export function CreateProjectDialog({
       loadSpaces()
     }
   }, [open, loadSpaces])
+
+  // Load teams when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetch('/api/org/teams')
+        .then((r) => r.json())
+        .then((data) => setTeams(data.teams || []))
+        .catch(() => setTeams([]))
+    }
+  }, [open])
 
   // Default owner to current user when members load
   const currentUserId = session?.user?.id
@@ -254,7 +383,7 @@ export function CreateProjectDialog({
       newErrors.workspace = 'Workspace is required'
     }
 
-    if (!selectedSpaceId) {
+    if (!selectedSpaceId || selectedSpaceId === '_none') {
       newErrors.space = 'Space is required'
     }
 
@@ -273,13 +402,11 @@ export function CreateProjectDialog({
     setErrors({})
 
     try {
-      // Build request body with only MVP fields
+      // Build request body
       const requestBody: Record<string, unknown> = {
-        workspaceId: resolvedWorkspaceId,
         name: formData.name.trim(),
         status: formData.status,
         priority: formData.priority,
-        spaceId: selectedSpaceId,
       }
 
       // Only include optional fields if they have values
@@ -295,12 +422,6 @@ export function CreateProjectDialog({
       if (formData.endDate) {
         requestBody.endDate = formData.endDate
       }
-      
-      // New visibility-based flow
-      requestBody.visibility = visibility
-      if (visibility === 'TARGETED' && selectedMemberIds.length > 0) {
-        requestBody.memberUserIds = selectedMemberIds
-      }
 
       if (selectedOwnerId) {
         requestBody.ownerId = selectedOwnerId
@@ -308,13 +429,46 @@ export function CreateProjectDialog({
       if (selectedAssigneeIds.length > 0) {
         requestBody.assigneeIds = selectedAssigneeIds
       }
-
-      if (selectedTemplate) {
-        requestBody.templateData = selectedTemplate
+      if (projectColor && projectColor !== '#3B82F6') {
+        requestBody.color = projectColor
+      }
+      if (selectedTeamId) {
+        requestBody.teamId = selectedTeamId
       }
 
-      const response = await fetch('/api/projects', {
-        method: 'POST',
+      // Include slackChannelHints (client-side only)
+      if (channelList.length > 0) {
+        requestBody.slackChannelHints = channelList
+      }
+
+      // Mode-specific fields
+      if (mode === 'create') {
+        requestBody.workspaceId = resolvedWorkspaceId
+        requestBody.spaceId = selectedSpaceId
+        requestBody.visibility = visibility
+        if (visibility === 'TARGETED' && selectedMemberIds.length > 0) {
+          requestBody.memberUserIds = selectedMemberIds
+        }
+        if (selectedTemplate) {
+          requestBody.templateData = selectedTemplate
+        }
+      } else {
+        // Edit mode - include visibility changes
+        const currentVisibility = project?.projectSpace?.visibility || 
+                                  (project?.projectSpaceId ? 'TARGETED' : 'PUBLIC')
+        if (visibility !== currentVisibility) {
+          requestBody.visibility = visibility
+          if (visibility === 'TARGETED' && selectedMemberIds.length > 0) {
+            requestBody.memberUserIds = selectedMemberIds
+          }
+        }
+      }
+
+      const url = mode === 'create' ? '/api/projects' : `/api/projects/${project?.id}`
+      const method = mode === 'create' ? 'POST' : 'PUT'
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -322,15 +476,19 @@ export function CreateProjectDialog({
       })
 
       if (response.ok) {
-        const project = await response.json()
+        const updatedProject = await response.json()
         
         // Save channel hints to localStorage (client-side only)
         if (channelList.length > 0) {
-          setProjectSlackHints(project.id, channelList)
+          setProjectSlackHints(updatedProject.id, channelList)
         }
         
-        // Call success callback if provided (parent handles refresh/navigation)
-        onProjectCreated?.(project)
+        // Call appropriate callback
+        if (mode === 'create') {
+          onProjectCreated?.(updatedProject)
+        } else {
+          onProjectUpdated?.(updatedProject)
+        }
         
         // Close dialog
         onOpenChange(false)
@@ -338,12 +496,12 @@ export function CreateProjectDialog({
         const errorData = await response.json().catch(() => ({}))
         const raw = errorData.error ?? errorData.message
         const errorMessage = typeof raw === 'object' && raw !== null && 'message' in raw
-          ? (raw as { message?: string }).message ?? 'Failed to create project'
-          : (typeof raw === 'string' ? raw : 'Failed to create project')
+          ? (raw as { message?: string }).message ?? `Failed to ${mode} project`
+          : (typeof raw === 'string' ? raw : `Failed to ${mode} project`)
         setErrors({ submit: errorMessage })
       }
-    } catch (error) {
-      console.error('Error creating project:', error)
+    } catch (error: unknown) {
+      console.error(`Error ${mode === 'create' ? 'creating' : 'updating'} project:`, error)
       setErrors({ submit: 'An unexpected error occurred. Please try again.' })
     } finally {
       setIsLoading(false)
@@ -363,12 +521,12 @@ export function CreateProjectDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <DialogTitle className="flex items-center space-x-2 text-base font-semibold">
               <Target className="h-4 w-4" />
-              <span>Create New Project</span>
+              <span>{mode === 'create' ? 'Create New Project' : 'Edit Project'}</span>
             </DialogTitle>
             {/* Compact space selector */}
             {loadingSpaces ? (
@@ -437,160 +595,433 @@ export function CreateProjectDialog({
             )}
           </div>
 
-          {/* Row 1 - Core Settings (Space moved to header) */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Template Pill */}
-            <button
-              type="button"
-              onClick={() => setExpandedOption(expandedOption === 'template' ? null : 'template')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
-                expandedOption === 'template' ? "bg-accent" : "hover:bg-accent/50"
-              )}
-            >
-              <FileText className="w-4 h-4" />
-              <span className="text-muted-foreground">Template</span>
-              <span className="text-foreground">
-                {selectedTemplate ? selectedTemplate.name : 'Blank'}
-              </span>
-            </button>
+          {/* Option pills - compact single row, open dropdown from pill */}
+          <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto pb-1 -mx-0.5">
+            {/* Template (only in create mode) */}
+            {mode === 'create' && (
+              <Popover open={expandedOption === 'template'} onOpenChange={(o) => setExpandedOption(o ? 'template' : null)}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs transition-colors shrink-0",
+                      expandedOption === 'template' ? "bg-accent" : "hover:bg-accent/50"
+                    )}
+                  >
+                    <FileText className="w-3.5 h-3.5 shrink-0" />
+                    <span className={selectedTemplate ? "text-foreground" : "text-muted-foreground"}>
+                      {selectedTemplate ? selectedTemplate.name : "Template"}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+              <PopoverContent className="z-[100] w-72 max-h-64 overflow-y-auto p-1" align="start" sideOffset={4}>
+                <div className="space-y-0.5">
+                  <button type="button" onClick={() => { setSelectedTemplate(null); setExpandedOption(null) }} disabled={isLoading} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", !selectedTemplate ? "bg-accent" : "hover:bg-accent/50")}>
+                    <FileText className="w-3.5 h-3.5 shrink-0" />
+                    Blank Project (0 tasks)
+                  </button>
+                  {templatesByCategory.engineering.length > 0 && (
+                    <>
+                      <div className="px-2 py-0.5 text-[10px] font-medium text-muted-foreground uppercase">Engineering</div>
+                      {templatesByCategory.engineering.map((t) => (
+                        <button key={t.id} type="button" onClick={() => { setSelectedTemplate(t); setExpandedOption(null) }} disabled={isLoading} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", selectedTemplate?.id === t.id ? "bg-accent" : "hover:bg-accent/50")}>
+                          <FileText className="w-3.5 h-3.5 shrink-0" />
+                          {t.name} ({getTaskCount(t)} tasks)
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  {templatesByCategory.product.length > 0 && (
+                    <>
+                      <div className="px-2 py-0.5 text-[10px] font-medium text-muted-foreground uppercase">Product</div>
+                      {templatesByCategory.product.map((t) => (
+                        <button key={t.id} type="button" onClick={() => { setSelectedTemplate(t); setExpandedOption(null) }} disabled={isLoading} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", selectedTemplate?.id === t.id ? "bg-accent" : "hover:bg-accent/50")}>
+                          <FileText className="w-3.5 h-3.5 shrink-0" />
+                          {t.name} ({getTaskCount(t)} tasks)
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  {templatesByCategory.marketing.length > 0 && (
+                    <>
+                      <div className="px-2 py-0.5 text-[10px] font-medium text-muted-foreground uppercase">Marketing</div>
+                      {templatesByCategory.marketing.map((t) => (
+                        <button key={t.id} type="button" onClick={() => { setSelectedTemplate(t); setExpandedOption(null) }} disabled={isLoading} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", selectedTemplate?.id === t.id ? "bg-accent" : "hover:bg-accent/50")}>
+                          <FileText className="w-3.5 h-3.5 shrink-0" />
+                          {t.name} ({getTaskCount(t)} tasks)
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  {templatesByCategory.operations.length > 0 && (
+                    <>
+                      <div className="px-2 py-0.5 text-[10px] font-medium text-muted-foreground uppercase">Operations</div>
+                      {templatesByCategory.operations.map((t) => (
+                        <button key={t.id} type="button" onClick={() => { setSelectedTemplate(t); setExpandedOption(null) }} disabled={isLoading} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", selectedTemplate?.id === t.id ? "bg-accent" : "hover:bg-accent/50")}>
+                          <FileText className="w-3.5 h-3.5 shrink-0" />
+                          {t.name} ({getTaskCount(t)} tasks)
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  {templatesByCategory.general.length > 0 && (
+                    <>
+                      <div className="px-2 py-0.5 text-[10px] font-medium text-muted-foreground uppercase">General</div>
+                      {templatesByCategory.general.map((t) => (
+                        <button key={t.id} type="button" onClick={() => { setSelectedTemplate(t); setExpandedOption(null) }} disabled={isLoading} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", selectedTemplate?.id === t.id ? "bg-accent" : "hover:bg-accent/50")}>
+                          <FileText className="w-3.5 h-3.5 shrink-0" />
+                          {t.name} ({getTaskCount(t)} tasks)
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            )}
 
-            {/* Visibility Pill */}
-            <button
-              type="button"
-              onClick={() => setExpandedOption(expandedOption === 'visibility' ? null : 'visibility')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
-                expandedOption === 'visibility' ? "bg-accent" : "hover:bg-accent/50"
-              )}
-            >
-              {visibility === 'PUBLIC' ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-              <span className="text-muted-foreground">Visibility</span>
-              <span className="text-foreground">{visibility === 'PUBLIC' ? 'Public' : 'Private'}</span>
-            </button>
+            {/* Visibility */}
+            <Popover open={expandedOption === 'visibility'} onOpenChange={(o) => setExpandedOption(o ? 'visibility' : null)}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs transition-colors shrink-0",
+                    expandedOption === 'visibility' ? "bg-accent" : "hover:bg-accent/50"
+                  )}
+                >
+                  {visibility === 'PUBLIC' ? <Globe className="w-3.5 h-3.5 shrink-0" /> : <Lock className="w-3.5 h-3.5 shrink-0" />}
+                  <span className={visibility === 'TARGETED' ? "text-foreground" : "text-muted-foreground"}>
+                    {visibility === 'TARGETED' ? "Private" : "Visibility"}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="z-[100] w-72 max-h-64 overflow-y-auto p-1" align="start" sideOffset={4}>
+                <div className="space-y-0.5">
+                  <button type="button" onClick={() => { setVisibility('PUBLIC'); setExpandedOption(null) }} disabled={isLoading} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", visibility === 'PUBLIC' ? "bg-accent" : "hover:bg-accent/50")}>
+                    <Globe className="w-3.5 h-3.5 shrink-0" />
+                    Public — All workspace members
+                  </button>
+                  <button type="button" onClick={() => setVisibility('TARGETED')} disabled={isLoading} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", visibility === 'TARGETED' ? "bg-accent" : "hover:bg-accent/50")}>
+                    <Lock className="w-3.5 h-3.5 shrink-0" />
+                    Private — Selected members only
+                  </button>
+                </div>
+                {visibility === 'TARGETED' && (
+                  <div className="mt-2 pt-2 border-t border-border space-y-0.5">
+                    <div className="px-2 py-0.5 text-[10px] font-medium text-muted-foreground uppercase">Select members</div>
+                    {loadingMembers ? <div className="px-2 py-1 text-xs text-muted-foreground">Loading...</div> : workspaceMembers.length === 0 ? <div className="px-2 py-1 text-xs text-muted-foreground">No members found.</div> : (
+                      workspaceMembers.map((m) => (
+                        <label key={m.id} className="flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer hover:bg-accent/50 text-xs">
+                          <input type="checkbox" checked={selectedMemberIds.includes(m.id)} onChange={(e) => e.target.checked ? setSelectedMemberIds([...selectedMemberIds, m.id]) : setSelectedMemberIds(selectedMemberIds.filter(id => id !== m.id))} disabled={isLoading} className="w-3.5 h-3.5" />
+                          {m.name}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+
+            {/* Owner */}
+            <Popover open={expandedOption === 'owner'} onOpenChange={(o) => setExpandedOption(o ? 'owner' : null)}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs transition-colors shrink-0",
+                    expandedOption === 'owner' ? "bg-accent" : "hover:bg-accent/50"
+                  )}
+                >
+                  <User className="w-3.5 h-3.5 shrink-0" />
+                  <span className={selectedOwnerId ? "text-foreground" : "text-muted-foreground"}>
+                    {selectedOwnerId ? workspaceMembers.find(m => m.id === selectedOwnerId)?.name : "Owner"}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="z-[100] w-64 max-h-64 overflow-y-auto p-1" align="start" sideOffset={4}>
+                <div className="space-y-0.5">
+                  {loadingMembers ? <div className="px-2 py-1 text-xs text-muted-foreground">Loading...</div> : (
+                    <>
+                      <button type="button" onClick={() => { setSelectedOwnerId(''); setExpandedOption(null) }} disabled={isLoading} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", !selectedOwnerId ? "bg-accent" : "hover:bg-accent/50")}>
+                        <User className="w-3.5 h-3.5 shrink-0" />
+                        No owner
+                      </button>
+                      {workspaceMembers.map((m) => (
+                        <button key={m.id} type="button" onClick={() => { setSelectedOwnerId(m.id); setExpandedOption(null) }} disabled={isLoading} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", selectedOwnerId === m.id ? "bg-accent" : "hover:bg-accent/50")}>
+                          <User className="w-3.5 h-3.5 shrink-0" />
+                          {m.name}{m.orgPositionTitle ? ` — ${m.orgPositionTitle}` : ''}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Assignees */}
+            <Popover open={expandedOption === 'assignees'} onOpenChange={(o) => setExpandedOption(o ? 'assignees' : null)}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs transition-colors shrink-0",
+                    expandedOption === 'assignees' ? "bg-accent" : "hover:bg-accent/50"
+                  )}
+                >
+                  <Users className="w-3.5 h-3.5 shrink-0" />
+                  <span className={selectedAssigneeIds.length > 0 ? "text-foreground" : "text-muted-foreground"}>
+                    {selectedAssigneeIds.length > 0 ? selectedAssigneeIds.length : "Assignees"}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="z-[100] w-72 max-h-64 overflow-y-auto p-1" align="start" sideOffset={4}>
+                <div className="space-y-0.5">
+                  {selectedAssigneeIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1">
+                      {selectedAssigneeIds.map((id) => {
+                        const member = workspaceMembers.find(m => m.id === id)
+                        return (
+                          <Badge key={id} variant="secondary" className="flex items-center gap-1 text-xs py-0">
+                            {member?.name ?? id}
+                            <button type="button" onClick={() => setSelectedAssigneeIds(prev => prev.filter(i => i !== id))} className="ml-0.5 hover:opacity-70" disabled={isLoading}><X className="h-3 w-3" /></button>
+                          </Badge>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <div className="px-2 py-0.5 text-[10px] font-medium text-muted-foreground uppercase">Add member</div>
+                  {loadingMembers ? <div className="px-2 py-1 text-xs text-muted-foreground">Loading...</div> : workspaceMembers.length === 0 ? <div className="px-2 py-1 text-xs text-muted-foreground">No members found.</div> : (() => {
+                    const available = workspaceMembers.filter(m => !selectedAssigneeIds.includes(m.id))
+                    return available.length > 0 ? (
+                      available.map((m) => (
+                        <button key={m.id} type="button" onClick={() => { setSelectedAssigneeIds(prev => [...prev, m.id]) }} disabled={isLoading} className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors hover:bg-accent/50">
+                          <Users className="w-3.5 h-3.5 shrink-0" />
+                          {m.name}{m.orgPositionTitle ? ` — ${m.orgPositionTitle}` : ''}
+                        </button>
+                      ))
+                    ) : <div className="px-2 py-1 text-xs text-muted-foreground">All members added</div>
+                  })()}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Channels */}
+            <Popover open={expandedOption === 'channels'} onOpenChange={(o) => setExpandedOption(o ? 'channels' : null)}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs transition-colors shrink-0",
+                    expandedOption === 'channels' ? "bg-accent" : "hover:bg-accent/50"
+                  )}
+                >
+                  <Hash className="w-3.5 h-3.5 shrink-0" />
+                  <span className={channelList.length > 0 ? "text-foreground" : "text-muted-foreground"}>
+                    {channelList.length > 0 ? channelList.length : "Channels"}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="z-[100] w-72 max-h-64 overflow-y-auto p-1" align="start" sideOffset={4}>
+                <div className="space-y-0.5">
+                  {channelList.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1">
+                      {channelList.map((ch, i) => (
+                        <Badge key={i} variant="outline" className="flex items-center gap-1 text-xs py-0">
+                          #{ch}
+                          <button type="button" onClick={() => setChannelList(prev => prev.filter((_, j) => j !== i))} className="ml-0.5 hover:opacity-70" disabled={isLoading}><X className="h-3 w-3" /></button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-1">
+                    <Input placeholder="Add channel" value={channelInput} onChange={(e) => setChannelInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const ch = channelInput.trim().replace(/^#/, ''); if (ch && !channelList.includes(ch)) { setChannelList(prev => [...prev, ch]); setChannelInput('') } } }} className="flex-1 h-7 text-xs" disabled={isLoading} />
+                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => { const ch = channelInput.trim().replace(/^#/, ''); if (ch && !channelList.includes(ch)) { setChannelList(prev => [...prev, ch]); setChannelInput('') } }} disabled={isLoading || !channelInput.trim()}>Add</Button>
+                  </div>
+                  <p className="px-2 py-0.5 text-[10px] text-muted-foreground">Slack channel names for Loopbrain</p>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Status */}
+            <Popover open={expandedOption === 'status'} onOpenChange={(o) => setExpandedOption(o ? 'status' : null)}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs transition-colors shrink-0",
+                    expandedOption === 'status' ? "bg-accent" : "hover:bg-accent/50"
+                  )}
+                >
+                  <Circle className="w-3.5 h-3.5 shrink-0" />
+                  <Badge className={cn("text-[10px] px-1 py-0", statusOptions.find(o => o.value === formData.status)?.color)}>
+                    {statusOptions.find(o => o.value === formData.status)?.label}
+                  </Badge>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="z-[100] w-48 p-1" align="start" sideOffset={4}>
+                <div className="space-y-0.5">
+                  {statusOptions.map((opt) => (
+                    <button key={opt.value} type="button" onClick={() => { handleInputChange('status', opt.value); setExpandedOption(null) }} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", formData.status === opt.value ? "bg-accent" : "hover:bg-accent/50")}>
+                      <Badge className={cn("text-[10px] px-1 py-0", opt.color)}>{opt.label}</Badge>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Priority */}
+            <Popover open={expandedOption === 'priority'} onOpenChange={(o) => setExpandedOption(o ? 'priority' : null)}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs transition-colors shrink-0",
+                    expandedOption === 'priority' ? "bg-accent" : "hover:bg-accent/50"
+                  )}
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <Badge className={cn("text-[10px] px-1 py-0", priorityOptions.find(o => o.value === formData.priority)?.color)}>
+                    {priorityOptions.find(o => o.value === formData.priority)?.label}
+                  </Badge>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="z-[100] w-48 p-1" align="start" sideOffset={4}>
+                <div className="space-y-0.5">
+                  {priorityOptions.map((opt) => (
+                    <button key={opt.value} type="button" onClick={() => { handleInputChange('priority', opt.value); setExpandedOption(null) }} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-left transition-colors", formData.priority === opt.value ? "bg-accent" : "hover:bg-accent/50")}>
+                      <Badge className={cn("text-[10px] px-1 py-0", opt.color)}>{opt.label}</Badge>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Start Date */}
+            <Popover open={expandedOption === 'startDate'} onOpenChange={(o) => setExpandedOption(o ? 'startDate' : null)}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs transition-colors shrink-0",
+                    expandedOption === 'startDate' ? "bg-accent" : "hover:bg-accent/50"
+                  )}
+                >
+                  <Calendar className="w-3.5 h-3.5 shrink-0" />
+                  <span className={formData.startDate ? "text-foreground" : "text-muted-foreground"}>
+                    {formData.startDate ? new Date(formData.startDate).toLocaleDateString() : "Start"}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="z-[100] w-auto p-0" align="start" sideOffset={4}>
+                <CalendarDatePicker
+                  value={formData.startDate}
+                  onChange={(v) => handleInputChange('startDate', v)}
+                  placeholder="3/11/2026, May 2027, Q4 2026"
+                  disabled={isLoading}
+                  showInput={true}
+                  showGranularityTabs={true}
+                  onSelect={() => setExpandedOption(null)}
+                />
+              </PopoverContent>
+            </Popover>
+
+            {/* End Date */}
+            <Popover open={expandedOption === 'endDate'} onOpenChange={(o) => setExpandedOption(o ? 'endDate' : null)}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs transition-colors shrink-0",
+                    expandedOption === 'endDate' ? "bg-accent" : "hover:bg-accent/50",
+                    errors.endDate && "border-red-500"
+                  )}
+                >
+                  <Calendar className="w-3.5 h-3.5 shrink-0" />
+                  <span className={formData.endDate ? "text-foreground" : "text-muted-foreground"}>
+                    {formData.endDate ? new Date(formData.endDate).toLocaleDateString() : "End"}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="z-[100] w-auto p-0" align="start" sideOffset={4}>
+                <CalendarDatePicker
+                  value={formData.endDate}
+                  onChange={(v) => handleInputChange('endDate', v)}
+                  placeholder="3/11/2026, May 2027, Q4 2026"
+                  disabled={isLoading}
+                  showInput={true}
+                  showGranularityTabs={true}
+                  onSelect={() => setExpandedOption(null)}
+                />
+                {errors.endDate && <p className="text-xs text-red-500 px-2 pb-2">{errors.endDate}</p>}
+              </PopoverContent>
+            </Popover>
+
+            {/* Color Pill */}
+            <Popover open={expandedOption === 'color'} onOpenChange={(o) => setExpandedOption(o ? 'color' : null)}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs transition-colors shrink-0",
+                    expandedOption === 'color' ? "bg-accent" : "hover:bg-accent/50"
+                  )}
+                >
+                  <div 
+                    className="w-3.5 h-3.5 rounded-full border border-border/50" 
+                    style={{ backgroundColor: projectColor }}
+                  />
+                  <span className="text-muted-foreground">Color</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="z-[100] w-auto p-2" align="start" sideOffset={4}>
+                <div className="flex gap-1.5">
+                  {colorOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setProjectColor(option.value)
+                        setExpandedOption(null)
+                      }}
+                      className={cn(
+                        "w-7 h-7 rounded-md border-2 transition-all hover:scale-110",
+                        projectColor === option.value ? 'border-foreground ring-2 ring-offset-1 ring-foreground/20' : 'border-transparent'
+                      )}
+                      style={{ backgroundColor: option.value }}
+                      title={option.label}
+                    />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
-          {/* Row 2 - People */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Owner Pill */}
-            <button
-              type="button"
-              onClick={() => setExpandedOption(expandedOption === 'owner' ? null : 'owner')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
-                expandedOption === 'owner' ? "bg-accent" : "hover:bg-accent/50"
-              )}
-            >
-              <User className="w-4 h-4" />
-              <span className="text-muted-foreground">Owner</span>
-              <span className="text-foreground">
-                {selectedOwnerId ? workspaceMembers.find(m => m.id === selectedOwnerId)?.name : 'Not set'}
-              </span>
-            </button>
-
-            {/* Assignees Pill */}
-            <button
-              type="button"
-              onClick={() => setExpandedOption(expandedOption === 'assignees' ? null : 'assignees')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
-                expandedOption === 'assignees' ? "bg-accent" : "hover:bg-accent/50"
-              )}
-            >
-              <Users className="w-4 h-4" />
-              <span className="text-muted-foreground">Assignees</span>
-              <span className="text-foreground">
-                {selectedAssigneeIds.length > 0 ? `${selectedAssigneeIds.length} selected` : 'None'}
-              </span>
-            </button>
-
-            {/* Channels Pill */}
-            <button
-              type="button"
-              onClick={() => setExpandedOption(expandedOption === 'channels' ? null : 'channels')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
-                expandedOption === 'channels' ? "bg-accent" : "hover:bg-accent/50"
-              )}
-            >
-              <Hash className="w-4 h-4" />
-              <span className="text-muted-foreground">Channels</span>
-              <span className="text-foreground">
-                {channelList.length > 0 ? `${channelList.length} channel${channelList.length !== 1 ? 's' : ''}` : 'None'}
-              </span>
-            </button>
-          </div>
-
-          {/* Row 3 - Scheduling */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Status Pill */}
-            <button
-              type="button"
-              onClick={() => setExpandedOption(expandedOption === 'status' ? null : 'status')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
-                expandedOption === 'status' ? "bg-accent" : "hover:bg-accent/50"
-              )}
-            >
-              <Circle className="w-4 h-4" />
-              <span className="text-muted-foreground">Status</span>
-              <Badge className={statusOptions.find(o => o.value === formData.status)?.color}>
-                {statusOptions.find(o => o.value === formData.status)?.label}
-              </Badge>
-            </button>
-
-            {/* Priority Pill */}
-            <button
-              type="button"
-              onClick={() => setExpandedOption(expandedOption === 'priority' ? null : 'priority')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
-                expandedOption === 'priority' ? "bg-accent" : "hover:bg-accent/50"
-              )}
-            >
-              <AlertTriangle className="w-4 h-4" />
-              <span className="text-muted-foreground">Priority</span>
-              <Badge className={priorityOptions.find(o => o.value === formData.priority)?.color}>
-                {priorityOptions.find(o => o.value === formData.priority)?.label}
-              </Badge>
-            </button>
-          </div>
-
-          {/* Row 4 - Dates */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Start Date Pill */}
-            <button
-              type="button"
-              onClick={() => setExpandedOption(expandedOption === 'startDate' ? null : 'startDate')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
-                expandedOption === 'startDate' ? "bg-accent" : "hover:bg-accent/50"
-              )}
-            >
-              <Calendar className="w-4 h-4" />
-              <span className="text-muted-foreground">Start Date</span>
-              <span className="text-foreground">
-                {formData.startDate ? new Date(formData.startDate).toLocaleDateString() : 'Not set'}
-              </span>
-            </button>
-
-            {/* End Date Pill */}
-            <button
-              type="button"
-              onClick={() => setExpandedOption(expandedOption === 'endDate' ? null : 'endDate')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
-                expandedOption === 'endDate' ? "bg-accent" : "hover:bg-accent/50",
-                errors.endDate && "border-red-500"
-              )}
-            >
-              <Calendar className="w-4 h-4" />
-              <span className="text-muted-foreground">End Date</span>
-              <span className="text-foreground">
-                {formData.endDate ? new Date(formData.endDate).toLocaleDateString() : 'Not set'}
-              </span>
-            </button>
-          </div>
+          {/* Team Assignment (Optional) - Below pills */}
+          {teams.length > 0 && (
+            <div className="space-y-2 pt-2 border-t">
+              <Label className="text-sm text-muted-foreground">Owning Team (Optional)</Label>
+              <Select
+                value={selectedTeamId || 'none'}
+                onValueChange={(value) => setSelectedTeamId(value === 'none' ? '' : value)}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="No team assigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No team assigned</SelectItem>
+                  {teams.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Links this project to an org team
+              </p>
+            </div>
+          )}
 
           {/* Description - always visible */}
           <div className="space-y-2">
@@ -598,387 +1029,11 @@ export function CreateProjectDialog({
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Describe what this project is about"
-              rows={4}
-              className="min-h-[100px] resize-y"
+              rows={10}
+              className="min-h-[220px] resize-y focus-visible:ring-0 focus-visible:ring-offset-0"
               disabled={isLoading}
             />
           </div>
-
-          {/* Expanded Options */}
-          {expandedOption === 'template' && (
-            <div className="pt-2">
-              <Select
-                value={selectedTemplate?.id || 'blank'}
-                onValueChange={(v) => {
-                  if (v === 'blank') {
-                    setSelectedTemplate(null)
-                  } else {
-                    const template = PROJECT_TEMPLATES.find(t => t.id === v)
-                    setSelectedTemplate(template || null)
-                  }
-                }}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a template" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="blank">
-                    Blank Project (0 tasks)
-                  </SelectItem>
-                  
-                  {templatesByCategory.engineering.length > 0 && (
-                    <SelectGroup>
-                      <SelectLabel>Engineering</SelectLabel>
-                      {templatesByCategory.engineering.map((template) => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.name} ({getTaskCount(template)} tasks)
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  )}
-                  
-                  {templatesByCategory.product.length > 0 && (
-                    <SelectGroup>
-                      <SelectLabel>Product</SelectLabel>
-                      {templatesByCategory.product.map((template) => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.name} ({getTaskCount(template)} tasks)
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  )}
-                  
-                  {templatesByCategory.marketing.length > 0 && (
-                    <SelectGroup>
-                      <SelectLabel>Marketing</SelectLabel>
-                      {templatesByCategory.marketing.map((template) => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.name} ({getTaskCount(template)} tasks)
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  )}
-                  
-                  {templatesByCategory.operations.length > 0 && (
-                    <SelectGroup>
-                      <SelectLabel>Operations</SelectLabel>
-                      {templatesByCategory.operations.map((template) => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.name} ({getTaskCount(template)} tasks)
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  )}
-                  
-                  {templatesByCategory.general.length > 0 && (
-                    <SelectGroup>
-                      <SelectLabel>General</SelectLabel>
-                      {templatesByCategory.general.map((template) => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.name} ({getTaskCount(template)} tasks)
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {expandedOption === 'visibility' && (
-            <div className="pt-2 space-y-3">
-              {/* Visibility Radio Buttons */}
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setVisibility('PUBLIC')}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-4 py-3 rounded-md border text-left transition-colors",
-                    visibility === 'PUBLIC' 
-                      ? "border-primary bg-accent" 
-                      : "border-border hover:bg-accent/50"
-                  )}
-                >
-                  <Globe className="w-4 h-4" />
-                  <div>
-                    <div className="font-medium text-sm">Public</div>
-                    <div className="text-xs text-muted-foreground">All workspace members</div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVisibility('TARGETED')}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-4 py-3 rounded-md border text-left transition-colors",
-                    visibility === 'TARGETED' 
-                      ? "border-primary bg-accent" 
-                      : "border-border hover:bg-accent/50"
-                  )}
-                >
-                  <Lock className="w-4 h-4" />
-                  <div>
-                    <div className="font-medium text-sm">Private</div>
-                    <div className="text-xs text-muted-foreground">Selected members only</div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Member Picker (only for TARGETED) */}
-              {visibility === 'TARGETED' && (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Select members who can access this project:</p>
-                  {loadingMembers ? (
-                    <div className="text-sm text-muted-foreground">Loading members...</div>
-                  ) : workspaceMembers.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">No workspace members found.</div>
-                  ) : (
-                    <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
-                      {workspaceMembers.map((member) => (
-                        <label key={member.id} className="flex items-center space-x-2 cursor-pointer hover:bg-muted p-2 rounded">
-                          <input
-                            type="checkbox"
-                            checked={selectedMemberIds.includes(member.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedMemberIds([...selectedMemberIds, member.id])
-                              } else {
-                                setSelectedMemberIds(selectedMemberIds.filter(id => id !== member.id))
-                              }
-                            }}
-                            disabled={isLoading}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-sm">{member.name}</span>
-                          {member.email && (
-                            <span className="text-xs text-muted-foreground">({member.email})</span>
-                          )}
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {expandedOption === 'owner' && (
-            <div className="pt-2">
-              {loadingMembers ? (
-                <div className="text-sm text-muted-foreground">Loading members...</div>
-              ) : (
-                <Select
-                  value={selectedOwnerId || '_none'}
-                  onValueChange={(v) => setSelectedOwnerId(v === '_none' ? '' : v)}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select owner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">No owner</SelectItem>
-                    {workspaceMembers.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        {member.name}
-                        {member.orgPositionTitle ? ` - ${member.orgPositionTitle}` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          )}
-
-          {expandedOption === 'assignees' && (
-            <div className="pt-2 space-y-2">
-              {/* Selected Assignees Badges */}
-              {selectedAssigneeIds.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selectedAssigneeIds.map((id) => {
-                    const member = workspaceMembers.find((m) => m.id === id)
-                    return (
-                      <Badge key={id} variant="secondary" className="flex items-center gap-1">
-                        {member?.name ?? id}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedAssigneeIds((prev) => prev.filter((i) => i !== id))}
-                          className="ml-1 hover:opacity-70"
-                          disabled={isLoading}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    )
-                  })}
-                </div>
-              )}
-              
-              {/* Add Assignee Dropdown */}
-              {loadingMembers ? (
-                <div className="text-sm text-muted-foreground">Loading members...</div>
-              ) : workspaceMembers.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No workspace members found.</div>
-              ) : (() => {
-                const available = workspaceMembers.filter((m) => !selectedAssigneeIds.includes(m.id))
-                return available.length > 0 ? (
-                  <Select
-                    value="_add"
-                    onValueChange={(v) => {
-                      if (v !== '_add' && !selectedAssigneeIds.includes(v)) {
-                        setSelectedAssigneeIds((prev) => [...prev, v])
-                      }
-                    }}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Add member" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="_add" disabled>Add member</SelectItem>
-                      {available.map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.name}
-                          {member.orgPositionTitle ? ` - ${member.orgPositionTitle}` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="text-sm text-muted-foreground">All members added</div>
-                )
-              })()}
-            </div>
-          )}
-
-          {expandedOption === 'channels' && (
-            <div className="pt-2 space-y-2">
-              {/* Channel Badges */}
-              {channelList.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {channelList.map((channel, idx) => (
-                    <Badge key={idx} variant="outline" className="flex items-center gap-1">
-                      #{channel}
-                      <button
-                        type="button"
-                        onClick={() => setChannelList(prev => prev.filter((_, i) => i !== idx))}
-                        className="ml-1 hover:opacity-70"
-                        disabled={isLoading}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              
-              {/* Add Channel Input */}
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Add channel (e.g. loopbrain-architecture)"
-                  value={channelInput}
-                  onChange={(e) => setChannelInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      const channel = channelInput.trim().replace(/^#/, '')
-                      if (channel && !channelList.includes(channel)) {
-                        setChannelList(prev => [...prev, channel])
-                        setChannelInput('')
-                      }
-                    }
-                  }}
-                  className="flex-1"
-                  disabled={isLoading}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    const channel = channelInput.trim().replace(/^#/, '')
-                    if (channel && !channelList.includes(channel)) {
-                      setChannelList(prev => [...prev, channel])
-                      setChannelInput('')
-                    }
-                  }}
-                  disabled={isLoading || !channelInput.trim()}
-                >
-                  Add
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Slack channel names stored locally for Loopbrain context
-              </p>
-            </div>
-          )}
-
-          {expandedOption === 'status' && (
-            <div className="pt-2 space-y-2">
-              {statusOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleInputChange('status', option.value)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-4 py-3 rounded-md border text-left transition-colors",
-                    formData.status === option.value 
-                      ? "border-primary bg-accent" 
-                      : "border-border hover:bg-accent/50"
-                  )}
-                >
-                  <Badge className={option.color}>{option.label}</Badge>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {expandedOption === 'priority' && (
-            <div className="pt-2 space-y-2">
-              {priorityOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleInputChange('priority', option.value)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-4 py-3 rounded-md border text-left transition-colors",
-                    formData.priority === option.value 
-                      ? "border-primary bg-accent" 
-                      : "border-border hover:bg-accent/50"
-                  )}
-                >
-                  <Badge className={option.color}>{option.label}</Badge>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {expandedOption === 'startDate' && (
-            <div className="pt-2">
-              <Input
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => handleInputChange('startDate', e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-          )}
-
-          {expandedOption === 'endDate' && (
-            <div className="pt-2">
-              <Input
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => handleInputChange('endDate', e.target.value)}
-                className={errors.endDate ? 'border-red-500' : ''}
-                disabled={isLoading}
-              />
-              {errors.endDate && (
-                <p className="text-sm text-red-500 flex items-center space-x-1 mt-1">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{errors.endDate}</span>
-                </p>
-              )}
-            </div>
-          )}
 
           {/* Error Messages */}
           {errors.submit && (
@@ -1015,10 +1070,10 @@ export function CreateProjectDialog({
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  {mode === 'create' ? 'Creating...' : 'Saving...'}
                 </>
               ) : (
-                'Create Project'
+                mode === 'create' ? 'Create Project' : 'Save Changes'
               )}
             </Button>
           </DialogFooter>

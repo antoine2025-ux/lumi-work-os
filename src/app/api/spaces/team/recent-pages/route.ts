@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const pages = await getMyTeamRecentPages(auth.user.userId, auth.workspaceId)
     return NextResponse.json(pages)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

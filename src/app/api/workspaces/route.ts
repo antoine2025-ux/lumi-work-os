@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     }))
 
     return NextResponse.json({ workspaces })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error fetching workspaces:", error)
     // If user is not authenticated, return empty array
     if (error instanceof Error && error.message.includes('Unauthorized')) {
@@ -62,27 +62,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("Starting workspace creation...")
     const auth = await getUnifiedAuth(request)
-    
-    console.log("Auth context:", auth)
-    
     const body = CreateWorkspaceAltSchema.parse(await request.json())
     const { name, description, slug } = body
 
-    console.log("Creating workspace with data:", { name, slug, description })
-
     if (!name || !slug) {
-      console.log("Missing required fields")
       return NextResponse.json(
         { error: "Name and slug are required" },
         { status: 400 }
       )
     }
 
-    // Create workspace
-    console.log("Creating workspace in database...")
-    
     // Check if slug already exists and make it unique if needed
     let finalSlug = slug
     let counter = 1
@@ -95,8 +85,6 @@ export async function POST(request: NextRequest) {
       counter++
     }
     
-    console.log("Using slug:", finalSlug)
-    
     // Create workspace and initial OWNER membership in a single transaction
     const result = await prisma.$transaction(async (tx) => {
       const workspace = await tx.workspace.create({
@@ -107,8 +95,6 @@ export async function POST(request: NextRequest) {
           ownerId: auth.user.userId
         }
       })
-
-      console.log("Workspace created:", workspace.id)
 
       // Add creator as owner inside transaction
       const membership = await tx.workspaceMember.create({
@@ -151,11 +137,8 @@ export async function POST(request: NextRequest) {
       return workspace
     })
 
-    console.log("Adding user as workspace member...")
-
-    console.log("Workspace creation completed successfully")
     return NextResponse.json({ workspace: result })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error creating workspace:", error)
     return handleApiError(error, request)
   }

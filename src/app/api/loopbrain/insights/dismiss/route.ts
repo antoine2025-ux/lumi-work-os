@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
       dismissed: result.count,
       insightIds: validIds,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

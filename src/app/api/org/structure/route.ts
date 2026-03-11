@@ -42,12 +42,10 @@ export async function GET(request: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     // Step 4: Query Prisma (explicitly pass workspaceId since middleware is disabled)
-    console.log("[GET /api/org/structure] Fetching structure for workspaceId:", workspaceId);
     const data = await getOrgStructure(workspaceId);
-    console.log("[GET /api/org/structure] Found", data.departments.length, "departments and", data.teams.length, "teams");
 
     return NextResponse.json(data, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

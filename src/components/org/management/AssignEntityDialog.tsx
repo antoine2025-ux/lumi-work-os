@@ -91,7 +91,7 @@ export function AssignEntityDialog({ open, onClose, onAssigned, item }: AssignEn
       if (!res.ok) throw new Error(data.error ?? 'Assignment failed')
       onAssigned()
       onClose()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setSaving(false)

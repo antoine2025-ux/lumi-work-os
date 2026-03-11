@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
           expiredCount,
           durationMs: Date.now() - wsStartTime,
         });
-      } catch (error) {
+      } catch (error: unknown) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
 
@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
       },
       results,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     const totalDurationMs = Date.now() - startTime;
     logger.error("[CronInsights] Cron job failed", {
       error,

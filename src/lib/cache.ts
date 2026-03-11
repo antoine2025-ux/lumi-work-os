@@ -162,7 +162,7 @@ export const cache = {
       }
       
       await client.del(key);
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Cache del error:', error);
     }
   },
@@ -178,7 +178,7 @@ export const cache = {
       if (keys.length > 0) {
         await client.del(keys);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Cache invalidateWorkspace error:', error);
     }
   },
@@ -202,7 +202,7 @@ export const cache = {
       const data = await fetcher();
       await this.set(cacheKey, data, ttl);
       return data;
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Cache cacheWorkspaceData error:', error);
       // Fallback to direct fetch if caching fails
       return await fetcher();
@@ -230,7 +230,7 @@ export const cache = {
       if (keys.length > 0) {
         await client.del(keys);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Cache invalidatePattern error:', error);
     }
   },
@@ -243,7 +243,7 @@ export const cache = {
       }
       
       await client.flushAll();
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Cache flushAll error:', error);
     }
   },
@@ -257,7 +257,7 @@ export const cache = {
       
       const keys = await client.keys('*');
       return { isAvailable: true, keyCount: keys.length };
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Cache getStats error:', error);
       return { isAvailable: false };
     }

@@ -60,7 +60,7 @@ export async function emitEvent<T = unknown>(
           })
         );
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Error in event handler for ${eventType}:`, error);
     }
   }

@@ -27,7 +27,7 @@ export function DeletePersonModal({
     try {
       await onConfirm();
       onClose();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to delete person:", error);
       // Error handling is done by the parent component
     } finally {

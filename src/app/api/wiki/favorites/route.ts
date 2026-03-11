@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
     response.headers.set('Cache-Control', 'private, s-maxage=120, stale-while-revalidate=240')
     response.headers.set('X-Cache', 'MISS')
     return response
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

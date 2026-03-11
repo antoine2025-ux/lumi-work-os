@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     const res = await measureOrgHealth(workspaceId);
     return NextResponse.json({ ok: true, snapshot: res.snapshot });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

@@ -49,7 +49,7 @@ export async function GET(
     }
 
     return NextResponse.json(template)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -137,7 +137,7 @@ export async function PUT(
     })
 
     return NextResponse.json(template)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -177,7 +177,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: 'Template deleted successfully' })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

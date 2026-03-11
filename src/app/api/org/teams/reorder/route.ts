@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     await recordOrgApiHit(routeId, 200, auth.workspaceId, auth.user.userId);
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch (error: unknown) {
     await recordOrgApiHit(routeId, 500, null, null);
     return handleApiError(error, req);
   }

@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       ok: true,
       file: `docs/org/qa/${fileName}`,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[ORG_QA_EXPORT_ERROR]", error);
     return NextResponse.json(
       { ok: false, error: "Failed to export QA snapshot" },

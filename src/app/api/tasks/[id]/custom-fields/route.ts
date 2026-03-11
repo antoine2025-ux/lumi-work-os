@@ -184,7 +184,7 @@ export async function POST(
       message: 'Custom fields updated successfully',
       customFields: results 
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

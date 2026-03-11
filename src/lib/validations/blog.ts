@@ -20,13 +20,10 @@ export const BlogPostCreateSchema = z.object({
 
 /** PUT /api/blog/admin/posts/[id] */
 export const BlogPostUpdateSchema = z.object({
-  title: z.string().max(200).optional(),
-  slug: z.string().max(200).regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric with hyphens').optional(),
-  excerpt: z.string().max(500).optional(),
+  title: z.string().min(1).max(300).optional(),
+  slug: z.string().max(300).optional(),
   content: z.string().max(100000).optional(),
-  category: z.enum(['PRODUCT', 'ENGINEERING', 'COMPANY', 'CUSTOMER_STORIES']).optional(),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
-  publishedAt: z.string().datetime().optional().nullable(),
-  featuredImage: z.string().url().max(1000).optional().nullable(),
-  tags: z.array(z.string().max(50)).optional(),
+  excerpt: z.string().max(1000).optional(),
+  status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
+  category: z.enum(['NEWS', 'PRODUCT', 'CONTEXTUAL_AI', 'LOOPWELL']).optional(),
 })

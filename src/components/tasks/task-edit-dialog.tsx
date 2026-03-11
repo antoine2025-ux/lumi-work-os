@@ -213,7 +213,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
         // User doesn't have access to project - show empty list
         setUsers([])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading assignees:', error)
       // Fallback to empty list on error
       setUsers([])
@@ -229,7 +229,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
         const customFieldsData = await response.json()
         setCustomFieldDefs(customFieldsData)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading custom fields:', error)
     }
   }
@@ -243,7 +243,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
         const epicsData = await response.json()
         setEpics(epicsData)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading epics:', error)
     }
   }
@@ -257,7 +257,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
         const milestonesData = await response.json()
         setMilestones(milestonesData)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading milestones:', error)
     }
   }
@@ -463,7 +463,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
         // Show error to user
         alert(`Failed to update task: ${errorMessage}`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating task:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       alert(`Error updating task: ${errorMessage}`)

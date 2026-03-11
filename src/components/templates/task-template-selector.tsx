@@ -94,7 +94,7 @@ export function TaskTemplateSelector({ onTemplateSelect, onSkip, projectId }: Ta
         const data = await response.json()
         setTemplates(data)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading templates:', error)
     } finally {
       setIsLoading(false)
@@ -118,13 +118,12 @@ export function TaskTemplateSelector({ onTemplateSelect, onSkip, projectId }: Ta
       })
 
       if (response.ok) {
-        const result = await response.json()
-        console.log('Template applied successfully:', result)
+        await response.json()
         onTemplateSelect(selectedTemplate)
       } else {
         console.error('Failed to apply template')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error applying template:', error)
     } finally {
       setIsApplying(false)

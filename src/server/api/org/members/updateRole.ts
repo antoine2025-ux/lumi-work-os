@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
     });
 
     return createSuccessResponse<Record<string, never>>({});
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

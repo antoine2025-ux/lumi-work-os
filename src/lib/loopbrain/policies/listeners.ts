@@ -22,7 +22,7 @@ export function initializePolicyListeners(): void {
       for (const policy of policies) {
         try {
           await executePolicyRun(policy, `email:${event.threadId}`)
-        } catch (err) {
+        } catch (err: unknown) {
           logger.error('[PolicyListeners] Failed to execute policy', {
             policyId: policy.id,
             threadId: event.threadId,
@@ -30,7 +30,7 @@ export function initializePolicyListeners(): void {
           })
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('[PolicyListeners] Failed to match email event', {
         threadId: event.threadId,
         error: err instanceof Error ? err.message : String(err),

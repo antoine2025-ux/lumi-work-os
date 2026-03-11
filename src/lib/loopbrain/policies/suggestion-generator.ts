@@ -156,7 +156,7 @@ export async function generateSuggestions(
       : []
 
     return rawList.map((s, idx) => normalizeSuggestion(s, idx))
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to generate suggestions:', error)
     return []
   }

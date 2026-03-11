@@ -77,7 +77,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
 
     return NextResponse.json({ role: updated }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }
@@ -134,7 +134,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     }).catch((e) => console.error("[DELETE /api/org/custom-roles/[roleId]] Audit error:", e));
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

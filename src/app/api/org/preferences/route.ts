@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       { key: KEY_INTELLIGENCE_FILTERS, value: prefs },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -88,7 +88,7 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

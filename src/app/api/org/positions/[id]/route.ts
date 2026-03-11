@@ -98,7 +98,7 @@ export async function GET(
     }
 
     return NextResponse.json(position)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -314,7 +314,7 @@ export async function PUT(
     void safeRebuildOrgContext(auth.workspaceId);
 
     return NextResponse.json(position)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -441,7 +441,7 @@ export async function DELETE(
     void safeRebuildOrgContext(auth.workspaceId);
 
     return NextResponse.json({ message: 'Position deleted successfully' })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

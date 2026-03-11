@@ -90,7 +90,7 @@ export function InsightsCard({ className }: InsightsCardProps) {
           recommendations: (i.recommendations as Array<{ action: string; deepLink?: string }>) || [],
         }))
       )
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error loading insights")
     } finally {
       setIsLoading(false)

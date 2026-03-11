@@ -80,7 +80,7 @@ export default function NewBlogPostPage() {
 
       // Redirect to admin list
       router.push("/blog/admin")
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create post")
       setSaving(false)
     }

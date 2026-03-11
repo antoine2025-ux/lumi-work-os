@@ -80,7 +80,7 @@ export async function GET(
     })
 
     return NextResponse.json(comments)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -250,7 +250,7 @@ export async function POST(
     }
 
     return NextResponse.json(comment)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

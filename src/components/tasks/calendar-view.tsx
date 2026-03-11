@@ -112,7 +112,7 @@ export default function CalendarView({ projectId, workspaceId }: CalendarViewPro
         const data = await response.json()
         setTasks(data)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading tasks:', error)
     } finally {
       setIsLoading(false)
@@ -174,7 +174,7 @@ export default function CalendarView({ projectId, workspaceId }: CalendarViewPro
           )
         )
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating task due date:', error)
     }
   }

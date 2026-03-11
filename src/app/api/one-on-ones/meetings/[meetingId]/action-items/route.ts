@@ -64,7 +64,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     })
 
     return NextResponse.json(items)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     })
 
     return NextResponse.json(item, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -161,7 +161,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     })
 
     return NextResponse.json(updated)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -209,7 +209,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     await prisma.oneOnOneActionItem.delete({ where: { id: itemId } })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

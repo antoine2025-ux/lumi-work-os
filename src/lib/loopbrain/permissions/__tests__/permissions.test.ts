@@ -124,7 +124,7 @@ describe('assertToolRole', () => {
 
     try {
       assertToolRole(makeCtx({ userRole: 'VIEWER' }), 'ADMIN')
-    } catch (err) {
+    } catch (err: unknown) {
       expect(err).toBeInstanceOf(LoopbrainPermissionError)
       expect((err as LoopbrainPermissionError).code).toBe('ROLE_DENIED')
     }

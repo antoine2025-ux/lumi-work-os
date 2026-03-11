@@ -71,7 +71,7 @@ export async function GET(
     });
 
     return NextResponse.json(snapshot);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

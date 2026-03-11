@@ -97,7 +97,7 @@ export function PersonCapacityCard({ personId, canEdit = false, onCapacityChange
     try {
       const data = await fetchContracts(personId);
       setContracts(data);
-    } catch (err) {
+    } catch (err: unknown) {
       setError("Failed to load capacity contracts");
       console.error("[PersonCapacityCard] Error:", err);
     } finally {

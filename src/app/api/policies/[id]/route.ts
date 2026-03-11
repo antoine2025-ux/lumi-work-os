@@ -63,7 +63,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     return NextResponse.json({ policy })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     })
 
     return NextResponse.json({ policy })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -163,7 +163,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     await prisma.loopbrainPolicy.delete({ where: { id } })
 
     return NextResponse.json({ ok: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

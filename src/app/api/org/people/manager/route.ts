@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     let ctx;
     try {
       ctx = await getOrgContext(req);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[POST /api/org/people/manager] Error getting org context:", error);
       return NextResponse.json({ ok: false, error: "Failed to get organization context" }, { status: 500 });
     }
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

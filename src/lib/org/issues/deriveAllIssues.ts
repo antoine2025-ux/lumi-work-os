@@ -264,7 +264,7 @@ export async function deriveAllIssues(
   let decisionIssues: OrgIssueMetadata[] = [];
   try {
     decisionIssues = await deriveDecisionIssues(workspaceId, window);
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn("[deriveAllIssues] Decision issue derivation failed:", err);
   }
 
@@ -272,7 +272,7 @@ export async function deriveAllIssues(
   let responsibilityIssues: OrgIssueMetadata[] = [];
   try {
     responsibilityIssues = await deriveResponsibilityIssues(workspaceId);
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn("[deriveAllIssues] Responsibility issue derivation failed:", err);
   }
 
@@ -280,7 +280,7 @@ export async function deriveAllIssues(
   let workStaffingIssues: OrgIssueMetadata[] = [];
   try {
     workStaffingIssues = await deriveWorkStaffingIssues(workspaceId);
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn("[deriveAllIssues] Work staffing issue derivation failed:", err);
   }
 
@@ -320,7 +320,7 @@ export async function deriveAllIssues(
     };
 
     capacityIssues = deriveCapacityIssues(capacityContext);
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn("[deriveAllIssues] Capacity issue derivation failed:", err);
   }
 

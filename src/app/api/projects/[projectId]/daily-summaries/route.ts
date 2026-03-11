@@ -60,12 +60,12 @@ export async function GET(
     try {
       const summaries = await getDailySummaries(projectId, limit)
       return NextResponse.json(summaries)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching daily summaries:', error)
       // Return empty array if there's an error
       return NextResponse.json([])
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -133,7 +133,7 @@ export async function POST(
     let summary: string
     try {
       summary = await generateDailySummary(projectId, targetDate)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('AI generation failed, creating manual summary:', error)
       // Fallback to manual summary if AI fails
       summary = `Daily summary for ${targetDate}: Project activities and task updates.`
@@ -156,7 +156,7 @@ export async function POST(
       message: 'Daily summary generated successfully',
       summary: savedSummary
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

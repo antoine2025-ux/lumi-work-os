@@ -65,8 +65,6 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(auth.workspaceId)
     
     const body = RoleCardCreateSchema.parse(await request.json())
-    console.log('🔍 Request body:', body)
-    
     const { 
       positionId,
       roleName, 

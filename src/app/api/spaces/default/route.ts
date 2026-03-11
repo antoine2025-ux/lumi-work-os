@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       defaultSpaceId,
       workspaceId: auth.workspaceId 
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

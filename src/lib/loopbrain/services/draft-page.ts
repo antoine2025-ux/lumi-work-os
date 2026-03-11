@@ -41,15 +41,6 @@ export async function streamDraftToPage(params: StreamDraftParams): Promise<void
   const { pageId, workspaceId, topic, userId } = params
   const useHocuspocus = process.env.DRAFT_USE_HOCUSPOCUS === 'true'
 
-  console.log('[DraftPage] Starting streamDraftToPage', {
-    pageId,
-    workspaceId,
-    topic,
-    userId,
-    mode: useHocuspocus ? 'hocuspocus' : 'db-only',
-    model: DRAFT_MODEL,
-  })
-
   if (useHocuspocus) {
     await streamViaHocuspocus(params)
   } else {
@@ -69,40 +60,28 @@ async function writeDirectlyToDB(params: StreamDraftParams): Promise<void> {
     const prompt = buildDraftPrompt(topic, outline)
     const provider = getProvider(DRAFT_MODEL)
 
-    console.log('[DraftPage][db] Calling LLM', { model: DRAFT_MODEL, promptLength: prompt.length })
-
     const response = await provider.generateResponse(prompt, DRAFT_MODEL, {
       maxTokens: 4000,
       temperature: 0.7,
     })
 
-    console.log('[DraftPage][db] LLM response received', {
-      contentLength: response.content?.length ?? 0,
-      preview: response.content?.slice(0, 200) ?? '(empty)',
-      model: response.model,
-    })
-
     const content = response.content
     if (!content || content.startsWith('AI features are disabled')) {
       logger.warn('[DraftPage][db] LLM returned empty or disabled response', { pageId, topic, response: content?.slice(0, 100) })
-      console.warn('[DraftPage][db] LLM returned empty or disabled response — aborting DB write', { pageId })
       return
     }
 
     // 2. Persist to DB
-    console.log('[DraftPage][db] Updating WikiPage', { pageId, contentLength: content.length })
     setWorkspaceContext(workspaceId)
     await prisma.wikiPage.update({
       where: { id: pageId },
       data: { content },
     })
 
-    console.log('[DraftPage][db] WikiPage updated successfully', { pageId })
     logger.info('[DraftPage][db] Draft page DB write complete', { pageId, topic, contentLength: content.length })
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)
     const stack = error instanceof Error ? error.stack : undefined
-    console.error('[DraftPage][db] DB write failed', { pageId, topic, error: msg, stack })
     logger.error('[DraftPage][db] Draft page DB write failed', { pageId, topic, error: msg })
   }
 }
@@ -117,24 +96,15 @@ async function streamViaHocuspocus(params: StreamDraftParams): Promise<void> {
 
   try {
     // 1. Connect
-    console.log('[DraftPage][hocuspocus] Connecting to Hocuspocus...', { pageId })
     await writer.connect(pageId, userId)
-    console.log('[DraftPage][hocuspocus] Connected to Hocuspocus successfully')
 
     // 2. Generate content
     const prompt = buildDraftPrompt(topic, outline)
     const provider = getProvider(DRAFT_MODEL)
 
-    console.log('[DraftPage][hocuspocus] Calling LLM', { model: DRAFT_MODEL, promptLength: prompt.length })
-
     const response = await provider.generateResponse(prompt, DRAFT_MODEL, {
       maxTokens: 4000,
       temperature: 0.7,
-    })
-
-    console.log('[DraftPage][hocuspocus] LLM response received', {
-      contentLength: response.content?.length ?? 0,
-      preview: response.content?.slice(0, 200) ?? '(empty)',
     })
 
     const content = response.content
@@ -181,7 +151,6 @@ async function streamViaHocuspocus(params: StreamDraftParams): Promise<void> {
     }
 
     // 4. Persist markdown to DB as fallback (Hocuspocus onStoreDocument is primary)
-    console.log('[DraftPage][hocuspocus] Saving markdown to DB as fallback', { pageId, contentLength: content.length })
     setWorkspaceContext(workspaceId)
     await prisma.wikiPage.update({
       where: { id: pageId },
@@ -191,23 +160,15 @@ async function streamViaHocuspocus(params: StreamDraftParams): Promise<void> {
     logger.info('[DraftPage][hocuspocus] Streaming complete', { pageId, topic, lineCount: lines.length })
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)
-    const stack = error instanceof Error ? error.stack : undefined
-    console.error('[DraftPage][hocuspocus] Streaming failed — attempting DB-only fallback', { pageId, error: msg, stack })
     logger.error('[DraftPage][hocuspocus] Streaming failed', { pageId, topic, error: msg })
 
     // Any failure in the Hocuspocus path falls back to direct DB write
     try {
-      console.log('[DraftPage][hocuspocus] DB fallback: generating content...', { pageId })
       const prompt = buildDraftPrompt(topic, outline)
       const provider = getProvider(DRAFT_MODEL)
       const response = await provider.generateResponse(prompt, DRAFT_MODEL, {
         maxTokens: 4000,
         temperature: 0.7,
-      })
-
-      console.log('[DraftPage][hocuspocus] DB fallback: LLM response received', {
-        contentLength: response.content?.length ?? 0,
-        preview: response.content?.slice(0, 200) ?? '(empty)',
       })
 
       if (response.content && !response.content.startsWith('AI features are disabled')) {
@@ -216,14 +177,13 @@ async function streamViaHocuspocus(params: StreamDraftParams): Promise<void> {
           where: { id: pageId },
           data: { content: response.content },
         })
-        console.log('[DraftPage][hocuspocus] DB fallback succeeded', { pageId, contentLength: response.content.length })
+        logger.info('[DraftPage][hocuspocus] DB fallback succeeded', { pageId, contentLength: response.content.length })
       } else {
-        console.warn('[DraftPage][hocuspocus] DB fallback: LLM returned empty or disabled response', { pageId })
+        logger.warn('[DraftPage][hocuspocus] DB fallback: LLM returned empty or disabled response', { pageId })
       }
     } catch (fallbackError: unknown) {
       const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
-      const fbStack = fallbackError instanceof Error ? fallbackError.stack : undefined
-      console.error('[DraftPage][hocuspocus] DB fallback also failed', { pageId, error: fbMsg, stack: fbStack })
+      logger.error('[DraftPage][hocuspocus] DB fallback also failed', { pageId, error: fbMsg })
     }
   } finally {
     await writer.disconnect()

@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, candidate: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

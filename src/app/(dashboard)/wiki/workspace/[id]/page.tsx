@@ -125,7 +125,7 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
         const projectsList = Array.isArray(projectsData) ? projectsData : (projectsData.data || projectsData.projects || [])
         setProjects(projectsList as WikiProject[])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workspace data:', error)
     } finally {
       setIsLoading(false)

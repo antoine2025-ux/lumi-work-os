@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
     })
 
     const body = ChatStreamSchema.parse(await request.json())
-    const { message, sessionId } = body
-    const model = (body as any).model || 'gpt-4-turbo'
+    const { message, sessionId, model = 'gpt-4-turbo' } = body
 
     // Get chat session
     const chatSession = await prisma.chatSession.findUnique({
@@ -157,7 +156,7 @@ export async function POST(request: NextRequest) {
             new TextEncoder().encode(`data: ${JSON.stringify({ content: '', done: true, fullContent })}\n\n`)
           )
           controller.close()
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Streaming error:', error)
           controller.enqueue(
             new TextEncoder().encode(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error', done: true })}\n\n`)
@@ -174,7 +173,7 @@ export async function POST(request: NextRequest) {
         'Connection': 'keep-alive',
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

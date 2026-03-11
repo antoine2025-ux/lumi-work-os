@@ -24,7 +24,7 @@ export async function POST(_request: NextRequest) {
       message: 'Development mode - authentication handled by unified auth system',
       devMode: true
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Dev login error:', error)
     return NextResponse.json({ error: 'Failed to process dev login' }, { status: 500 })
   }

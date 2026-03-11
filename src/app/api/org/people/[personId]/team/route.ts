@@ -175,8 +175,9 @@ export async function PUT(
         entity: { type: "person", id: updated.id },
         payload: { teamId },
       });
-    } catch (contextError: any) {
-      console.warn("[PUT /api/org/people/[personId]/team] Failed to emit context object (non-blocking):", contextError?.message);
+    } catch (contextError: unknown) {
+      const message = contextError instanceof Error ? contextError.message : String(contextError);
+      console.warn("[PUT /api/org/people/[personId]/team] Failed to emit context object (non-blocking):", message);
     }
 
     // Step 14: Return canonical MutationResult
@@ -193,7 +194,7 @@ export async function PUT(
     };
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

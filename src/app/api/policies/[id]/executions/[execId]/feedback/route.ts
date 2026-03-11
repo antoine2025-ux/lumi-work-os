@@ -57,7 +57,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     })
 
     return NextResponse.json({ ok: true, feedback })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

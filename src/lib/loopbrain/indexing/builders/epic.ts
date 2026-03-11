@@ -70,7 +70,7 @@ export async function buildContextObjectForEpic(
     }
 
     return contextObject
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to build epic context object', {
       workspaceId,
       entityId,

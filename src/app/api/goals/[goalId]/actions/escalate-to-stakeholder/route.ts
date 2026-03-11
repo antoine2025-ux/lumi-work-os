@@ -143,7 +143,7 @@ export async function POST(
         { type: 'user', id: data.escalateTo },
       ],
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

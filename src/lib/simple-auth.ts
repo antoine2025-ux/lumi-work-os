@@ -181,7 +181,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       workspaceId: workspace?.id || '',
       isFirstTime: false
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Auth error:', error)
     return null
   }
@@ -332,7 +332,6 @@ export async function createUserWorkspace(userData: {
       }
     }
     
-    console.log('[createUserWorkspace] Using slug:', finalSlug)
     try {
       workspace = await prisma.workspace.create({
         data: {
@@ -434,15 +433,11 @@ export async function createUserWorkspace(userData: {
         workspace.id
       )
       
-      console.log('[createUserWorkspace] WorkspaceMember created successfully via raw SQL')
     } catch (rawSQLError: unknown) {
       const sqlErr2 = rawSQLError as { message?: string; code?: string };
       console.error('[createUserWorkspace] Raw SQL workspaceMember.create failed:', sqlErr2.message)
       console.error('[createUserWorkspace] Raw SQL error code:', sqlErr2.code)
-      // Don't throw - workspace is already created, member can be added later via manual fix
-      // This is a non-critical error - the workspace exists, membership can be fixed manually if needed
-      console.warn('[createUserWorkspace] Workspace created but member creation failed. Workspace ID:', workspace.id)
-      console.warn('[createUserWorkspace] User can still access workspace, but membership record may need manual creation')
+      // Don't throw - workspace is already created, member can be added later
     }
 
     // Return the auth user data
@@ -454,7 +449,7 @@ export async function createUserWorkspace(userData: {
       workspaceId: workspace.id,
       isFirstTime: false
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[createUserWorkspace] Error creating workspace:', error)
     
     // Extract serializable error details

@@ -58,7 +58,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       summary: result.result?.summary ?? null,
       error: result.error,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -120,8 +120,8 @@ export async function POST(
                 assigneeId: createdById
               }
             })
-          } catch (error) {
-            console.error('Error creating task from template:', error)
+          } catch (_error: unknown) {
+            // non-blocking: skip failed task
           }
         }
       }
@@ -140,8 +140,8 @@ export async function POST(
                 order: epicTemplate.order || 0,
               }
             })
-          } catch (error) {
-            console.error('Error creating epic from template:', error)
+          } catch (_error: unknown) {
+            // non-blocking: skip failed epic
           }
         }
       }
@@ -159,8 +159,8 @@ export async function POST(
                 endDate: milestoneTemplate.targetDate ? new Date(milestoneTemplate.targetDate) : null,
               }
             })
-          } catch (error) {
-            console.error('Error creating milestone from template:', error)
+          } catch (_error: unknown) {
+            // non-blocking: skip failed milestone
           }
         }
       }

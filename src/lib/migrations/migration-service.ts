@@ -97,7 +97,7 @@ export class MigrationService {
         results.importedCount++
         results.importedItems.push(page.id)
 
-      } catch (error) {
+      } catch (error: unknown) {
         results.failedCount++
         results.errors.push(`Failed to import "${item.title}": ${error instanceof Error ? error.message : String(error)}`)
         console.error(`Migration error for item ${item.id}:`, error)

@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
     response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
     response.headers.set('X-Cache', 'MISS')
     return response
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching wiki workspaces:', error)
     return handleApiError(error, request)
   }
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(newWorkspace, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating wiki workspace:', error)
     return handleApiError(error, request)
   }
@@ -266,7 +266,7 @@ export async function DELETE(request: NextRequest) {
     })
 
     return NextResponse.json({ success: true, message: 'Workspace deleted successfully' })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error deleting wiki workspace:', error)
     return handleApiError(error, request)
   }

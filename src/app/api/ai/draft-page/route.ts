@@ -99,7 +99,7 @@ The content you generate will be inserted directly into the page editor.`
             new TextEncoder().encode(`data: ${JSON.stringify({ done: true })}\n\n`)
           )
           controller.close()
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Error streaming page draft:', error)
           controller.enqueue(
             new TextEncoder().encode(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Streaming failed' })}\n\n`)
@@ -116,7 +116,7 @@ The content you generate will be inserted directly into the page editor.`
         'Connection': 'keep-alive',
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

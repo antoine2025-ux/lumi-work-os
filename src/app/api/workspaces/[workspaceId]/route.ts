@@ -99,7 +99,7 @@ export async function GET(
     }
 
     return NextResponse.json(workspaceData)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error fetching workspace:", error)
     return handleApiError(error, request)
   }
@@ -157,7 +157,7 @@ export async function PUT(
     })
 
     return NextResponse.json(updatedWorkspace)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error updating workspace:", error)
     return handleApiError(error, request)
   }
@@ -207,9 +207,6 @@ export async function DELETE(
       where: { id: workspaceId }
     })
 
-    // Log the deletion for audit purposes
-    console.log(`Workspace "${workspace.name}" deleted by user ${auth.user.userId}`)
-
     // Invalidate server-side caches so no subsequent request sees stale data.
     // 1. Clear the user-status cache entry for this session token.
     try {
@@ -242,7 +239,7 @@ export async function DELETE(
       },
       requiresLogout: true // Signal that user should be logged out
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error deleting workspace:", error)
     return handleApiError(error, request)
   }

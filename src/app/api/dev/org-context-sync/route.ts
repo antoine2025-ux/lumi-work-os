@@ -26,7 +26,7 @@ export async function POST() {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[dev/org-context-sync] Failed to sync org context bundle", error);
 
     return NextResponse.json(

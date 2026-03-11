@@ -6,6 +6,7 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { isOrgCenterForceDisabled } from "@/lib/org/feature-flags";
 import { recordOrgApiHit } from "@/lib/org/monitoring.server";
 import { OrgTrackEventSchema } from '@/lib/validations/org';
+import type { Prisma } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
   const routeId = "/api/org/track";
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
           action: eventType, // e.g. "ORG_CENTER_PAGE_VIEW", "ORG_CENTER_FEEDBACK"
           entityType: payload.category,
           entityId: payload.route ?? "",
-          metadata: payload as any,
+          metadata: payload as Prisma.InputJsonValue,
         },
       });
       await recordOrgApiHit(routeId, 200, workspaceId, userId).catch(() => {});
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
       await recordOrgApiHit(routeId, 204, workspaceId, userId).catch(() => {});
       return new NextResponse(null, { status: 204 }); // No Content
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Never return 500 - tracking is optional
     console.error("[POST /api/org/track] Error (non-blocking):", error);
     await recordOrgApiHit(routeId, 204, null, null).catch(() => {});

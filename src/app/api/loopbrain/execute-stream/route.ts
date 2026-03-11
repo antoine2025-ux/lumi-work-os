@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
             },
             send
           )
-        } catch (err) {
+        } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : 'Execution failed'
           send({ type: 'error', error: msg })
         } finally {
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
         Connection: 'keep-alive',
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[execute-stream] Error:', error)
     return new Response(
       JSON.stringify({

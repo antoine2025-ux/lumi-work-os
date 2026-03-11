@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
           failed++
           errors.push(`${policy.id}: ${result.error ?? result.status}`)
         }
-      } catch (err) {
+      } catch (err: unknown) {
         failed++
         const msg = err instanceof Error ? err.message : String(err)
         errors.push(`${policy.id}: ${msg}`)
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       errors: errors.length > 0 ? errors : undefined,
       durationMs,
     })
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[CronPolicies] Cron job failed', { error: err })
     return NextResponse.json(
       {

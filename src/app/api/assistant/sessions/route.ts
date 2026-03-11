@@ -13,8 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = AssistantSessionsCreateSchema.parse(await request.json())
-    const { intent = 'assist', title } = body
-    const target = (body as any).target || 'wiki_page'
+    const { intent = 'assist', title, target = 'wiki_page' } = body
 
     const session = await prisma.chatSession.create({
       data: {

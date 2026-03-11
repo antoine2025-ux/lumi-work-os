@@ -60,7 +60,7 @@ export async function GET(
     })
 
     return NextResponse.json(members)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching wiki workspace members:', error)
     return handleApiError(error, request)
   }
@@ -138,7 +138,7 @@ export async function POST(
     })
 
     return NextResponse.json(member, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error adding wiki workspace member:', error)
     return handleApiError(error, request)
   }

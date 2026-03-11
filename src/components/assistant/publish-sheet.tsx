@@ -98,7 +98,7 @@ export function PublishSheet({ session, onClose, onPublish }: PublishSheetProps)
     setIsPublishing(true)
     try {
       await onPublish(settings)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Publish error:', error)
     } finally {
       setIsPublishing(false)

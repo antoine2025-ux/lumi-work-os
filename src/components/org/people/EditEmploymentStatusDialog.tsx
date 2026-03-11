@@ -97,7 +97,7 @@ export function EditEmploymentStatusDialog({
 
       onOpenChange(false);
       onSaved?.();
-    } catch (e) {
+    } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setIsSaving(false);

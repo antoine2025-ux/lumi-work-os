@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         })),
       })),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
         })),
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

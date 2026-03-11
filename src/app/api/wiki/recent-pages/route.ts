@@ -100,9 +100,9 @@ export async function GET(request: NextRequest) {
     // OPTIMIZED: Check cache first (non-blocking)
     // Use Promise.race to avoid waiting too long for cache
     const cachePromise = cache.get(cacheKey)
-    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 50)) // 50ms timeout
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 50)) // 50ms timeout
     
-    const cached = await Promise.race([cachePromise, timeoutPromise]) as any
+    const cached = await Promise.race([cachePromise, timeoutPromise])
     if (cached) {
       const response = NextResponse.json(cached)
       response.headers.set('Cache-Control', 'private, s-maxage=120, stale-while-revalidate=240')
@@ -212,7 +212,7 @@ export async function GET(request: NextRequest) {
     response.headers.set('Cache-Control', 'private, s-maxage=120, stale-while-revalidate=240')
     response.headers.set('X-Cache', 'MISS')
     return response
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching recent pages:', error)
     return handleApiError(error, request)
   }

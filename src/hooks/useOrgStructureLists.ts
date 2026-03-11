@@ -90,7 +90,7 @@ export function useOrgStructureLists(): UseOrgStructureListsResult {
         setDepartments(departmentsList);
         setRoles([]); // Roles not available in new endpoint
         setIsLoading(false);
-      } catch (err) {
+      } catch (err: unknown) {
         if (cancelled) return;
         console.error("[useOrgStructureLists]", err);
         setError("Failed to load org structure.");

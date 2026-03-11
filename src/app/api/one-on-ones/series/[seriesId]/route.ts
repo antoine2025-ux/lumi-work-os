@@ -84,7 +84,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     }
 
     return NextResponse.json(series)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -149,7 +149,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     })
 
     return NextResponse.json(updated)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -180,7 +180,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     })
 
     return NextResponse.json(updated)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

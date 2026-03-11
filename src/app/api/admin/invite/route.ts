@@ -104,11 +104,12 @@ export async function POST(request: NextRequest) {
     let supabaseAdmin
     try {
       supabaseAdmin = getSupabaseAdmin()
-    } catch (adminError: any) {
-      console.error('Failed to initialize Supabase admin client:', adminError.message)
+    } catch (adminError: unknown) {
+      const message = adminError instanceof Error ? adminError.message : 'Unknown error'
+      console.error('Failed to initialize Supabase admin client:', message)
       return NextResponse.json({ 
         error: 'Supabase admin not configured',
-        details: adminError.message
+        details: message
       }, { status: 500 })
     }
 
@@ -231,7 +232,7 @@ export async function POST(request: NextRequest) {
         invited: true
       })
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

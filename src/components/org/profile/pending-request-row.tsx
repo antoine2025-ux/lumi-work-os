@@ -48,7 +48,7 @@ export function PendingRequestRow({
       }
       toast({ title: "Request cancelled", description: "Your time off request has been cancelled." });
       router.refresh();
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
         title: "Error",
         description: err instanceof Error ? err.message : "Failed to cancel request",

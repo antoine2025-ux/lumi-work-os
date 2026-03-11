@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         "Content-Disposition": `attachment; filename="${result.filename}"`,
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     return handleApiError(err, req);
   }
 }

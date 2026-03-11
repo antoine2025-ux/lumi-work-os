@@ -66,7 +66,7 @@ export async function generateProactiveInsights(
     });
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProactiveInsights] Generation failed", {
       workspaceId,
       error,
@@ -195,7 +195,7 @@ export async function detectOverdueTasks(
     }
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProactiveInsights] Overdue tasks detection failed", {
       workspaceId,
       error,
@@ -321,7 +321,7 @@ export async function detectAtRiskGoals(
     );
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProactiveInsights] At-risk goals detection failed", {
       workspaceId,
       error,
@@ -443,7 +443,7 @@ export async function detectOverloadedTeam(
     );
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProactiveInsights] Overloaded team detection failed", {
       workspaceId,
       error,
@@ -550,7 +550,7 @@ export async function detectUpcomingReviews(
     }
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProactiveInsights] Upcoming reviews detection failed", {
       workspaceId,
       error,
@@ -701,7 +701,7 @@ export async function detectUpcoming1on1s(
     }
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProactiveInsights] Upcoming 1:1 detection failed", {
       workspaceId,
       error,
@@ -810,7 +810,7 @@ export async function detectStaleWikiPages(
     );
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProactiveInsights] Stale wiki detection failed", {
       workspaceId,
       error,
@@ -874,7 +874,7 @@ export async function detectProjectHealthAlerts(
         },
       })
     );
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProactiveInsights] Project health alert failed", {
       workspaceId,
       error,

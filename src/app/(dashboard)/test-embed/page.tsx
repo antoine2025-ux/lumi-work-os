@@ -35,7 +35,7 @@ export default function TestEmbedPage() {
 
       const data = await response.json()
       setEmbedData(data)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create embed')
     } finally {
       setLoading(false)

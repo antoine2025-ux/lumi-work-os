@@ -100,7 +100,7 @@ export function PositionForm({
         const data = await response.json()
         setDepartments(data || [])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading departments:', error)
     }
   }
@@ -147,7 +147,7 @@ export function PositionForm({
         setTitle("")
         setLevel(1)
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsLoading(false)

@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
       ok: true,
       projects: projectsWithNames,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

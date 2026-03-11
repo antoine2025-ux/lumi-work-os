@@ -9,7 +9,8 @@ export async function GET() {
     return NextResponse.json({ error: "Not available in production." }, { status: 404 });
   }
 
-  const dmmf = (prisma as any)?._dmmf;
+  // @ts-expect-error — Prisma internal _dmmf API, no public type
+  const dmmf = prisma?._dmmf;
   const modelMap = dmmf?.modelMap ?? null;
 
   if (!modelMap) {

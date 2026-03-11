@@ -538,7 +538,7 @@ export async function GET(req: NextRequest) {
     };
 
     return NextResponse.json(payload);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

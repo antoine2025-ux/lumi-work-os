@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     orderBy: { name: "asc" },
   });
     return NextResponse.json({ teams });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }
@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       data: team,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

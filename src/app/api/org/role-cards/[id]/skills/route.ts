@@ -86,7 +86,7 @@ export async function GET(
         minProficiency: rcs.minProficiency,
       })),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }
@@ -211,7 +211,7 @@ export async function POST(
         minProficiency: roleCardSkill.minProficiency,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

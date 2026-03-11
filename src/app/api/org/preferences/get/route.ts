@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       preferences: (membership?.preferences as Record<string, any>) ?? {},
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

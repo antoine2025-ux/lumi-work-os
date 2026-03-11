@@ -76,7 +76,7 @@ export function CreateWorkRequestDrawer({
       if (data.ok) {
         setAvailableTags(data.tags.filter((t: ResponsibilityTag & { isArchived: boolean }) => !t.isArchived));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to fetch tags:", error);
     }
   }, []);
@@ -151,7 +151,7 @@ export function CreateWorkRequestDrawer({
 
       resetForm();
       onSuccess?.();
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);

@@ -40,10 +40,10 @@ export async function GET(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /dev/loopbrain/org-graph error:", error);
 
-    const message = error?.message ?? "Unknown error";
+    const message = error instanceof Error ? error.message : "Unknown error";
 
     // Handle authentication errors
     if (

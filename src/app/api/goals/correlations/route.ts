@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
         sharedOwnerLinks: edges.filter(e => e.type === 'shared_owner').length,
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

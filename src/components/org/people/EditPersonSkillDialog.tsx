@@ -127,7 +127,7 @@ export function EditPersonSkillDialog({
       }
 
       onSaved();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[EditPersonSkillDialog] Save error:", err);
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
