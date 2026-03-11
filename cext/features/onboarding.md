@@ -111,7 +111,7 @@ All use Zod validation. Step 1 uses `getServerSession` (pre-workspace). Steps 2-
 | Context sync | Fire-and-forget on Step 5 | `progress/route.ts` — `Promise.allSettled([syncOrgContext, syncDepartmentContexts])` |
 | Briefing generation | Fire-and-forget on Step 5 | `src/lib/loopbrain/scenarios/onboarding-briefing.ts` — cached in ProactiveInsight (24h TTL) |
 | Intent detection | Keyword matching | `intent-router.ts` — "new here", "just joined", "onboard me" → confidence 0.93 |
-| Orchestrator mode | `onboarding_briefing` | `orchestrator.ts` — `handleOnboardingBriefingMode()` |
+| Briefing scenario | `onboarding_briefing` | `scenarios/onboarding-briefing.ts` — fires on Step 5 complete |
 | Dashboard card | `OnboardingBriefing.tsx` | Shows briefing for 30 days post-signup |
 | Briefing sections | 5 sections | Your Company, Your Team, Your Projects, Governance, Getting Started |
 
@@ -121,7 +121,7 @@ All use Zod validation. Step 1 uses `getServerSession` (pre-workspace). Steps 2-
 |-----|----------|-------|
 | Steps 2-3 deprecated but API still accepts them | P3 | UI skips them. API backward compat maintained. |
 | No `/welcome` route exists | P3 | Middleware bypasses it to avoid loops, but no actual page |
-| `@ts-nocheck` on plans/tasks routes | P2 | `plans/route.ts`, `tasks/[id]/route.ts` — type safety bypassed |
+| ~~`@ts-nocheck` on plans/tasks routes~~ | ✅ Resolved Mar 11 | Both files fully type-checked |
 | Onboarding models not in WORKSPACE_SCOPED_MODELS | P3 | Have workspaceId FK but not listed in scopingMiddleware — manual scoping only |
 
 No TODOs or FIXMEs found in active onboarding code.

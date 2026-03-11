@@ -57,7 +57,7 @@ ARCHITECTURE.md
 features/loopbrain.md
 ```
 
-**Before you start:** Understand the dual execution path (agent-loop vs orchestrator). Check existing tools in `src/lib/loopbrain/agent/tool-registry.ts` before creating new ones. Never modify canonical contracts without approval.
+**Before you start:** Agent loop (`agent-loop.ts`) is the sole execution path. Check existing tools in `src/lib/loopbrain/agent/tool-registry.ts` before creating new ones. Never modify canonical contracts without approval.
 
 ### Security / Auth Changes
 

@@ -79,7 +79,7 @@ If your task doesn't specifically require changing a stable seam, don't touch it
   - `refusalActions.v0.ts` — Refusal handling
   - `validateAnswerEnvelope.ts` — Runtime validation
 - `OrgSemanticSnapshotV0` is a machine contract. UI may read it, never extend it for display convenience.
-- The agent loop (`agent-loop.ts`) is the default execution path. The legacy orchestrator (`orchestrator.ts`) is a fallback only — do not add features to it.
+- The agent loop (`agent-loop.ts`) is the sole execution path. Orchestrator deleted March 11, 2026. Shared utilities in `llm-caller.ts`.
 
 ### Policies Engine
 

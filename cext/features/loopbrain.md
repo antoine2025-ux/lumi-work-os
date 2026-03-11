@@ -10,8 +10,8 @@ AI context engine that orchestrates questions about organizational data using in
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Orchestrator (4 core modes) | **LIVE** | spaces, org, dashboard, agent — 5,405 lines |
-| Scenario handlers (8 extra) | **LIVE** | onboarding-briefing, daily-briefing, meeting-prep, email-search, slack-search, meeting-extraction, goal, project-health, workload, calendar-availability, action, plan-execution |
+| Agent loop | **LIVE** | Sole execution path (orchestrator deleted March 11, 2026). planner → executor → tool registry. |
+| Scenario handlers | **LIVE** | onboarding-briefing, daily-briefing, meeting-prep, meeting-extraction, goal, project-health, workload, calendar-availability, action, plan-execution (in `scenarios/`, `llm-caller.ts`) |
 | Intent router | **LIVE** | Pure keyword heuristics (no LLM), 25+ intent types |
 | Q1–Q9 pipelines | **LIVE** | All implemented. Q3/Q4 in `reasoning/` (org-specific, 1,605L combined) |
 | Canonical contracts | **LIVE** | 12 files — answer-envelope, blockers, questions, project-health, workload, calendar, etc. |
@@ -27,8 +27,9 @@ AI context engine that orchestrates questions about organizational data using in
 
 ## Key Files
 
-### Orchestrator & Routing
-- `src/lib/loopbrain/orchestrator.ts` (5,405L) — Main dispatcher: `runLoopbrainQuery()`, `callLoopbrainLLM()`, 12+ mode handlers
+### Agent Loop & Routing
+- `src/lib/loopbrain/agent-loop.ts` — Main execution engine (planner → executor → tool registry). Sole path since March 11, 2026.
+- `src/lib/loopbrain/llm-caller.ts` — Shared LLM utility (`callLoopbrainLLM`, `getLastOrgDebugSnapshot`) — extracted from deleted orchestrator.
 - `src/lib/loopbrain/intent-router.ts` — Deterministic intent classification → `RouteDecision` with mode, anchors, confidence
 
 ### Q Pipelines
@@ -126,11 +127,10 @@ Loopbrain consumes data from every other module:
 
 | Gap | Severity | Location |
 |-----|----------|----------|
-| Orchestrator god-object | P1 | `orchestrator.ts` — 5,405 lines, 12+ handlers. Needs decomposition. |
 | pgvector search is PLACEHOLDER | P1 | `store/embedding-repository.ts:7` — vector search stubbed |
 | Calendar event model doesn't exist | P2 | `context-sources/capacity.ts:250` — calendar events placeholder |
 | 5 contracts missing Zod validation | P2 | `proactiveInsight.v0.ts:617`, `calendarAvailability.v0.ts:506`, `entityLinks.v0.ts:333`, `projectHealth.v0.ts:533`, `workloadAnalysis.v0.ts:671` |
-| Epic context inline-loaded | P2 | `orchestrator.ts:1314` — temporary fix, needs refactor back to `getProjectEpicsContext` |
+| Epic context inline-loaded | P2 | Agent loop — temporary fix, needs refactor back to `getProjectEpicsContext` |
 | Bulk reassign re-indexing missing | P2 | `tool-registry.ts:1006` — TODO: re-index affected tasks |
 | Prompt budget tuning | P3 | `prompt-budgets.ts` — hardcoded limits (12 context objects, 6 retrieved, 900 chars/object) |
 

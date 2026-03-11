@@ -115,7 +115,7 @@ Auth: Connect routes require ADMIN+. Send/fetch require MEMBER+. Webhooks use se
 |---------|---------------|------------|-----------|
 | Slack | `slack.ts` (690L) — rolling sync + project enrichment | — | Tier A: 7d sync → ContextItems. Tier B: real-time channel. |
 | Slack | `slack-search.ts` (245L) — on-demand search | — | Keyword search across 10 channels, max 20 results |
-| Slack | `slack/interactive.ts` (489L) — Loopbrain bridge | — | Mentions/DMs → orchestrator → reply in thread |
+| Slack | `slack/interactive.ts` (489L) — Loopbrain bridge | — | Mentions/DMs → agent loop (Slack integration currently disabled, pending migration) |
 | Gmail | `gmail.ts` (631L) — live fetch + rolling sync | `sendGmail` tool | Live threads for prompt; sync to ContextItems (24h TTL) |
 | Gmail | `gmail-search.ts` (166L) — on-demand search | — | Full Gmail search, max 10 results |
 | Drive | — | 4 tools: search, read, create, update | Agent tools with Zod schemas. Write requires confirmation. |
@@ -144,7 +144,7 @@ No TODOs or FIXMEs found in integration code.
 
 | Consumer | How | What |
 |----------|-----|------|
-| **Loopbrain orchestrator** | Context sources + agent tools | Gmail/Slack context injection, Drive tools, Calendar tools |
+| **Loopbrain agent loop** | Context sources + agent tools | Gmail/Slack context injection, Drive tools, Calendar tools |
 | **Loopbrain policies** | `policy.email.received` event | Gmail push notifications trigger policy execution |
 | **Dashboard** | Meetings card, Email widget | Calendar events + Gmail inbox for dashboard widgets |
 | **Slack → Loopbrain** | Webhook → `handleSlackLoopbrainMessage()` | Slack mentions/DMs routed to Loopbrain Q&A |

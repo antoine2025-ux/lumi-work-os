@@ -180,7 +180,7 @@ console.error(error) // without re-throwing or returning proper response
 | `as SomeType` | **Minimize** | Prefer type guards or Zod parsing |
 | `!` non-null assertion | **Minimize** | Use optional chaining or explicit null checks |
 
-Existing violations (47 `as any`, 2 `@ts-nocheck`) are tracked debt, not precedent.
+Existing violations (~42 complex Prisma `as any`) are tracked debt, not precedent. `@ts-nocheck` eliminated March 11, 2026.
 
 ### 2.5 Multi-Tenant Isolation
 
@@ -190,7 +190,7 @@ Three layers of defense:
 
 1. **Application layer** (primary): Every Prisma query includes `where: { workspaceId }` — enforced by the auth → scoping pattern in every route.
 
-2. **Middleware layer** (secondary): `scopingMiddleware.ts` intercepts Prisma queries and injects `workspaceId` filters for all 152 registered models. **Target: enable `WORKSPACE_SCOPING_ENABLED=true` in production before MVP launch.**
+2. **Middleware layer** (secondary): `scopingMiddleware.ts` intercepts Prisma queries and injects `workspaceId` filters for all 152 registered models. **Enabled by default** (opt-out with `PRISMA_WORKSPACE_SCOPING_ENABLED=false`).
 
 3. **Database layer** (tertiary): RLS policies on sensitive tables (currently `wiki_pages`). Expand to other high-risk tables post-MVP.
 
@@ -271,7 +271,7 @@ Tracked debt with current counts and target dates.
 | `handleApiError` coverage | 90.5% (447/494) — 100% of eligible routes ✅ | DONE | 47 excluded routes are auth/cron/webhook/dev/streaming with intentional patterns |
 | Genuinely unprotected routes | 0 (fixed March 10: deleted 4 test dirs, secured org-context-diagnostics + 8 embeds) | 0 | Done ✅ |
 | `as any` casts | 178 → ~85 remaining (52 fixed prev, 38 Tier B orgId fixed Mar 11, ~42 complex Prisma types, 3 debug/test) | 0 non-Prisma casts | Security-relevant and easy-type casts eliminated. Tier B orgId bugs fixed. Complex Prisma types are low-risk, tracked for post-MVP. |
-| `catch (error: any)` | Unknown | 0 | Grep + replace with `error: unknown` |
+| `catch (error: any)` | 0 ✅ | 0 | DONE March 10, 2026. Global sweep, 34 files updated. |
 | `orgId` fallback pattern | 0 route fallbacks, 0 schema refs. 53 source files with variable name cleanup remaining (P1) ✅ Phase 1 | Phase 2: rename variables in 53 files | Schema migration done. Variable cleanup is cosmetic — tracked in TECH_DEBT.md P1. |
 | `console.log` in production | Unknown | 0 | Grep + remove or replace with structured logging |
 | `WORKSPACE_SCOPING_ENABLED` | ~~`false`~~ → `true` (default) | DONE | Enabled March 11, 2026. Default ON, opt-out with `PRISMA_WORKSPACE_SCOPING_ENABLED=false` |
@@ -281,7 +281,7 @@ Tracked debt with current counts and target dates.
 
 | Debt Item | Current | Target | Approach |
 |-----------|---------|--------|----------|
-| Orchestrator decomposition | 5,400L single file | Mode-specific handlers | Extract into `orchestrator/{mode}.ts` files |
+| ~~Orchestrator decomposition~~ | N/A (deleted March 11, 2026) | — | Orchestrator deleted. Agent loop is sole path. |
 | ✅ `@ts-nocheck` files | ~~2 files~~ → 0 | 0 | ~~Fix types in `plans/route.ts`, `tasks/[id]/route.ts`~~ **DONE March 11, 2026** |
 | pgvector search placeholder | Stubbed | Functional | Wire embedding search when context pipeline needs it |
 | Load testing | Never done | Baseline established | k6 or Artillery against staging |
@@ -301,7 +301,7 @@ Architectural decisions with context, so future sessions don't re-litigate them.
 **Context:** Multi-tenant isolation needed for all 168 models. Options: PostgreSQL RLS on every table, or application-layer middleware that intercepts Prisma queries.
 **Decision:** Prisma middleware (`scopingMiddleware.ts`) that injects `workspaceId` filters. RLS used selectively for high-risk tables (`wiki_pages`).
 **Rationale:** RLS requires raw SQL for policy definitions, is harder to test, and doesn't work with Prisma's type-safe query builder. Middleware approach gives us type safety and is testable. RLS is defense-in-depth for the most sensitive tables.
-**Consequences:** Must register every new model in `WORKSPACE_SCOPED_MODELS`. Middleware must be enabled in production (`WORKSPACE_SCOPING_ENABLED=true`).
+**Consequences:** Must register every new model in `WORKSPACE_SCOPED_MODELS`. Middleware enabled by default (opt-out with `PRISMA_WORKSPACE_SCOPING_ENABLED=false`).
 
 ### ADR-002: Loopbrain contracts are append-only, versioned interfaces
 
@@ -447,4 +447,4 @@ Before any code is committed, verify:
 ---
 
 *This is a living document. Update after each architectural decision, audit, or standard change.*
-*Last updated: March 10, 2026.*
+*Last updated: March 11, 2026.*
