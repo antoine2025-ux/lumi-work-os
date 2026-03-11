@@ -52,11 +52,18 @@ export class LoopbrainDocumentWriter {
    * Connect to a wiki page's Yjs document via Hocuspocus.
    *
    * @param pageId  The wiki page UUID — document name will be `wiki-${pageId}`
-   * @param authToken  Auth token for Hocuspocus (currently userId)
+   * @param authToken  Auth token for Hocuspocus (service secret for server-to-server)
    * @throws Error on timeout (5 s), authentication failure, or connection close
    */
-  async connect(pageId: string, authToken: string): Promise<void> {
+  async connect(pageId: string, authToken?: string): Promise<void> {
     const collabUrl = process.env.COLLAB_URL || process.env.NEXT_PUBLIC_COLLAB_URL || 'ws://localhost:1234'
+    
+    // Use service secret for server-to-server authentication
+    const token = authToken || process.env.COLLAB_SERVICE_SECRET
+    
+    if (!token) {
+      throw new Error('No authentication token or service secret available')
+    }
 
     return new Promise<void>((resolve, reject) => {
       let settled = false
@@ -87,7 +94,7 @@ export class LoopbrainDocumentWriter {
       this.provider = new HocuspocusProvider({
         websocketProvider: this.wsProvider,
         name: `wiki-${pageId}`,
-        token: authToken,
+        token: token,
         document: this.doc,
         onSynced: () => {
           settle(() => {

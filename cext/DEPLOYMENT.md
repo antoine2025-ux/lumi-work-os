@@ -157,11 +157,14 @@ Vercel (Next.js)
 |----------|----------|-------------|---------|
 | `COLLAB_URL` | No | Hocuspocus server URL (server-side) | `ws://localhost:1234` |
 | `NEXT_PUBLIC_COLLAB_URL` | No | Hocuspocus server URL (client-side) | `wss://collab.loopwell.com` |
+| `COLLAB_SERVICE_SECRET` | No | Service token for server-to-server collab auth | `openssl rand -hex 32` |
 
 **Notes:**
 - Development defaults to `ws://localhost:1234`
 - Production requires Railway deployment with WebSocket support
 - Railway provides public URL (e.g., `wss://loopwell-collab.up.railway.app`)
+- `COLLAB_SERVICE_SECRET` allows internal services (Loopbrain document writer) to connect without user JWT
+- If unset, document writer will fail to connect (Loopbrain draft page streaming will be disabled)
 
 ### Cron & Internal Secrets
 
@@ -283,8 +286,9 @@ Vercel (Next.js)
    - Port: `1234`
 
 3. **Set Environment Variables**
-   - `DATABASE_URL` — same as Vercel (pooled URL)
-   - `NEXTAUTH_SECRET` — same as Vercel (for JWT verification)
+   - `DATABASE_URL` — same as Vercel (pooled URL, required for workspace access checks)
+   - `NEXTAUTH_SECRET` — same as Vercel (required for JWT verification)
+   - `COLLAB_SERVICE_SECRET` — generate with `openssl rand -hex 32` (required for Loopbrain document writer)
    - `NODE_ENV` — `production`
 
 4. **Deploy**

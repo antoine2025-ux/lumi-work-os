@@ -5,6 +5,7 @@ import { prismaUnscoped } from '@/lib/db'
 import { getWikiEditorSchema } from './wiki-schema-server'
 import type { JSONContent } from '@tiptap/core'
 import type { Schema } from '@tiptap/pm/model'
+import { decode } from 'next-auth/jwt'
 
 const FRAGMENT_NAME = 'default' // TipTap Collaboration extension reads from 'default'
 
@@ -64,12 +65,89 @@ export function createCollabServer(): InstanceType<typeof Server> {
     port: 1234,
 
     async onAuthenticate(data) {
-      // Phase 4: replace with real token validation
-      return {
-        user: {
-          id: data.token ?? 'anonymous',
-          name: 'User',
-        },
+      const token = data.token
+
+      if (!token) {
+        throw new Error('No authentication token provided')
+      }
+
+      // Service token bypass for server-to-server connections (Loopbrain document writer)
+      const serviceSecret = process.env.COLLAB_SERVICE_SECRET
+      if (serviceSecret && token === serviceSecret) {
+        console.log('[Hocuspocus] Service token authenticated')
+        return {
+          user: {
+            id: 'loopbrain-service',
+            name: 'Loopbrain',
+            workspaceId: 'service',
+          },
+        }
+      }
+
+      // Verify the JWT using NextAuth's secret
+      const secret = process.env.NEXTAUTH_SECRET
+      if (!secret) {
+        console.error('[Hocuspocus] NEXTAUTH_SECRET not configured')
+        throw new Error('Server configuration error')
+      }
+
+      try {
+        const decoded = await decode({
+          token,
+          secret,
+        })
+
+        if (!decoded || !decoded.sub) {
+          throw new Error('Invalid authentication token')
+        }
+
+        // Extract user info from JWT
+        const userId = decoded.sub
+        const workspaceId = decoded.workspaceId as string | undefined
+        const userName = decoded.name as string | undefined
+
+        if (!workspaceId) {
+          throw new Error('No workspace context in token')
+        }
+
+        // Extract page ID from document name (e.g., "wiki-cmmjn6ybu000u8oku1k6v0eqx")
+        const documentName = data.documentName
+        if (!documentName || !documentName.startsWith('wiki-')) {
+          throw new Error('Invalid document name')
+        }
+
+        const pageId = documentName.replace('wiki-', '')
+
+        // Verify the user has access to this page's workspace
+        const page = await prismaUnscoped.wikiPage.findFirst({
+          where: {
+            id: pageId,
+            workspaceId: workspaceId,
+          },
+          select: { id: true, workspaceId: true },
+        })
+
+        if (!page) {
+          throw new Error('Document not found or access denied')
+        }
+
+        console.log('[Hocuspocus] User authenticated:', {
+          userId,
+          workspaceId,
+          pageId,
+        })
+
+        // Return user context for presence indicators
+        return {
+          user: {
+            id: userId,
+            name: userName || 'Unknown',
+            workspaceId: workspaceId,
+          },
+        }
+      } catch (error) {
+        console.error('[Hocuspocus] Authentication failed:', error)
+        throw new Error('Authentication failed')
       }
     },
 

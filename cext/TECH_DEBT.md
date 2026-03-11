@@ -74,17 +74,30 @@
 
 
 
-### Real-time collaboration auth hardening
-- **What:** Hocuspocus `onAuthenticate` currently trusts `data.token` as userId. No JWT verification, no workspace isolation check.
-- **Why it matters:** Anyone who guesses a userId can connect to any document's collaboration session.
-- **Fix:** Verify JWT in `onAuthenticate`, check workspace membership, reject unauthorized connections.
-- **Effort:** 2-3 hours.
-- **Risk:** Low.
-- **Dependencies:** JWT secret must be available to the Railway collab server.
 
 ---
 
 ## DONE — Completed Items
+
+### ✅ Real-time collaboration auth hardening (March 11, 2026)
+- **Was:** Hocuspocus `onAuthenticate` trusted `data.token` as userId with no verification. Anyone who guessed a userId could connect to any document's collaboration session.
+- **Now:** JWT verification via NextAuth decode. Workspace isolation enforced — users can only connect to documents in their workspace. Service token for Loopbrain document writer.
+- **What was done:**
+  - Created `/api/collab/token` route to provide raw NextAuth JWT to client
+  - Updated `use-collab-provider.ts` to fetch JWT token before connecting to Hocuspocus
+  - Added JWT decode in `onAuthenticate` using `next-auth/jwt` decode function
+  - Workspace-scoped document access check: verifies `WikiPage.workspaceId` matches user's `workspaceId` from JWT
+  - Service token bypass for server-to-server connections: `COLLAB_SERVICE_SECRET` env var allows Loopbrain document writer to connect without user JWT
+  - Updated `document-writer.ts` to use service secret by default
+  - Handles async provider initialization with proper cleanup
+- **Security improvements:**
+  - JWT signature verification ensures token was issued by our auth system
+  - Workspace isolation prevents cross-workspace document access
+  - Database lookup confirms page exists and belongs to user's workspace
+  - Service token allows internal services to connect without user credentials
+- **Files created:** `src/app/api/collab/token/route.ts`
+- **Files modified:** `src/lib/collab/hocuspocus-server.ts`, `src/hooks/use-collab-provider.ts`, `src/lib/loopbrain/services/document-writer.ts`
+- **Environment variables:** `COLLAB_SERVICE_SECRET` (optional, for server-to-server auth)
 
 ### ✅ E2E test coverage — 5 critical flows (March 11, 2026)
 - **Was:** Playwright tests existed but coverage was scattered. No clear documentation of critical flows.
