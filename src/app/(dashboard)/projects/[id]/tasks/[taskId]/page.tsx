@@ -145,7 +145,7 @@ export default function TaskDetailPage() {
       } else {
         setError('Failed to load task')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading task:', error)
       setError('Failed to load task')
     } finally {
@@ -189,7 +189,7 @@ export default function TaskDetailPage() {
         const updatedTask = await response.json()
         setTask(updatedTask)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating task:', error)
     } finally {
       setIsUpdating(false)

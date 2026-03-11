@@ -7,6 +7,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
 import { logOrgAudit } from '@/lib/audit/org-audit'
 import { CreateManagerLinkSchema } from '@/lib/validations/org'
+import { OrgHealthSignalType } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,12 +56,12 @@ export async function POST(req: NextRequest) {
     // Resolve specific "People missing manager links" signal (precise)
     await prisma.orgHealthSignal.updateMany({
       where: {
-        orgId: workspaceId,
+        workspaceId,
         resolvedAt: null,
         dismissedAt: null,
-        type: "MANAGEMENT_LOAD" as any,
+        type: "MANAGEMENT_LOAD" as OrgHealthSignalType,
         title: "People missing manager links",
-      } as any,
+      },
       data: { resolvedAt: new Date() },
     })
 

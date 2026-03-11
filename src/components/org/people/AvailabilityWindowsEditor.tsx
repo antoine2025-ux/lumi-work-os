@@ -171,7 +171,7 @@ export function AvailabilityWindowsEditor({
       setIsCreating(false);
       resetForm();
       onSaved?.();
-    } catch (e) {
+    } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setIsSaving(false);
@@ -185,7 +185,7 @@ export function AvailabilityWindowsEditor({
     try {
       await OrgApi.deleteAvailabilityWindow(personId, windowId);
       onSaved?.();
-    } catch (e) {
+    } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to delete");
     } finally {
       setIsDeleting(null);

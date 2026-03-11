@@ -88,7 +88,7 @@ export async function POST(
     })
 
     return NextResponse.json(updatedTask)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

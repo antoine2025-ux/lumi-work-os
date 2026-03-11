@@ -228,7 +228,7 @@ export async function POST(
 
     return NextResponse.json(newProject, { status: 201 })
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

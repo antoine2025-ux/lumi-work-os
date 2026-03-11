@@ -236,7 +236,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
       responseMeta: getDecisionResponseMeta(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

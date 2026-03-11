@@ -72,7 +72,7 @@ export function OrgQnaHistoryPanel() {
         if (!cancelled) {
           setLogs(data.logs ?? []);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Failed to load Org Q&A history", err);
         if (!cancelled) {
           setError("Unable to load Org AI question history.");

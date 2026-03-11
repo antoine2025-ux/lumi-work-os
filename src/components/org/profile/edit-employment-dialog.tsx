@@ -126,7 +126,7 @@ export function EditEmploymentDialog({
 
       setOpen(false);
       router.refresh();
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
         title: "Error",
         description:

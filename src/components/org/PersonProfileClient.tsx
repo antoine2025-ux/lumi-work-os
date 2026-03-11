@@ -960,7 +960,7 @@ function RoleCardEditorSection({ personId, onRefreshed }) {
       setShowCreate(false);
       setCreateForm({ roleName: "", jobFamily: "", level: "", roleDescription: "", roleInOrg: "", focusArea: "" });
       onRefreshed?.();
-    } catch (e) {
+    } catch (e: unknown) {
       setError(e.message || "Failed to create role card");
     } finally {
       setSaving(false);
@@ -988,7 +988,7 @@ function RoleCardEditorSection({ personId, onRefreshed }) {
       if (!res.ok) throw new Error(d.error || "Failed to update role card");
       await loadRoleCard();
       onRefreshed?.();
-    } catch (e) {
+    } catch (e: unknown) {
       setError(e.message || "Failed to save role card");
     } finally {
       setSaving(false);

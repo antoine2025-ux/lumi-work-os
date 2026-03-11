@@ -96,7 +96,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
       return NextResponse.json({ policy: updated })
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

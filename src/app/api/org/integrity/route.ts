@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
           },
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If table doesn't exist, continue with empty array (no resolved issues yet)
       // This is a graceful degradation - issues will all show as PENDING until migration is run
       const errorMessage = error?.message || '';
@@ -234,7 +234,7 @@ export async function GET(request: NextRequest) {
       issues: filteredIssues,
       summary,
     } as IntegrityResponse);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

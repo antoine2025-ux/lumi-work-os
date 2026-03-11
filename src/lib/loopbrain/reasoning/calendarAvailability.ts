@@ -168,7 +168,7 @@ export async function buildCalendarAvailabilitySnapshot(
     });
 
     return snapshot;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to build calendar availability snapshot", {
       workspaceId,
       personId,

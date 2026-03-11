@@ -197,7 +197,7 @@ export async function GET(request: NextRequest) {
       tasks: taskItems,
       people: peopleItems,
     } satisfies SearchResponse);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

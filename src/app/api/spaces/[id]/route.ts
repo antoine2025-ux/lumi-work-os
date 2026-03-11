@@ -62,7 +62,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 
     return NextResponse.json(space)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -103,7 +103,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     })
 
     return NextResponse.json(updated)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -143,7 +143,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     await prisma.space.delete({ where: { id } })
 
     return NextResponse.json({ message: 'Space deleted.' })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -42,7 +42,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     })
 
     return NextResponse.json({ message: 'Member removed.' })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

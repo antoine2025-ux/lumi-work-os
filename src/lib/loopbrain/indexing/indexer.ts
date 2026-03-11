@@ -158,7 +158,7 @@ export async function indexOne(req: IndexRequest): Promise<IndexResult> {
         action: req.action,
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     const lbError = toLoopbrainError(error)
     logger.error('Indexing failed', {
       ...logContext,

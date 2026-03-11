@@ -78,7 +78,7 @@ export async function PUT(
         entity: { type: "person", id: personId },
         payload: { name },
       });
-    } catch (loopbrainError: any) {
+    } catch (loopbrainError: unknown) {
       // Log but don't fail the request if Loopbrain indexing fails
       console.error("[PUT /api/org/people/[personId]/name] Loopbrain indexing error (non-fatal):", loopbrainError);
     }
@@ -87,7 +87,7 @@ export async function PUT(
       { id: personId, fullName: updatedUser.name },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -194,7 +194,7 @@ function formatQ4Response(
 export async function GET(request: NextRequest) {
   try {
     return await handleRequest(request);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -202,7 +202,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     return await handleRequest(request);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

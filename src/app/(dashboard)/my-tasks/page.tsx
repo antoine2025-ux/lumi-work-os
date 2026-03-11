@@ -131,7 +131,7 @@ export default function MyTasksPage() {
       } else {
         setError('Failed to load tasks')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading my tasks:', error)
       setError('Failed to load tasks')
     } finally {
@@ -161,7 +161,7 @@ export default function MyTasksPage() {
         console.error('Failed to update task status')
         loadMyTasks()
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating task status:', error)
       loadMyTasks()
     } finally {

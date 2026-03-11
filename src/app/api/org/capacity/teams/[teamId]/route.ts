@@ -208,8 +208,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const { teamId } = await context.params;
     const body = TeamCapacityUpdateSchema.parse(await request.json());
 
-    const { weeklyDemandHours } = body;
-    const notes = (body as any).notes;
+    const { weeklyDemandHours, notes } = body;
 
     // Verify team exists
     const team = await prisma.orgTeam.findFirst({

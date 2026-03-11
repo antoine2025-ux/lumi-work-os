@@ -39,7 +39,7 @@ async function verifyWikiSections() {
     
     console.log('\n✅ All verification checks passed!')
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Verification failed:', error)
     process.exit(1)
   }

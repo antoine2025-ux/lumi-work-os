@@ -98,7 +98,7 @@ export function CreatePageDialog({
       queryClient.invalidateQueries({ queryKey: ["sidebar-pages"] })
       handleClose()
       router.push(`/wiki/${page.slug ?? page.id}`)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setSubmitting(false)

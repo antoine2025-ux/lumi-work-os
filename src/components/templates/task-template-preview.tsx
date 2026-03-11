@@ -108,13 +108,12 @@ export function TaskTemplatePreview({ template, onBack, onApply, projectId }: Ta
       })
 
       if (response.ok) {
-        const result = await response.json()
-        console.log('Template applied successfully:', result)
+        await response.json()
         onApply(template)
       } else {
         console.error('Failed to apply template')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error applying template:', error)
     } finally {
       setIsApplying(false)

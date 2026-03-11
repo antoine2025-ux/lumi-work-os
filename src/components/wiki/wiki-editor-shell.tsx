@@ -92,7 +92,7 @@ export function WikiEditorShell({
       
       setSaveStatus('saved')
       setLastSaved(new Date())
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Save failed:', error)
       
       if (!isMountedRef.current) return
@@ -184,7 +184,7 @@ export function WikiEditorShell({
       // Use the same saveNow function (ensures consistency)
       try {
         await saveNow()
-      } catch (error) {
+      } catch (error: unknown) {
         // Error handling is done in saveNow, but we can retry here
         console.error('Autosave failed:', error)
         

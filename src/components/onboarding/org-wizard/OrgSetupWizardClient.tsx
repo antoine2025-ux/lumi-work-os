@@ -58,7 +58,7 @@ export function OrgSetupWizardClient({
             setWorkspaceId(data.workspaces[0].id)
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to fetch workspace', error)
       }
     }
@@ -126,7 +126,7 @@ export function OrgSetupWizardClient({
       }).catch(err => console.error('Org context sync failed:', err))
 
       router.push('/home')
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Org setup error:', error)
       alert(error instanceof Error ? error.message : 'Failed to complete org setup')
     } finally {

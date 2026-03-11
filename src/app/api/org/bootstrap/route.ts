@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       data: result,
       inviteLink: result.inviteLink ?? null,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation failed', details: error.issues },

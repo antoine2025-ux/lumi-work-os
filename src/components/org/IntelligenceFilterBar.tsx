@@ -48,7 +48,7 @@ export function IntelligenceFilterBar({
   async function save() {
     try {
       await OrgApi.setIntelligenceFilterPrefs(current);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to save preferences:", error);
     }
   }

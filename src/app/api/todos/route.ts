@@ -250,7 +250,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.json(todos)
     response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
     return response
-  } catch (error) {
+  } catch (error: unknown) {
     const totalDurationMs = performance.now() - startTime
     logger.error('Error fetching todos', {
       route,
@@ -383,7 +383,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(todo)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating todo:', error)
     return handleApiError(error, request)
   }

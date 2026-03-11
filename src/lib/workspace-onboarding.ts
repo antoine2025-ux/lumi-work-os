@@ -452,15 +452,8 @@ export async function createDefaultWorkspaceForUser(userId: string): Promise<str
       templateId: 'personal'
     })
     
-    console.log(`✅ Created comprehensive workspace for user ${userId}:`, {
-      workspaceId: result.workspace.id,
-      pages: result.defaultPages.length,
-      projects: result.defaultProjects.length,
-      wikiWorkspaces: result.wikiWorkspaces.length
-    })
-    
     return result.workspace.id
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating default workspace:', error)
     
     // Fallback to simple workspace creation

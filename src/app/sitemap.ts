@@ -19,7 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         updatedAt: 'desc',
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching blog posts for sitemap:', error)
   }
 

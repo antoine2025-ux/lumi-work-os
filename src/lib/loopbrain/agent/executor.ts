@@ -191,7 +191,7 @@ export async function executeAgentPlan(
     // Permission check before execution
     try {
       await enforceToolPermissions(tool, resolvedParams, context)
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof LoopbrainPermissionError) {
         const error = `Permission denied: ${err.message}`
         logger.warn('Agent executor: permission denied', {
@@ -214,7 +214,7 @@ export async function executeAgentPlan(
     let result: ToolResult
     try {
       result = await tool.execute(resolvedParams, context)
-    } catch (err) {
+    } catch (err: unknown) {
       const error = err instanceof Error ? err.message : String(err)
       logger.error('Agent executor: tool threw', {
         stepNumber: step.stepNumber,

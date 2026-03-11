@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
 
     const resp = await answerQ1({ project, peopleById });
     return NextResponse.json(resp);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

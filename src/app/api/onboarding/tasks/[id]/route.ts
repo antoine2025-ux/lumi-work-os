@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { updatePlanProgress } from '@/lib/progress'
@@ -9,12 +8,12 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
 
 const updateTaskSchema = z.object({
-  status: z.enum(['PENDING', 'IN_PROGRESS', 'DONE']).optional(),
-  title: z.string().min(1).max(120).optional(),
-  description: z.string().max(500).optional(),
+  status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED']).optional(),
+  notes: z.string().max(500).optional(),
 })
 
 // PATCH /api/onboarding/tasks/[id]
+// Note: This endpoint updates a task assignment, not the template task itself
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,64 +30,72 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updateTaskSchema.parse(body)
 
-    // Check if task exists
-    const existingTask = await prisma.onboardingTask.findUnique({
+    // Check if task assignment exists
+    const existingAssignment = await prisma.onboarding_task_assignments.findUnique({
       where: { id: resolvedParams.id },
-      include: { plan: true },
+      include: { 
+        onboarding_plans: true,
+        onboarding_tasks: true,
+      },
     })
 
-    if (!existingTask) {
+    if (!existingAssignment) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Task not found' } },
+        { error: { code: 'NOT_FOUND', message: 'Task assignment not found' } },
         { status: 404 }
       )
     }
 
     // Prepare update data
-    const updateData: any = {
-      ...(validatedData.status && { status: validatedData.status }),
-      ...(validatedData.title && { title: validatedData.title }),
-      ...(validatedData.description !== undefined && { description: validatedData.description }),
+    interface UpdateData {
+      status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED'
+      completedAt?: Date | null
+      notes?: string | null
     }
-
-    // If status is being changed to DONE, set completedAt
-    if (validatedData.status === 'DONE' && existingTask.status !== 'DONE') {
+    
+    const updateData: UpdateData = {}
+    
+    if (validatedData.status) {
+      updateData.status = validatedData.status
+    }
+    
+    if (validatedData.notes !== undefined) {
+      updateData.notes = validatedData.notes
+    }
+    
+    // If status is being changed to COMPLETED, set completedAt
+    if (validatedData.status === 'COMPLETED' && existingAssignment.status !== 'COMPLETED') {
       updateData.completedAt = new Date()
     }
 
-    // If status is being changed from DONE to something else, clear completedAt
-    if (validatedData.status && validatedData.status !== 'DONE' && existingTask.status === 'DONE') {
+    // If status is being changed from COMPLETED to something else, clear completedAt
+    if (validatedData.status && validatedData.status !== 'COMPLETED' && existingAssignment.status === 'COMPLETED') {
       updateData.completedAt = null
     }
 
-    const task = await prisma.onboardingTask.update({
+    const assignment = await prisma.onboarding_task_assignments.update({
       where: { id: resolvedParams.id },
       data: updateData,
       include: {
-        plan: {
+        onboarding_plans: {
           include: {
-            employee: {
+            users: {
               select: { name: true, email: true },
             },
             template: {
-              select: { name: true, durationDays: true },
+              select: { name: true, duration: true },
             },
           },
         },
+        onboarding_tasks: true,
       },
     })
 
     // Update plan progress
-    await updatePlanProgress(task.planId)
+    await updatePlanProgress(assignment.planId)
 
-    return NextResponse.json(task)
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input data', details: error.errors } },
-        { status: 400 }
-      )
-    }
+    return NextResponse.json(assignment)
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

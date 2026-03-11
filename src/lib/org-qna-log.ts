@@ -22,7 +22,7 @@ export async function logOrgQna(input: OrgQnaLogInput): Promise<void> {
         metadata: (input.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to log org Q&A", error);
   }
 }

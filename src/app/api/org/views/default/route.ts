@@ -22,13 +22,13 @@ export async function POST(req: NextRequest) {
     if (view.workspaceId !== workspaceId) return NextResponse.json({ ok: false }, { status: 403 });
 
     await prisma.savedView.updateMany({
-      where: { workspaceId, scope: view.scope, defaultForRole: body.role as any },
+      where: { workspaceId, scope: view.scope, defaultForRole: body.role },
       data: { defaultForRole: null },
     });
 
     const updated = await prisma.savedView.update({
       where: { id: body.id },
-      data: { defaultForRole: body.role as any },
+      data: { defaultForRole: body.role },
     });
 
     return NextResponse.json({ ok: true, view: updated });

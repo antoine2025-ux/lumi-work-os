@@ -74,7 +74,7 @@ export function ProjectSpaceMembersModal({
       } else {
         setError('Failed to load members')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading members:', error)
       setError('Failed to load members')
     } finally {
@@ -90,7 +90,7 @@ export function ProjectSpaceMembersModal({
         const data = await response.json()
         setWorkspaceMembers(data.members || [])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workspace members:', error)
     }
   }
@@ -105,7 +105,7 @@ export function ProjectSpaceMembersModal({
           setVisibility(space.visibility)
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading project space info:', error)
     }
   }
@@ -132,7 +132,7 @@ export function ProjectSpaceMembersModal({
         const errorData = await response.json().catch(() => ({}))
         setError(errorData.error || 'Failed to add member')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error adding member:', error)
       setError('Failed to add member')
     } finally {
@@ -158,7 +158,7 @@ export function ProjectSpaceMembersModal({
         const errorData = await response.json().catch(() => ({}))
         setError(errorData.error || 'Failed to remove member')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error removing member:', error)
       setError('Failed to remove member')
     } finally {

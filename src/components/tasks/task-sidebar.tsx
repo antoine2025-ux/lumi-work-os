@@ -223,7 +223,7 @@ export function TaskSidebar() {
         console.error('Failed to load task')
         close()
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading task:', error)
       close()
     } finally {
@@ -243,7 +243,7 @@ export function TaskSidebar() {
         // User doesn't have access to project - show empty list
         setUsers([])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading assignees:', error)
       // Fallback to empty list on error
       setUsers([])
@@ -258,7 +258,7 @@ export function TaskSidebar() {
         const customFieldsData = await response.json()
         setCustomFieldDefs(customFieldsData)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading custom fields:', error)
     }
   }
@@ -271,7 +271,7 @@ export function TaskSidebar() {
         const epicsData = await response.json()
         setEpics(epicsData)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading epics:', error)
     }
   }
@@ -284,7 +284,7 @@ export function TaskSidebar() {
         const milestonesData = await response.json()
         setMilestones(milestonesData)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading milestones:', error)
     }
   }
@@ -477,7 +477,7 @@ export function TaskSidebar() {
         console.error('Failed to update task:', errorMessage)
         alert(`Failed to update task: ${errorMessage}`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating task:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       alert(`Error updating task: ${errorMessage}`)

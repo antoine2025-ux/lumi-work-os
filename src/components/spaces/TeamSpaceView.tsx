@@ -185,10 +185,10 @@ export function TeamSpaceView({ spaceId }: TeamSpaceViewProps) {
           <p className="text-sm text-muted-foreground">Spaces / {space.name}</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
-            variant="outline"
-            size="sm"
+            variant="ghostMuted"
+            size="xs"
             onClick={async () => {
               if (isCreatingPage) return
               setIsCreatingPage(true)
@@ -214,25 +214,25 @@ export function TeamSpaceView({ spaceId }: TeamSpaceViewProps) {
             disabled={isCreatingPage}
           >
             {isCreatingPage ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
             ) : (
-              <FileText className="h-4 w-4 mr-1.5" />
+              <FileText className="w-3.5 h-3.5 mr-1" />
             )}
             New Page
           </Button>
           <Button
-            variant="outline"
-            size="sm"
+            variant="ghostMuted"
+            size="xs"
             onClick={() => router.push(`${baseHref}/projects/new?spaceId=${space.id}`)}
           >
             New Project
           </Button>
           <Button
-            variant="outline"
-            size="sm"
+            variant="ghostMuted"
+            size="xs"
             onClick={() => setCreateFolderOpen(true)}
           >
-            <Folder className="w-4 h-4 mr-1.5" />
+            <Folder className="w-3.5 h-3.5 mr-1" />
             New Folder
           </Button>
         </div>

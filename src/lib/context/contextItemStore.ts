@@ -73,7 +73,7 @@ export async function upsertRoleContextItems(
         roleCtx
       );
       results.push(saved);
-    } catch (error) {
+    } catch (error: unknown) {
       // Log but continue with other roles
       console.error(
         `[ContextStore] Failed to upsert role ${roleCtx.id}:`,

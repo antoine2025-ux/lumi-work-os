@@ -68,7 +68,7 @@ export function QuickNoteModal({ open, onOpenChange, note }: QuickNoteModalProps
       toast({
         description: isEditMode ? "Note saved" : "Note created",
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving note:', error)
       toast({
         description: error instanceof Error ? error.message : 'Failed to save note',
@@ -106,7 +106,7 @@ export function QuickNoteModal({ open, onOpenChange, note }: QuickNoteModalProps
       toast({
         description: "Note deleted",
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting note:', error)
       toast({
         description: error instanceof Error ? error.message : 'Failed to delete note',

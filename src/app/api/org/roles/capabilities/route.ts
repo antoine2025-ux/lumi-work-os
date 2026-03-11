@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       roles: ROLE_CAPABILITIES,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

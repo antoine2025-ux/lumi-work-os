@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   });
 
     return NextResponse.json({ ok: true, invites });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     }).catch((e) => console.error("[POST /api/org/invitations] Audit error:", e));
 
     return NextResponse.json({ ok: true, invite: created, inviteLink: link, orgName });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

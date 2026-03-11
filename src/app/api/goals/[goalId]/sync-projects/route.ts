@@ -32,7 +32,7 @@ export async function POST(
       updated: result.updated,
       syncedAt: new Date().toISOString(),
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

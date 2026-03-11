@@ -117,7 +117,7 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
         const data = await response.json()
         setTasks(data)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading tasks:', error)
     } finally {
       setIsLoading(false)
@@ -161,7 +161,7 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
         // Reload tasks to get the correct state
         loadTasks()
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating task status:', error)
       // Reload tasks to get the correct state
       loadTasks()

@@ -82,7 +82,7 @@ export function NewPlanDialog({
         name: '',
         startDate: format(new Date(), 'yyyy-MM-dd'),
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating plan from template:', error)
     } finally {
       setLoading(false)
@@ -130,7 +130,7 @@ export function NewPlanDialog({
         employeeId: '',
         startDate: format(new Date(), 'yyyy-MM-dd'),
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating plan with AI:', error)
       alert(`❌ Error: ${error instanceof Error ? error.message : 'Failed to generate plan'}`)
     } finally {

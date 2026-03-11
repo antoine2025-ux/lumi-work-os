@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const profile = await getPersonProfile(workspaceId, personId)
     if (!profile) return NextResponse.json({ error: "not found" }, { status: 404 })
     return NextResponse.json({ ok: true, profile })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

@@ -27,7 +27,7 @@ async function postEmit(room: string, event: string, data: unknown): Promise<voi
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ room, event, data, secret: EMIT_SECRET }),
     })
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('[emit] Failed to POST to realtime server:', err)
   }
 }

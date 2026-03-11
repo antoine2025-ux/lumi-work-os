@@ -51,7 +51,7 @@ export function TaskLinkedPages({ taskId, projectId, workspaceSlug }: TaskLinked
       } else {
         console.error('Failed to load linked pages')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading linked pages:', error)
     } finally {
       setIsLoading(false)
@@ -92,7 +92,7 @@ export function TaskLinkedPages({ taskId, projectId, workspaceSlug }: TaskLinked
         console.error('Failed to link page:', errorMessage)
         alert(errorMessage)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Error linking page:', errorMessage)
       alert(`Failed to link page: ${errorMessage}`)
@@ -125,7 +125,7 @@ export function TaskLinkedPages({ taskId, projectId, workspaceSlug }: TaskLinked
         console.error('Failed to unlink page:', errorMessage)
         alert(errorMessage)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Revert on error
       loadLinkedPages()
       const errorMessage = error instanceof Error ? error.message : String(error)

@@ -67,7 +67,7 @@ export async function PUT(
     upsertProjectContext(projectId).catch(() => {})
 
     return NextResponse.json(updated)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -108,7 +108,7 @@ export async function DELETE(
     // Remove the INTEGRATION WorkAllocation for the removed person (best-effort, never blocks response)
     try {
       await removeIntegrationAllocation(auth.workspaceId, userId, projectId)
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to remove integration allocation for project member', {
         projectId,
         userId,
@@ -117,7 +117,7 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

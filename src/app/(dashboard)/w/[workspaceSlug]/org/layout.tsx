@@ -59,7 +59,7 @@ export default async function WorkspaceOrgLayout({
   let context: Awaited<ReturnType<typeof getOrgPermissionContext>> = null;
   try {
     context = await getOrgPermissionContext();
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[WorkspaceOrgLayout] Error getting permission context:", error);
     context = null;
   }
@@ -102,7 +102,7 @@ export default async function WorkspaceOrgLayout({
     if (workspace.slug !== workspaceSlug) {
       redirect(`/w/${workspace.slug}/org`);
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Check if it's a redirect error (Next.js throws these)
     if (error && typeof error === 'object' && 'digest' in error) {
       throw error;

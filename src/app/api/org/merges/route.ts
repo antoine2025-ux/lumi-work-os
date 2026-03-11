@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, merges });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

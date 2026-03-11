@@ -160,7 +160,7 @@ export async function handleSlackLoopbrainMessage(
       blocks,
       threadTs: threadTs ?? messageTs,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[SlackInteractive] Processing failed', {
       slackUserId,
       messageTs,
@@ -215,7 +215,7 @@ async function resolveWorkspace(slackTeamId: string): Promise<string | null> {
     }
 
     return integration.workspaceId
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[SlackInteractive] Workspace resolution failed', {
       slackTeamId,
       error: error instanceof Error ? error.message : String(error),
@@ -277,7 +277,7 @@ async function resolveUser(
     const resolved: ResolvedUser = { userId: user.id, workspaceId }
     cacheUser(slackUserId, slackTeamId, resolved)
     return resolved
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[SlackInteractive] User resolution failed', {
       slackUserId,
       error: error instanceof Error ? error.message : String(error),
@@ -359,7 +359,7 @@ async function handlePendingPlan(
         text: successText.slice(0, 3000),
         threadTs,
       })
-    } catch (err) {
+    } catch (err: unknown) {
       await sendSlackMessage(workspaceId, {
         channel: channelId,
         text: `I understood what you wanted but ran into an error: ${err instanceof Error ? err.message : 'Unknown error'}`,
@@ -428,7 +428,7 @@ async function handlePendingPlan(
           status: 'AWAITING_RESPONSE',
         },
       })
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('[SlackInteractive] Failed to store pending action', {
         error: err instanceof Error ? err.message : String(err),
       })

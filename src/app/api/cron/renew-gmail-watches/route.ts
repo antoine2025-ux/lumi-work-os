@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     logger.info('[Gmail Watch Renewal] Complete', { renewed, failed, total: watches.length })
 
     return NextResponse.json({ success: true, renewed, failed, total: watches.length })
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Gmail Watch Renewal] Fatal error', {
       error: err instanceof Error ? err.message : String(err),
     })

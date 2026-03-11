@@ -35,7 +35,7 @@ export async function runOrgQuestionLLM(params: {
       model: response.model,
       usage: response.usage,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[orgLlmClient] LLM call failed", error);
     throw new Error(
       `Org LLM call failed: ${error instanceof Error ? error.message : "Unknown error"}`

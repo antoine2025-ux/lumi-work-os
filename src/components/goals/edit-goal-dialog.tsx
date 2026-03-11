@@ -56,7 +56,7 @@ export function EditGoalDialog({ isOpen, onClose, goal }: Props) {
         router.refresh()
         onClose()
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to update goal:', error)
     } finally {
       setIsLoading(false)

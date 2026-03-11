@@ -62,9 +62,9 @@ export async function GET() {
         bundle.primary !== null &&
         Object.keys(bundle.byId || {}).length > 0;
       orgBundleNodeCount = Object.keys(bundle.byId || {}).length;
-    } catch (err: any) {
+    } catch (err: unknown) {
       orgBundleOk = false;
-      orgBundleError = err?.message ?? "Unknown Org bundle error";
+      orgBundleError = err instanceof Error ? err.message : "Unknown Org bundle error";
     }
 
     // 3) Inspect telemetry snapshot
@@ -90,12 +90,13 @@ export async function GET() {
         timestamp: e.timestamp,
       })),
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error during Org self-test";
     return NextResponse.json(
       {
         ok: false,
         reason: "exception",
-        error: err?.message ?? "Unknown error during Org self-test",
+        error: message,
       },
       { status: 500 }
     );

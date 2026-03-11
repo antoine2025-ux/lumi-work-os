@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       canEditCapacity: permissions.canEditCapacity,
       permissionLevel: permissions.permissionLevel,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

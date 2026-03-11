@@ -354,7 +354,7 @@ export function PeopleListClient({
 
       // Refresh the list
       peopleQ.refetch();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to delete person:", error);
       alert(error instanceof Error ? error.message : "Failed to delete person");
     }

@@ -49,7 +49,7 @@ export async function writeOrgContextBundleToStore(
 
     try {
       await upsertContextItemFromContextObject(workspaceId, ctx);
-    } catch (error) {
+    } catch (error: unknown) {
       // Log but continue with other items
       console.error(
         `[OrgContextStoreSync] Failed to upsert ${ctx.type} ${ctx.id}:`,

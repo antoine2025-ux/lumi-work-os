@@ -384,6 +384,7 @@ export const CapacityQuickEntrySchema = z.object({
 /** PATCH /api/org/capacity/teams/[teamId] */
 export const TeamCapacityUpdateSchema = z.object({
   weeklyDemandHours: z.number().min(0).optional(),
+  notes: z.string().trim().max(1000).optional(),
 })
 
 // --- Allocations ---
@@ -513,7 +514,12 @@ export const CreateWorkRequestSchema = z.object({
 })
 
 /** PUT /api/org/work/requests/[id] */
-export const UpdateWorkRequestSchema = CreateWorkRequestSchema.partial()
+export const UpdateWorkRequestSchema = CreateWorkRequestSchema.partial().extend({
+  timeWindow: z.object({
+    start: z.string().datetime(),
+    end: z.string().datetime(),
+  }).optional(),
+})
 
 /** POST /api/org/work/requests/[id]/acknowledge */
 export const AcknowledgeWorkRequestSchema = z.object({
@@ -866,4 +872,40 @@ export const CompleteOrgOnboardingSchema = z.object({
 /** POST /api/org/delete (confirmation) */
 export const DeleteOrgConfirmationSchema = z.object({
   confirm: z.literal('DELETE'),
+})
+
+// ============================================================================
+// Digest config (Phase 7)
+// ============================================================================
+
+/** POST /api/org/digest/config */
+export const DigestConfigSchema = z.object({
+  enabled: z.boolean(),
+  recipients: z
+    .array(
+      z.object({
+        email: z.string().email(),
+        name: z.string().max(200).optional(),
+      })
+    )
+    .optional()
+    .default([]),
+})
+
+// ============================================================================
+// Roles (custom workspace roles) — UpdateRoleSchema for PUT /api/org/roles/[id]
+// ============================================================================
+
+/** PUT /api/org/roles/[id] */
+export const UpdateRoleSchema = z.object({
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  responsibilities: z
+    .array(
+      z.object({
+        scope: z.enum(['OWNERSHIP', 'DECISION', 'EXECUTION']).optional(),
+        target: z.string().min(1).max(500),
+      })
+    )
+    .optional(),
 })

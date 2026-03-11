@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     }).catch((e) => console.error("[POST /api/org/people/archived/restore] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ ok: true, person: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

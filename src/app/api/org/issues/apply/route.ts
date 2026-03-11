@@ -8,6 +8,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth';
 import { assertAccess } from '@/lib/auth/assertAccess';
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
 import { handleApiError } from '@/lib/api-errors';
+import type { Prisma } from '@prisma/client'
 import { ApplyIssuesSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
           scope: "people_issues",
           suggestionRunId: body.suggestionRunId,
           beforeMetrics: beforeSnapshot?.metrics || {},
-          afterMetrics: afterSnapshot.snapshot.metrics as any,
+          afterMetrics: afterSnapshot.snapshot.metrics as Prisma.InputJsonValue,
           improved: (afterSnapshot.snapshot.score || 0) > ((beforeSnapshot?.score as number) || 0),
         },
       }).catch(() => null);

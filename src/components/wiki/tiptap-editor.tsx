@@ -188,7 +188,7 @@ export function TipTapEditor({
               })
               .run()
           }
-        } catch (err) {
+        } catch (err: unknown) {
           toast({
             title: 'Upload failed',
             description: err instanceof Error ? err.message : 'Could not upload file',

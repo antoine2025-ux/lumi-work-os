@@ -159,7 +159,7 @@ export function LoopbrainAssistantPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messageId, rating, signal }),
       })
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to send feedback", err)
     }
   }
@@ -283,7 +283,7 @@ export function LoopbrainAssistantPanel({
           },
         }
       )
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error executing plan:', error)
       const msg =
         error instanceof Error ? error.message : 'Plan execution failed. Please try again.'
@@ -388,7 +388,7 @@ export function LoopbrainAssistantPanel({
         timestamp: new Date(),
       }
       addMessage(assistantMessage)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error after clarification:', error)
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -458,7 +458,7 @@ export function LoopbrainAssistantPanel({
         timestamp: new Date(),
       }
       addMessage(assistantMessage)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error approving advisory:', error)
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -640,7 +640,7 @@ export function LoopbrainAssistantPanel({
         setPendingClientAction(result.clientAction)
         executeClientAction(result.clientAction)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error calling Loopbrain:', error)
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -1142,7 +1142,7 @@ export function LoopbrainAssistantPanel({
                                           timestamp: new Date(),
                                         }
                                         addMessage(successMsg)
-                                      } catch (err) {
+                                      } catch (err: unknown) {
                                         console.error('Meeting task creation failed', err)
                                         const errMsg: Message = {
                                           id: (Date.now() + 1).toString(),

@@ -241,7 +241,7 @@ export async function GET(
       })),
       possibleActions,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

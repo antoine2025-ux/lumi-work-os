@@ -102,8 +102,8 @@ export function TeamSpacesDashboard({ spaces }: TeamSpacesDashboardProps) {
             Overview of your team projects and activity
           </p>
         </div>
-        <Button size="sm" className="h-8 gap-1.5 text-sm" onClick={() => setIsCreateOpen(true)}>
-          <Plus className="w-4 h-4" />
+        <Button variant="ghostMuted" size="xs" onClick={() => setIsCreateOpen(true)}>
+          <Plus className="w-3.5 h-3.5 mr-1" />
           Create New Space
         </Button>
       </div>
@@ -178,8 +178,8 @@ export function TeamSpacesDashboard({ spaces }: TeamSpacesDashboardProps) {
             <p className="text-muted-foreground text-center mb-4">
               No team spaces yet. Create your first space to collaborate with your team.
             </p>
-            <Button onClick={() => setIsCreateOpen(true)}>
-              <Plus className="w-4 h-4 mr-1.5" />
+            <Button variant="ghostMuted" size="xs" onClick={() => setIsCreateOpen(true)}>
+              <Plus className="w-3.5 h-3.5 mr-1" />
               Create New Space
             </Button>
           </div>

@@ -59,7 +59,7 @@ export function useCalendarEvents() {
         }
 
         setEvents(data.events || [])
-      } catch (err) {
+      } catch (err: unknown) {
         setError('Failed to fetch calendar events')
         console.error('Error fetching calendar events:', err)
       } finally {

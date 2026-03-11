@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       eventId: result.eventId,
       htmlLink: result.htmlLink,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

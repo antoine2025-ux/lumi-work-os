@@ -186,18 +186,16 @@ export function CompanyWikiView() {
         </div>
         <div className="flex items-center gap-1.5">
           <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+            variant="ghostMuted"
+            size="xs"
             onClick={() => setCreateSectionOpen(true)}
           >
             <FolderPlus className="w-3.5 h-3.5 mr-1" />
             New Section
           </Button>
           <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+            variant="ghostMuted"
+            size="xs"
             onClick={() => createPageDirectly(companyWikiSpaceId)}
             disabled={isCreatingPage || !companyWikiSpaceId}
           >
@@ -225,11 +223,11 @@ export function CompanyWikiView() {
               Create sections to organize your wiki pages into topics.
             </p>
             <Button
-              variant="outline"
-              size="sm"
+              variant="ghostMuted"
+              size="xs"
               onClick={() => setCreateSectionOpen(true)}
             >
-              <FolderPlus className="w-4 h-4 mr-1.5" />
+              <FolderPlus className="w-3.5 h-3.5 mr-1" />
               Create First Section
             </Button>
           </div>
@@ -291,15 +289,15 @@ export function CompanyWikiView() {
                   Create your first wiki page to share knowledge with your team.
                 </p>
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="ghostMuted"
+                  size="xs"
                   onClick={() => createPageDirectly(companyWikiSpaceId)}
                   disabled={isCreatingPage || !companyWikiSpaceId}
                 >
                   {isCreatingPage ? (
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
                   ) : (
-                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    <Plus className="w-3.5 h-3.5 mr-1" />
                   )}
                   Create Page
                 </Button>

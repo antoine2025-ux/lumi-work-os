@@ -150,7 +150,7 @@ export default function RootLayout({
                   root.style.setProperty('--popover-foreground', darkConfig.popoverForeground);
                   root.style.setProperty('--destructive', darkConfig.destructive);
                   root.style.setProperty('--destructive-foreground', darkConfig.destructiveForeground);
-                } catch (e) {
+                } catch (e: unknown) {
                   // Fallback: just add dark class if anything fails
                   document.documentElement.classList.add('dark');
                 }

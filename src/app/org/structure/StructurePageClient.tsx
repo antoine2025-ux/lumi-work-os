@@ -204,7 +204,7 @@ export function StructurePageClient({
       if (res.ok) {
         router.refresh();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[StructurePageClient] Failed to reorder teams:", error);
     }
   }, [router]);

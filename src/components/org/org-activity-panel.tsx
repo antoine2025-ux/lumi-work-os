@@ -194,7 +194,7 @@ export function OrgActivityPanel({
       });
       setEventFilter(nextEventFilter);
       setTimeframe(nextTimeframe);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
       setError("Something went wrong while loading activity.");
     } finally {
@@ -243,7 +243,7 @@ export function OrgActivityPanel({
       const payload = extractPayload(body);
       setItems((prev) => [...prev, ...(payload.items ?? [])]);
       setNextCursor(payload.nextCursor);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
       setError("Something went wrong while loading more activity.");
     } finally {

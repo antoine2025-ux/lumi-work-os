@@ -22,7 +22,7 @@ export async function getCurrentWorkspaceId(request?: NextRequest): Promise<stri
       setWorkspaceContext(auth.workspaceId);
     }
     return auth.workspaceId;
-  } catch (error) {
+  } catch (error: unknown) {
     // If getUnifiedAuth throws (e.g., "No workspace found"), return null
     // This allows callers to handle the no-workspace case gracefully
     if (error instanceof Error && error.message.includes('No workspace found')) {

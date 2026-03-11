@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       companySize: progress.orgSize,
       orgName: progress.orgName,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -440,7 +440,7 @@ export async function POST(request: NextRequest) {
               }
 
               createdPositions.push({ id: position.id, title: position.title ?? '' })
-            } catch (error) {
+            } catch (error: unknown) {
               // Log but don't fail the entire onboarding step
               logger.warn('[onboarding] Failed to create lead position', {
                 workspaceId,
@@ -547,7 +547,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Invalid step' }, { status: 400 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

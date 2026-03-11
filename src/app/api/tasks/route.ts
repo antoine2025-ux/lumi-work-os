@@ -9,6 +9,7 @@ import { upsertTaskContext } from '@/lib/loopbrain/context-engine'
 import { logger } from '@/lib/logger'
 import { emitEvent } from '@/lib/events/emit'
 import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
+import { ProjectTaskStatus, Priority } from '@prisma/client'
 import {
   createProjectAllocation,
   canTakeOnWork,
@@ -315,8 +316,8 @@ export async function POST(request: NextRequest) {
         workspaceId: auth.workspaceId, // Always use authenticated workspace
         title,
         description,
-        status: status as any,
-        priority: priority as any,
+        status: status as ProjectTaskStatus,
+        priority: priority as Priority,
         assigneeId: assigneeId || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         tags,

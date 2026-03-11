@@ -160,7 +160,7 @@ export async function generateMeetingPrep(
         }
       }
     }
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[meeting-prep] Failed to load Slack context", {
       error: err instanceof Error ? err.message : String(err),
     });
@@ -184,7 +184,7 @@ export async function generateMeetingPrep(
     });
     const parsed = parseMeetingPrepResponse(llmResult.content, event, attendeesWithActivity, projectContext, recentDocs);
     brief = slackContext.length > 0 ? { ...parsed, slackContext } : parsed;
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[meeting-prep] LLM call failed, using fallback", {
       userId,
       eventId,
@@ -295,7 +295,7 @@ export async function triggerUpcomingMeetingPreps(
           url: "/home",
         });
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn("[meeting-prep] Failed to trigger prep for member", {
         userId: member.userId,
         error: err instanceof Error ? err.message : String(err),
@@ -357,7 +357,7 @@ async function persistMeetingPrep(
         metadata: JSON.parse(JSON.stringify({ userId, eventId, brief })) as Prisma.InputJsonValue,
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[meeting-prep] Failed to persist prep insight", {
       userId,
       eventId,
@@ -415,7 +415,7 @@ async function fetchRichCalendarEvent(
         .map((a) => a.email)
         .filter((email): email is string => typeof email === "string"),
     };
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[meeting-prep] Failed to fetch calendar event", {
       userId,
       eventId,
@@ -476,7 +476,7 @@ async function resolveAttendees(
         personId: user.id,
       };
     });
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[meeting-prep] Failed to resolve attendees", { err });
     return emails.map((email) => ({ name: email }));
   }
@@ -590,7 +590,7 @@ async function detectProjectContext(
       recentTasks: recentTasks.map((t) => `${t.title} [${t.status}]`),
       blockers: blockerTasks.map((t) => t.title),
     };
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[meeting-prep] Failed to detect project context", { err });
     return null;
   }
@@ -629,7 +629,7 @@ async function loadRecentDocsByAttendees(
       editedBy: p.createdBy?.name ?? "Unknown",
       href: `/wiki/${p.spaceId}/${p.id}`,
     }));
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[meeting-prep] Failed to load recent docs", { err });
     return [];
   }
@@ -661,7 +661,7 @@ async function loadAttendeeEmailContext(
     });
 
     return threads;
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[meeting-prep] Failed to load attendee email context", { err });
     return [];
   }

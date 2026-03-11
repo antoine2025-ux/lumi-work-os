@@ -50,7 +50,7 @@ export async function GET(
     }
 
     return NextResponse.json({ ok: true, template });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }
@@ -100,7 +100,7 @@ export async function PUT(
     });
 
     return NextResponse.json({ ok: true, template: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }
@@ -132,7 +132,7 @@ export async function DELETE(
     await prisma.roleCard.delete({ where: { id } });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

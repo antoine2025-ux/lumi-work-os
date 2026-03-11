@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(updatedSession)
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

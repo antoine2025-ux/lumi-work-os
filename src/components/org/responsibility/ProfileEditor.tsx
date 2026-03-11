@@ -149,7 +149,7 @@ export function ProfileEditor({
       if (data.ok) {
         setAvailableTags(data.tags.filter((t: ResponsibilityTag) => !t.isArchived));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to fetch tags:", error);
     }
   }, []);
@@ -171,7 +171,7 @@ export function ProfileEditor({
           forbiddenTagIds: data.profile.forbiddenTags.map((t: ResponsibilityTag) => t.id),
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to fetch profile:", error);
     } finally {
       setLoading(false);
@@ -219,7 +219,7 @@ export function ProfileEditor({
       } else {
         alert(data.error || "Failed to save profile");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to save profile:", error);
     } finally {
       setSaving(false);
@@ -243,7 +243,7 @@ export function ProfileEditor({
       } else {
         alert(data.error || "Failed to delete profile");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to delete profile:", error);
     } finally {
       setDeleting(false);

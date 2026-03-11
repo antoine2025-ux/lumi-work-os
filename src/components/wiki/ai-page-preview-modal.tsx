@@ -83,7 +83,7 @@ export function AIPagePreviewModal({
     try {
       await onSave(title.trim(), content, selectedWorkspaceId)
       onOpenChange(false)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create page")
     }
   }

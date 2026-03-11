@@ -5,7 +5,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
 import { handleApiError } from "@/lib/api-errors"
 import { assertWriteAllowed } from "@/server/org/writes/guard"
-import { BulkAssignOwnershipSchema } from '@/lib/validations/org';
+import { BulkAssignOwnershipSchema } from '@/lib/validations/org'
+import { OrgHealthSignalType, OwnedEntityType } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,13 +23,13 @@ export async function POST(req: NextRequest) {
     
     // Process each assignment
     for (const assignment of body.assignments) {
-      const entityType = assignment.entityType.toUpperCase() as "TEAM" | "DEPARTMENT" | "PROJECT" | "POSITION";
+      const entityType = assignment.entityType.toUpperCase() as OwnedEntityType;
       const ownerPersonId = assignment.ownerId;
       const entityIds = [assignment.entityId];
 
       // Demote existing primaries
       await prisma.ownerAssignment.updateMany({
-        where: { workspaceId, entityType: entityType as any, entityId: { in: entityIds }, isPrimary: true } as any,
+        where: { workspaceId, entityType, entityId: { in: entityIds }, isPrimary: true },
         data: { isPrimary: false },
       })
 
@@ -36,24 +37,24 @@ export async function POST(req: NextRequest) {
       await prisma.ownerAssignment.createMany({
         data: entityIds.map((id) => ({
           workspaceId,
-          entityType: entityType as any,
+          entityType,
           entityId: id,
           ownerPersonId,
           isPrimary: true,
         })),
-        skipDuplicates: true as any,
+        skipDuplicates: true,
       })
 
       // Resolve matching OWNERSHIP signals for those entities only
       await prisma.orgHealthSignal.updateMany({
         where: {
-          orgId: workspaceId,
-          type: "OWNERSHIP" as any,
+          workspaceId,
+          type: "OWNERSHIP" as OrgHealthSignalType,
           resolvedAt: null,
           dismissedAt: null,
           contextType: entityType,
           contextId: { in: entityIds },
-        } as any,
+        },
         data: { resolvedAt: new Date() },
       })
     }
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     revalidateTag("org:contracts", "default")
 
     return NextResponse.json({ ok: true, count: body.assignments.length })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

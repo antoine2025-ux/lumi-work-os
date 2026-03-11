@@ -22,7 +22,7 @@ export async function POST(_request: NextRequest) {
     try {
       await cache.flushAll()
       results.serverCache = 'cleared'
-    } catch (error) {
+    } catch (error: unknown) {
       results.serverCache = `error: ${error instanceof Error ? error.message : 'unknown'}`
     }
 
@@ -30,7 +30,7 @@ export async function POST(_request: NextRequest) {
     try {
       clearAuthCache()
       results.authCache = 'cleared'
-    } catch (error) {
+    } catch (error: unknown) {
       results.authCache = `error: ${error instanceof Error ? error.message : 'unknown'}`
     }
 
@@ -38,7 +38,7 @@ export async function POST(_request: NextRequest) {
     try {
       await cache.invalidatePattern('*')
       results.patternCache = 'cleared'
-    } catch (error) {
+    } catch (error: unknown) {
       results.patternCache = `error: ${error instanceof Error ? error.message : 'unknown'}`
     }
 
@@ -47,7 +47,7 @@ export async function POST(_request: NextRequest) {
       message: 'All server-side caches cleared',
       results
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         error: 'Failed to clear caches',

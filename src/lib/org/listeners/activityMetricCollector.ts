@@ -50,7 +50,7 @@ export async function recordTaskCreation(
       workspaceId,
       weekStarting,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ActivityMetricCollector] Failed to record task creation", {
       userId,
       workspaceId,
@@ -121,7 +121,7 @@ export async function recordTaskCompletion(
       completionDays,
       newAvg,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ActivityMetricCollector] Failed to record task completion", {
       userId,
       workspaceId,
@@ -182,7 +182,7 @@ export async function recordWikiActivity(
       weekStarting,
       isNew,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ActivityMetricCollector] Failed to record wiki activity", {
       userId,
       workspaceId,
@@ -234,7 +234,7 @@ export async function recordComment(
       workspaceId,
       weekStarting,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ActivityMetricCollector] Failed to record comment", {
       userId,
       workspaceId,
@@ -291,7 +291,7 @@ export async function recordMeetingAttendance(
       weekStarting,
       durationHours,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ActivityMetricCollector] Failed to record meeting attendance", {
       userId,
       workspaceId,

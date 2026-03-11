@@ -173,7 +173,7 @@ export async function runLoopbrainQuery(
   // Refresh open loops (World Model v0) — bounded, idempotent
   try {
     await deriveOpenLoops(req.workspaceId, req.userId)
-  } catch (err) {
+  } catch (err: unknown) {
     logger.debug('Open loop derivation failed, continuing', {
       workspaceId: req.workspaceId,
       error: err instanceof Error ? err.message : String(err),
@@ -430,7 +430,7 @@ export async function runLoopbrainQuery(
     })
 
     return result
-  } catch (error) {
+  } catch (error: unknown) {
     const executionTimeMs = Date.now() - startTime
     logger.error('Loopbrain orchestrator error', {
       requestId: req.requestId,
@@ -529,7 +529,7 @@ async function handleSpacesMode(
         return (bMatch ? 1 : 0) - (aMatch ? 1 : 0)
       })
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching structured ContextObjects for Spaces mode', {
       workspaceId: req.workspaceId,
       error
@@ -568,7 +568,7 @@ async function handleSpacesMode(
         actionItemCount: userTaskCtx.actionItems.length,
         summary: userTaskCtx.summary,
       })
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching user task context', {
         workspaceId: req.workspaceId,
         error,
@@ -585,7 +585,7 @@ async function handleSpacesMode(
       limit: 50
     })
     contextSummary.personalDocs = personalDocs
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching personal space docs for Spaces mode', {
       workspaceId: req.workspaceId,
       userId: req.userId,
@@ -647,7 +647,7 @@ async function handleSpacesMode(
             relevantMessages: slackContext.reduce((sum, ch) => sum + ch.messages.length, 0)
           })
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn('Failed to fetch Slack context for project', {
           workspaceId: req.workspaceId,
           projectId: req.projectId,
@@ -839,7 +839,7 @@ async function handleOrgMode(
       limit: 100
     })
     contextSummary.orgPeople = orgPeople
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching org people for Org mode', {
       workspaceId: req.workspaceId,
       error
@@ -856,7 +856,7 @@ async function handleOrgMode(
       role: memberRole,
     })
     snapshotSection = snapshotCtx.section
-  } catch (err) {
+  } catch (err: unknown) {
     logger.debug('Org snapshot unavailable, continuing without', {
       workspaceId: req.workspaceId,
       error: err instanceof Error ? err.message : String(err),
@@ -923,7 +923,7 @@ async function handleOrgMode(
           error: legacyError instanceof Error ? legacyError.message : String(legacyError)
         })
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to build org prompt context from ContextStore', {
         workspaceId: req.workspaceId,
         error
@@ -1357,7 +1357,7 @@ async function loadSpacesContextForRequest(
         }
       }
 
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[LB-EPIC] Failed to inline-load project epics:', err)
       // Fallback to helper if inline load fails
       try {
@@ -1447,7 +1447,7 @@ async function loadSpacesContextForRequest(
         title: result.title,
         score: result.score
       }))
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Semantic search failed in Spaces mode', {
         workspaceId: req.workspaceId,
         error
@@ -1581,7 +1581,7 @@ async function loadOrgContextForRequest(
       limit: 200 // Increased limit for health analysis questions
     })
     summary.orgPeople = orgPeople
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching org people for Org mode', {
       workspaceId: req.workspaceId,
       error
@@ -1612,7 +1612,7 @@ async function loadOrgContextForRequest(
     
     // Store health in context summary for prompt building
     summary.orgHealth = health as Record<string, unknown>
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error computing org health signals', {
       workspaceId: req.workspaceId,
       error
@@ -1637,7 +1637,7 @@ async function loadOrgContextForRequest(
         title: result.title,
         score: result.score
       }))
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Semantic search failed in Org mode', {
         workspaceId: req.workspaceId,
         error
@@ -1688,7 +1688,7 @@ async function loadDashboardContextForRequest(
         title: result.title,
         score: result.score
       }))
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Semantic search failed in Dashboard mode', {
         workspaceId: req.workspaceId,
         error
@@ -3588,7 +3588,7 @@ async function handleMeetingExtractionMode(
     try {
       const pageCtx = await contextEngine.getPageContext(req.pageId, req.workspaceId)
       content = pageCtx?.content ?? ''
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('Failed to load page content for meeting extraction', { pageId: req.pageId, err })
     }
   }
@@ -3644,7 +3644,7 @@ async function handleMeetingExtractionMode(
       suggestions: [],
       meetingExtraction: result,
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Meeting task extraction failed', { workspaceId: req.workspaceId, error })
     return {
       mode: req.mode,
@@ -3706,7 +3706,7 @@ async function handleMeetingConfirmationMode(
       answer,
       suggestions: [],
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Meeting task creation failed', { workspaceId: req.workspaceId, error })
     return {
       mode: req.mode,
@@ -3752,7 +3752,7 @@ export async function callLoopbrainLLM(
       model: response.model,
       usage: response.usage
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('LLM call failed in Loopbrain orchestrator', { error, model })
     throw new Error(`LLM call failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
@@ -3901,7 +3901,7 @@ Provide a clear, concise summary:`
         messageCount: 0
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in pre-process Slack read request', {
       workspaceId: req.workspaceId,
       error: error instanceof Error ? error.message : String(error),
@@ -3957,7 +3957,7 @@ async function preprocessSlackRequest(
         })
         return { sent: false, message: `Note: I tried to send this to ${channel}, but there was an issue. ${result.error || 'Slack configuration may be incomplete.'}` }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error sending to Slack with explicit flag', {
         workspaceId: req.workspaceId,
         error: error instanceof Error ? error.message : String(error)
@@ -4168,7 +4168,7 @@ async function preprocessSlackRequest(
         message: undefined // Error will be handled in handleSlackActions if LLM includes [SLACK_SEND:...]
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in pre-process Slack request', {
       workspaceId: req.workspaceId,
       error: error instanceof Error ? error.message : String(error),
@@ -4275,7 +4275,7 @@ Provide a clear, concise summary:`
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error executing Slack read action', {
         workspaceId: req.workspaceId,
         channel,
@@ -4333,7 +4333,7 @@ Provide a clear, concise summary:`
         // Replace command with success message
         updatedResponse = updatedResponse.replace(match[0], `\n✅ Message sent to ${channel}`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error executing Slack action', {
         workspaceId: req.workspaceId,
         channel,
@@ -4451,7 +4451,7 @@ async function _detectAndSendSlackFromResponse(
         logger.error('Fallback Slack message send failed', { workspaceId: req.workspaceId, channel, error: result.error })
         return { sent: false }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error in fallback Slack send', {
         workspaceId: req.workspaceId,
         error: error instanceof Error ? error.message : String(error)
@@ -4600,7 +4600,7 @@ Based on the goal data provided, answer the user's question with specific insigh
         userTeam: userCtx?.teamName ?? undefined,
       },
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Goal mode handler failed', {
       workspaceId: req.workspaceId,
       error: error instanceof Error ? error.message : String(error),
@@ -4707,7 +4707,7 @@ Based on the project health data, provide specific insights about ${snapshot.pro
         } : undefined,
       },
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Project health mode handler failed', {
       workspaceId: req.workspaceId,
       projectId: req.projectId,
@@ -4823,7 +4823,7 @@ Based on the workload data, provide specific insights about ${snapshot.personNam
         } : undefined,
       },
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Workload analysis mode handler failed', {
       workspaceId: req.workspaceId,
       personId: req.personId,
@@ -5013,7 +5013,7 @@ Based on the availability data, provide specific insights about ${snapshot.perso
         } : undefined,
       },
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Calendar availability mode failed', {
       workspaceId: req.workspaceId,
       error: error instanceof Error ? error.message : String(error),

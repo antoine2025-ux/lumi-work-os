@@ -189,10 +189,11 @@ export async function GET(request: NextRequest) {
     console.log('User has no workspace - redirecting to welcome:', user.email)
     return NextResponse.redirect(new URL('/welcome', request.url))
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'callback_error';
     console.error('Error in auth callback:', error)
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error.message || 'callback_error')}`, request.url)
+      new URL(`/login?error=${encodeURIComponent(message)}`, request.url)
     )
   }
 }

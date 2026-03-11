@@ -172,7 +172,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     );
 
     return NextResponse.json({ membership: updatedMembership }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

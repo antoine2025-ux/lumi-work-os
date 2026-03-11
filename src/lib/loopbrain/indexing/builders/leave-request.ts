@@ -60,7 +60,7 @@ export async function buildContextObjectForLeaveRequest(
       },
       workspaceId,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to build leave request context object", {
       workspaceId,
       entityId,

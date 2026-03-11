@@ -191,7 +191,7 @@ export default function AskPage() {
       const response = await fetch('/api/ai/chat-sessions?limit=20')
       const data = await response.json()
       setChatHistory(data.sessions || [])
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading chat history:', error)
     } finally {
       setIsLoadingHistory(false)
@@ -231,7 +231,7 @@ export default function AskPage() {
         })
         loadChatHistory()
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating session:', error)
     } finally {
       setIsLoading(false)
@@ -270,7 +270,7 @@ export default function AskPage() {
           setMessages(formattedMessages)
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading session:', error)
     } finally {
       setIsLoading(false)
@@ -289,7 +289,7 @@ export default function AskPage() {
         setCurrentSession(null)
         setMessages([])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting session:', error)
     }
   }
@@ -311,7 +311,7 @@ export default function AskPage() {
         // Reload chat history to show updated title
         loadChatHistory()
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error regenerating title:', error)
     }
   }
@@ -399,7 +399,7 @@ export default function AskPage() {
                 loadChatHistory()
                 return
               }
-            } catch (e) {
+            } catch (e: unknown) {
               // Skip invalid JSON lines
               if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
                 console.error('Error parsing stream data:', e)
@@ -411,7 +411,7 @@ export default function AskPage() {
 
       setIsLoading(false)
       loadChatHistory()
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error sending message:', error)
       setIsLoading(false)
       

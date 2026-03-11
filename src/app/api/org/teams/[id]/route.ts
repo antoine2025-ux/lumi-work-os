@@ -101,7 +101,7 @@ export async function GET(
     };
 
     return NextResponse.json({ ok: true, team: dto });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
       snapshotId,
       data: result,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

@@ -221,8 +221,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Step 6: Determine time window (use request body or default)
-    const timeWindow = (body as any).timeWindow
-      ? { start: new Date((body as any).timeWindow.start), end: new Date((body as any).timeWindow.end) }
+    const timeWindow = body.timeWindow
+      ? { start: new Date(body.timeWindow.start), end: new Date(body.timeWindow.end) }
       : getDefaultIssueWindow();
 
     // Step 7: Compute issues BEFORE mutation (scoped to work request)

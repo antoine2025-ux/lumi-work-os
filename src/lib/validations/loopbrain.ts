@@ -150,3 +150,14 @@ export const PolicyCompileSchema = z.object({
 export const PolicyTestSchema = z.object({
   testCases: z.array(z.record(z.string(), z.unknown())).optional(),
 })
+
+// ============================================================================
+// Loopbrain rollout (org-level feature flag)
+// ============================================================================
+
+/** POST /api/org/loopbrain/rollout */
+export const LoopbrainRolloutSchema = z.object({
+  mode: z.enum(['ALL', 'ADMIN_ONLY', 'MANAGERS_ONLY', 'TEAM']),
+  teamName: z.string().max(200).nullable().optional(),
+  enabled: z.boolean(),
+})

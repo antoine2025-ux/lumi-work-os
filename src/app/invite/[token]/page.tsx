@@ -46,7 +46,10 @@ export default async function InvitePage({ params }: InvitePageProps) {
   let membershipCreated = false;
 
   try {
-    const result = await acceptOrgInvitationByToken(token, session.user.id);
+    const result = await acceptOrgInvitationByToken(token, session.user.id, {
+      sessionEmail: session.user.email ?? undefined,
+      sessionName: session.user.name ?? undefined,
+    });
     workspaceName = result.workspace.name ?? "this organization";
     workspaceId = result.workspace.id;
     membershipCreated = result.membershipCreated;

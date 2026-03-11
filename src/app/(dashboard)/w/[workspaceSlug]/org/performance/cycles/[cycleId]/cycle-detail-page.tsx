@@ -78,7 +78,7 @@ export function CycleDetailPage({ cycle, workspaceSlug }: Props) {
       }
 
       router.refresh()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsLaunching(false)
@@ -102,7 +102,7 @@ export function CycleDetailPage({ cycle, workspaceSlug }: Props) {
       }
 
       router.refresh()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsClosing(false)

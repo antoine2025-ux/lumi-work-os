@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
     // This prevents crashes when Prisma client is stale or model doesn't exist
     // Helps diagnose schema/client mismatches (e.g. Space model added but client not regenerated)
     const safeCount = async (modelName: string): Promise<{ ok: boolean; value?: number; reason?: string }> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const p = prismaUnscoped as any
       const model = p[modelName]
       
@@ -89,10 +90,11 @@ export async function GET(request: NextRequest) {
       try {
         const count = await model.count()
         return { ok: true, value: count }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
         return { 
           ok: false, 
-          reason: `Error counting ${modelName}: ${error.message}` 
+          reason: `Error counting ${modelName}: ${message}` 
         }
       }
     }
@@ -126,7 +128,7 @@ export async function GET(request: NextRequest) {
       },
       timestamp: new Date().toISOString()
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

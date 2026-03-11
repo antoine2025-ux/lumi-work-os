@@ -98,8 +98,8 @@ export async function POST(
         })
         
         createdTasks.push(task)
-      } catch (error) {
-        console.error('Error creating task from template:', error)
+      } catch (_error: unknown) {
+        // non-blocking: skip failed task
       }
     }
 

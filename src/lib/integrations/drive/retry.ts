@@ -45,7 +45,7 @@ export async function withDriveRetry<T>(
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       return await operation()
-    } catch (err) {
+    } catch (err: unknown) {
       lastError = err
 
       if (!isRetryableError(err) || attempt === MAX_RETRIES) {

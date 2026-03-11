@@ -59,7 +59,7 @@ export function MigrationModal({
           setErrorMessage("")
         }, 2000)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       setStatus("error")
       setErrorMessage(error instanceof Error ? error.message : "Migration failed")
     } finally {

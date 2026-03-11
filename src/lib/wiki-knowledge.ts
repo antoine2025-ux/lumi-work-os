@@ -115,7 +115,7 @@ export async function searchWikiKnowledge(
     return resultsWithScores
       .sort((a, b) => b.relevanceScore - a.relevanceScore)
       .slice(0, limit)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error searching wiki knowledge:', error)
     return []
   }
@@ -152,7 +152,7 @@ export async function getRecentWikiPages(
     })
 
     return pages
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching recent wiki pages:', error)
     return []
   }
@@ -191,7 +191,7 @@ export async function getWikiPagesByCategory(
     })
 
     return pages
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching wiki pages by category:', error)
     return []
   }

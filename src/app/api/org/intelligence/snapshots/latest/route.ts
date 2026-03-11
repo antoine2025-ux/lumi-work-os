@@ -114,11 +114,12 @@ export async function GET(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Intelligence data is currently unavailable.";
+    const stack = error instanceof Error ? error.stack : undefined;
     console.error("[GET /api/org/intelligence/snapshots/latest] Error:", error);
-    console.error("[GET /api/org/intelligence/snapshots/latest] Error stack:", error?.stack);
+    console.error("[GET /api/org/intelligence/snapshots/latest] Error stack:", stack);
 
-    // Always return empty state for optional endpoint - never 500
     const settings = await getOrCreateIntelligenceSettings().catch(() => ({
       snapshotFreshMinutes: 60,
       snapshotWarnMinutes: 120,
@@ -138,7 +139,7 @@ export async function GET(request: NextRequest) {
             warnMinutes: settings.snapshotWarnMinutes || 120,
           },
         },
-        hint: error?.message || "Intelligence data is currently unavailable.",
+        hint: message,
       },
       { status: 200 }
     );

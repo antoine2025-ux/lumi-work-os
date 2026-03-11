@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     })
 
     return NextResponse.json({ members })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     })
 
     return NextResponse.json(member, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
         b: byId.get(r.personBId) || { id: r.personBId, name: "Unknown" },
       })),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

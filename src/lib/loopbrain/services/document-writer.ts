@@ -57,7 +57,6 @@ export class LoopbrainDocumentWriter {
    */
   async connect(pageId: string, authToken: string): Promise<void> {
     const collabUrl = process.env.COLLAB_URL || process.env.NEXT_PUBLIC_COLLAB_URL || 'ws://localhost:1234'
-    console.log('[DocumentWriter] Connecting to Hocuspocus', { pageId, collabUrl, docName: `wiki-${pageId}` })
 
     return new Promise<void>((resolve, reject) => {
       let settled = false

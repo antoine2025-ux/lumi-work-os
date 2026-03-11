@@ -129,7 +129,7 @@ export async function POST(
     })
 
     return NextResponse.json(result.updatedKeyResult)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

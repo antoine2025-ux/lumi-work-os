@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     const data = await computeOrgHealthCompleteness(workspaceId)
     return NextResponse.json(data)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

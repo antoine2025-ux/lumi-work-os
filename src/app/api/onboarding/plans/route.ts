@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
@@ -6,17 +5,18 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
+import { OnboardingStatus } from '@prisma/client'
 
 
 const createPlanSchema = z.object({
-  employeeId: z.string().min(1),
+  userId: z.string().min(1),
   templateId: z.string().min(1).optional(),
-  name: z.string().min(1).max(80),
+  title: z.string().min(1).max(80),
   startDate: z.string().datetime(),
 })
 
 const _updatePlanSchema = z.object({
-  name: z.string().min(1).max(80).optional(),
+  title: z.string().min(1).max(80).optional(),
   status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED', 'ON_HOLD']).optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
@@ -45,21 +45,21 @@ export async function GET(request: NextRequest) {
 
     const where = {
       workspaceId: auth.workspaceId,
-      ...(status && { status: status as any }),
+      ...(status && { status: status as OnboardingStatus }),
     }
 
     const [plans, total] = await Promise.all([
       prisma.onboardingPlan.findMany({
         where,
         include: {
-          employee: {
+          users: {
             select: { name: true, email: true },
           },
           template: {
-            select: { name: true, durationDays: true },
+            select: { name: true, duration: true },
           },
-          tasks: {
-            orderBy: { order: 'asc' },
+          onboarding_task_assignments: {
+            orderBy: { createdAt: 'asc' },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         hasMore: offset + limit < total,
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -102,12 +102,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createPlanSchema.parse(body)
 
-    // If templateId is provided, create tasks from template
-    let tasksData = []
+    // If templateId is provided, create task assignments from template
+    let taskAssignmentsData: Array<{
+      id: string
+      taskId: string
+      status: 'PENDING'
+      workspaceId: string
+      updatedAt: Date
+    }> = []
     if (validatedData.templateId) {
       const template = await prisma.onboardingTemplate.findUnique({
         where: { id: validatedData.templateId },
-        include: { tasks: true },
+        include: { onboarding_tasks: true },
       })
 
       if (!template) {
@@ -117,43 +123,41 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const startDate = new Date(validatedData.startDate)
-      tasksData = template.tasks.map(task => ({
-        title: task.title,
-        description: task.description,
-        order: task.order,
-        dueDate: task.dueDay ? new Date(startDate.getTime() + task.dueDay * 24 * 60 * 60 * 1000) : null,
+      taskAssignmentsData = template.onboarding_tasks.map(task => ({
+        id: `${validatedData.userId}-${task.id}-${Date.now()}`,
+        taskId: task.id,
         status: 'PENDING' as const,
+        workspaceId: auth.workspaceId,
+        updatedAt: new Date(),
       }))
     }
 
     const plan = await prisma.onboardingPlan.create({
       data: {
         workspaceId: auth.workspaceId,
-        employeeId: validatedData.employeeId,
+        userId: validatedData.userId,
         templateId: validatedData.templateId,
-        name: validatedData.name,
+        title: validatedData.title,
         startDate: new Date(validatedData.startDate),
-        createdById: auth.user.userId,
-        tasks: {
-          create: tasksData.map(t => ({ ...t, workspaceId: auth.workspaceId })),
+        onboarding_task_assignments: {
+          create: taskAssignmentsData,
         },
       },
       include: {
-        employee: {
+        users: {
           select: { name: true, email: true },
         },
         template: {
-          select: { name: true, durationDays: true },
+          select: { name: true, duration: true },
         },
-        tasks: {
-          orderBy: { order: 'asc' },
+        onboarding_task_assignments: {
+          orderBy: { createdAt: 'asc' },
         },
       },
     })
 
     return NextResponse.json(plan, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

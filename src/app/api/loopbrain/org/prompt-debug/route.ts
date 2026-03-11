@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       ok: true,
       orgPreamble: preamble,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

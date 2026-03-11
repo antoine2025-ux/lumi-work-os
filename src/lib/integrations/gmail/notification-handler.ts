@@ -166,7 +166,7 @@ export async function processGmailNotification(
         config: { ...matchedConfig, users: updatedUsers } as object,
       },
     })
-  } catch (err) {
+  } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
 
     // historyId too old — Gmail purged the history. Store the new one and move on.

@@ -125,7 +125,7 @@ export function ProjectReports({ projectId }: ProjectReportsProps) {
       } else {
         console.error('Failed to load reports:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading reports:', error)
     } finally {
       setIsLoading(false)

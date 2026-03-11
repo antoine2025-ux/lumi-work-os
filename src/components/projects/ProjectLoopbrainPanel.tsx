@@ -124,7 +124,7 @@ export function ProjectLoopbrainPanel({ projectId, projectName, workspaceId: _wo
       })
       responseCache.current.set(query, response)
       setCachedResponse(response)
-    } catch (err) {
+    } catch (err: unknown) {
       setQuickAskError(err instanceof Error ? err.message : "Loopbrain couldn't answer right now.")
     } finally {
       setQuickAskLoading(false)

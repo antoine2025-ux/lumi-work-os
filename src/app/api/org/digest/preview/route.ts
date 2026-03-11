@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
     const digest = await buildWeeklyDigest(workspaceId);
     return NextResponse.json({ ok: true, digest });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

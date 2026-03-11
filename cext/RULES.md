@@ -26,6 +26,8 @@ setWorkspaceContext(auth.workspaceId);
 - Every new Prisma model with a `workspaceId` field **must** be added to `WORKSPACE_SCOPED_MODELS` in `src/lib/prisma/scopingMiddleware.ts`.
 - **Never** use `prismaUnscoped` unless the query genuinely cannot have workspace context (e.g., OAuth token lookups, user resolution by email). Document the justification in a comment.
 - If you're unsure whether a model needs workspace scoping: it does.
+- **Dual defense required:** The scoping middleware (`WORKSPACE_SCOPING_ENABLED`) is a safety net. Application-layer `where: { workspaceId }` in queries is the primary defense. Always include both — never rely on just one.
+- **Known gap:** The `Activity` model currently has no `workspaceId` field. Any new activity-related code must account for this isolation gap. Do not create new models without `workspaceId`.
 
 ### Service Layer Pattern
 
@@ -43,11 +45,13 @@ These files have high import counts. Changes require full test runs and explicit
 | `src/lib/unified-auth.ts` | Auth context for all routes |
 | `src/middleware.ts` | Route protection |
 | `src/server/authOptions.ts` | NextAuth configuration |
-| `src/lib/prisma/scopingMiddleware.ts` | Workspace isolation (144 models) |
-| `prisma/schema.prisma` | Data model (168 models) |
+| `src/lib/prisma/scopingMiddleware.ts` | Workspace isolation (152 models) |
+| `prisma/schema.prisma` | Data model (168 models — verify count before adding) |
 | `src/lib/auth/assertAccess.ts` | RBAC enforcement |
 | `src/lib/api-errors.ts` | Centralized error handling |
 | `src/lib/validations/` | Zod schema library |
+| `src/lib/events/` | Event system (activity, org, task, wiki events) |
+| `src/components/providers.tsx` | Root provider stack (9 nested providers) |
 
 If your task doesn't specifically require changing a stable seam, don't touch it.
 
@@ -68,11 +72,23 @@ If your task doesn't specifically require changing a stable seam, don't touch it
 - New data domains need either a Loopbrain tool in `src/lib/loopbrain/agent/tool-registry.ts` or a context source in `src/lib/loopbrain/context-sources/`. No data islands.
 - Loopbrain evidence values must be shallow, JSON-serializable primitives or flat objects.
 - **Never** modify canonical contracts in `src/lib/loopbrain/contract/` without explicit approval. These are versioned machine interfaces:
-  - `blockerPriority.v0.ts`
-  - `questions.v0.ts`
-  - `answer-envelope.v0.ts`
+  - `answer-envelope.v0.ts` — Answer format spec
+  - `blockerPriority.v0.ts` — Org readiness blockers
+  - `goalIntelligence.v0.ts` — Goal reasoning contract
+  - `questions.v0.ts` — Q1–Q9 pipeline definitions
+  - `refusalActions.v0.ts` — Refusal handling
+  - `validateAnswerEnvelope.ts` — Runtime validation
 - `OrgSemanticSnapshotV0` is a machine contract. UI may read it, never extend it for display convenience.
 - The agent loop (`agent-loop.ts`) is the default execution path. The legacy orchestrator (`orchestrator.ts`) is a fallback only — do not add features to it.
+
+### Policies Engine
+
+The Policies engine (`LoopbrainPolicy`, `PolicyExecution`, `PolicyActionLog`) is Loopbrain-driven rule-based automation. Rules:
+
+- Policies execute via Loopbrain's context and reasoning — they are not standalone CRON jobs with hardcoded logic.
+- New policy types must define clear trigger conditions, action types, and rollback behavior.
+- Policy executions must be logged to `PolicyActionLog` for auditability.
+- `LoopbrainPendingAction` is the queue for actions awaiting approval — never auto-execute destructive actions.
 
 ---
 
@@ -96,7 +112,7 @@ Every new Prisma model must have:
 - Fields: camelCase
 - Files: kebab-case (`capacity-contract.ts`)
 - Components: PascalCase (`PersonProfileClient.tsx`)
-- Use `workspaceId` everywhere. **Never** use `orgId` as a field name for workspace reference. The legacy `orgId` pattern (43 occurrences across 20 files) is being migrated — do not add new instances.
+- Use `workspaceId` everywhere. **Never** use `orgId` as a field name for workspace reference. The legacy `orgId` pattern (~69 routes use `const orgId = workspaceId` fallback) is being migrated — do not add new instances.
 
 ### Migration Safety
 
@@ -110,18 +126,20 @@ Every new Prisma model must have:
 
 ### Non-Negotiable
 
-- **Zod validation** on every POST, PUT, DELETE, and PATCH route. Schemas live in `src/lib/validations/`. Use `.parse()` or `.safeParse()` at the API boundary before any database operation.
-- **`handleApiError()`** wrapping every route's try/catch. Import from `src/lib/api-errors.ts`.
-- **No `as any`** to bypass type safety. Use `unknown` and narrow, or define the type. Existing `as any` casts (47 occurrences) are tech debt, not precedent.
+- **Zod validation** on every POST, PUT, DELETE, and PATCH route. Schemas live in `src/lib/validations/`. Use `.parse()` or `.safeParse()` at the API boundary before any database operation. Current coverage is ~23% (102/498 routes) — every new route must raise this number, never lower it.
+- **`handleApiError()`** wrapping every route's try/catch. Import from `src/lib/api-errors.ts`. Current coverage is ~56% — same principle applies.
+- **No `as any`** to bypass type safety. Use `unknown` and narrow, or define the type. Existing `as any` casts are tech debt, not precedent.
 - **No `catch (error: any)`**. Always `catch (error: unknown)`.
 - **No `console.log` in production paths.** Use structured logging or remove.
 - **No debug fetch calls** (e.g., `fetch('http://127.0.0.1:...')`) in committed code.
-- `ignoreBuildErrors: true` in `next.config.ts` is a known P0 — do not rely on it. Run `tsc --noEmit` locally.
+- ✅ `ignoreBuildErrors` removed (March 11, 2026). Run `tsc --noEmit` locally to verify type safety.
+- **No unauthenticated mutation routes.** Known gap: `POST /api/migrations/blog` has no auth — do not follow this pattern.
 
 ### Prompt Injection Awareness
 
-- External data (Gmail bodies, Slack messages, calendar descriptions) must be sanitized/escaped before inclusion in LLM prompts.
+- External data (Gmail bodies, Slack messages, calendar descriptions, Google Drive content) must be sanitized/escaped before inclusion in LLM prompts.
 - Never trust user-supplied content as instructions to Loopbrain.
+- Policy executions that process external data must sanitize inputs before passing to the LLM reasoning layer.
 
 ---
 
@@ -186,6 +204,15 @@ Loopwell is building toward category dominance — not a niche tool. Every decis
 - **No hardcoded limits that create scale ceilings.** If you're adding a limit, make it configurable.
 - **Data model depth over feature breadth.** A rich, well-structured model that Loopbrain can reason over is more valuable than a quick UI feature with flat data.
 - **Every new feature should make the whole system smarter.** If adding a feature doesn't create new data that Loopbrain can use, question whether the design is complete.
+- **Integration pattern for new external services:** OAuth tokens stored in `Integration` model (workspace-scoped) → service functions in `src/lib/integrations/[service]/` → API routes in `src/app/api/integrations/[service]/`. Follow the existing Slack/Gmail/Drive pattern.
+- **Event emission after mutations.** If a mutation changes state that other modules care about (task completed, person added, wiki page updated), emit an event via `src/lib/events/`. This is how the activity feed, real-time updates, and future Loopbrain triggers stay in sync.
+
+### Current Scale Awareness
+
+The system is at 498 API routes, 168 Prisma models, and 70 dashboard pages. At this scale:
+- Naming collisions are real — always check for existing models/routes/components before creating.
+- Import path changes cascade widely — never rename or move files without approval.
+- New modules (like Policies, Performance, One-on-Ones) must follow established infrastructure patterns from day one, not retrofit later.
 
 ---
 
@@ -202,9 +229,15 @@ import { handleApiError } from '@/lib/api-errors'
 // Database
 import { prisma } from '@/lib/db'
 
-// Validation (extend existing schemas, don't create new files)
+// Validation (extend existing schemas, don't create new files unless new domain)
 import { PersonCreateSchema } from '@/lib/validations/org'
 import { WikiPageSchema } from '@/lib/validations/wiki'
+// Also: '@/lib/validations/common', '@/lib/validations/tasks', '@/lib/validations/onboarding'
+// PM-specific: '@/lib/pm/schemas'
+
+// Events (emit after mutations)
+import { emit } from '@/lib/events/emit'
+// Event definitions in: '@/lib/events/activityEvents', '@/lib/events/orgEvents'
 
 // UI
 import { cn } from '@/lib/utils'
@@ -214,4 +247,4 @@ import { cn } from '@/lib/utils'
 
 ---
 
-*Last updated: March 9, 2026. This file is the source of truth for development constraints. If a rule here conflicts with existing code, the rule wins — the existing code is tech debt.*
+*Last updated: March 2026. This file is the source of truth for development constraints. If a rule here conflicts with existing code, the rule wins — the existing code is tech debt.*

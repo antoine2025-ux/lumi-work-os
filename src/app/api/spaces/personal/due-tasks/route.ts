@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const tasks = await getMyDueTasks(auth.user.userId, auth.workspaceId)
     return NextResponse.json(tasks)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

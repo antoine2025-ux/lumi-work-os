@@ -51,7 +51,7 @@ export async function GET(
     })
 
     return NextResponse.json(responses)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -144,7 +144,7 @@ export async function PUT(
     )
 
     return NextResponse.json(upserted)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

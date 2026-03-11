@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, kind, id, result }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[dev/org-context-sync-entity] Failed", error);
 
     return NextResponse.json(

@@ -99,7 +99,7 @@ export function RequestTimeOffDialog({
       setFormData({ startDate: "", endDate: "", type: "vacation", reason: "" });
       onOpenChange(false);
       router.refresh();
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
         title: "Error",
         description:

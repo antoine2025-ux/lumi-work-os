@@ -56,7 +56,10 @@ export async function POST(req: NextRequest) {
 
     // ACCEPT: use correct acceptance function
     try {
-      const result = await acceptOrgInvitationByToken(body.token, user.userId);
+      const result = await acceptOrgInvitationByToken(body.token, user.userId, {
+        sessionEmail: user.email,
+        sessionName: user.name,
+      });
       
       // Ensure the created position has a teamId
       const position = await prisma.orgPosition.findFirst({
@@ -90,7 +93,7 @@ export async function POST(req: NextRequest) {
         orgName: result.workspace.name || "Organization",
         role: "MEMBER",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         return NextResponse.json({ 
           ok: false, 
@@ -99,7 +102,7 @@ export async function POST(req: NextRequest) {
       }
       throw error;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

@@ -55,23 +55,13 @@ export function SocketProvider({ children, userId, userName, workspaceId }: Sock
       if (socketIOEnabled) {
         // Try real socket first, fallback to mock
         try {
-          console.log(`Socket connection attempt ${attempt + 1} for user ${userId}`)
           newSocket = await connectSocket(userId, userName, workspaceId)
           setRetryCount(0) // Reset retry count on successful connection
-          console.log('Real socket connected successfully')
-        } catch (err) {
-          console.log('Real socket failed, using mock socket:', err)
-          console.log('Error details:', {
-            message: err instanceof Error ? err.message : 'Unknown error',
-            attempt: attempt + 1,
-            userId,
-            workspaceId
-          })
+        } catch (_err: unknown) {
           newSocket = await connectMockSocket(userId, userName, workspaceId)
         }
       } else {
         // Skip real socket connection - use mock socket directly
-        console.log('Using mock socket (Socket.IO disabled via NEXT_PUBLIC_ENABLE_SOCKET_IO)')
         newSocket = await connectMockSocket(userId, userName, workspaceId)
         setSocket(newSocket)
         setIsConnected(true)
@@ -87,7 +77,7 @@ export function SocketProvider({ children, userId, userName, workspaceId }: Sock
       setIsRetrying(false)
       setRetryCount(0)
       
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Connection failed'
       setError(errorMessage)
       console.error('Socket connection failed:', err)
@@ -169,7 +159,7 @@ export function useTaskUpdates(projectId: string) {
           const project = await response.json()
           setTasks(project.tasks || [])
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to load tasks:', error)
       } finally {
         setIsLoading(false)

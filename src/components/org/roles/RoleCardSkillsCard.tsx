@@ -86,7 +86,7 @@ export function RoleCardSkillsCard({ roleCardId, canEdit = false }: RoleCardSkil
       } else {
         setError("Failed to load skills");
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[RoleCardSkillsCard] Error:", err);
       setError("Failed to load skills");
     } finally {
@@ -105,7 +105,7 @@ export function RoleCardSkillsCard({ roleCardId, canEdit = false }: RoleCardSkil
     try {
       await OrgApi.removeRoleCardSkill(roleCardId, roleCardSkillId);
       setSkills((prev) => prev.filter((s) => s.id !== roleCardSkillId));
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[RoleCardSkillsCard] Remove error:", err);
     } finally {
       setDeletingId(null);

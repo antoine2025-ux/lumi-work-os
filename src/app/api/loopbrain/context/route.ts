@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
           limit: 20 // Limit to top 20 projects
         })
         response.contextObjects = contextObjects
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error fetching ContextObjects for context API', {
           workspaceId,
           error

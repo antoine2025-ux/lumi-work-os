@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     await recordOrgApiHit(routeId, 200, workspaceId, user.userId);
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

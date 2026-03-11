@@ -203,7 +203,7 @@ export function AddImpactDrawer({
         }
 
         setSubjectOptions(options);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Failed to fetch subject options:", err);
       } finally {
         setLoadingOptions(false);
@@ -275,7 +275,7 @@ export function AddImpactDrawer({
       // Pass returned impact data to avoid refetch
       onSuccess(data);
       onClose();
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setSubmitting(false);

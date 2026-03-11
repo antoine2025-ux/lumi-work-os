@@ -124,7 +124,7 @@ export default function OnboardingStepPage() {
 
         const nextUiStep = uiStepNumber + 1
         router.push(`/onboarding/${nextUiStep}`)
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('[onboarding] Step submission error:', error)
         alert(error instanceof Error ? error.message : 'Something went wrong. Please try again.')
       } finally {

@@ -199,7 +199,7 @@ export async function searchEmbeddings(
           similarityScore: score
         })
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error computing similarity for candidate', {
         contextItemId: candidate.contextItemId,
         error

@@ -92,14 +92,14 @@ async function runSlackSync(
         const syncResult = await syncSlackContext(integration.workspaceId);
         result.totalSynced += syncResult.synced;
         result.totalChannels += syncResult.channels;
-      } catch (err) {
+      } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         result.errors.push(`${integration.workspaceId}: ${msg}`);
       }
     }
 
     logger.info("[slack-sync] Cron complete", { ...result });
-  } catch (err) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push(`Fatal: ${msg}`);
     logger.error("[slack-sync] Cron failed", { error: err });

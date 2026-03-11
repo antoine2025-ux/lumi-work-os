@@ -49,7 +49,7 @@ function BlogPageContent() {
           const errorData = await response.json()
           console.error("[Blog] API error:", errorData)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[Blog] Error fetching posts:", error)
       } finally {
         setLoading(false)

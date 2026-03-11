@@ -213,7 +213,7 @@ export async function GET(
           }
         : null,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

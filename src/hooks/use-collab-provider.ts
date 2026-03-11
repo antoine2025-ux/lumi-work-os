@@ -76,7 +76,7 @@ export function useCollabProvider(
         const ydocInit = prosemirrorJSONToYDoc(schema, initialContent, 'default')
         const update = encodeStateAsUpdate(ydocInit)
         applyUpdate(ydoc, update)
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[Collab] Failed to inject fallback initial content:', err)
         injectedRef.current = false
       }
@@ -106,7 +106,7 @@ export function useCollabProvider(
         const ydocInit = prosemirrorJSONToYDoc(schema, initialContent, 'default')
         const update = encodeStateAsUpdate(ydocInit)
         applyUpdate(ydoc, update)
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[Collab] Timeout fallback injection failed:', err)
         injectedRef.current = false
       }

@@ -28,7 +28,7 @@ if (process.env.NODE_ENV === 'development') {
     } else {
       console.log(`[DB INIT]   DIRECT_URL: not set`)
     }
-  } catch (e) {
+  } catch (e: unknown) {
     console.error('[DB INIT] ⚠️  Could not parse DATABASE_URL:', e)
     console.error('[DB INIT]   DATABASE_URL value:', databaseUrl ? 'set (but invalid)' : 'NOT SET')
   }

@@ -117,7 +117,7 @@ export async function GET(
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -161,7 +161,7 @@ export async function PUT(
     });
 
     return NextResponse.json({ ok: true, team: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }
@@ -201,7 +201,7 @@ export async function DELETE(
     await prisma.orgTeam.delete({ where: { id: teamId } });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

@@ -160,7 +160,7 @@ export default function PersonalWorkspacePage() {
         const projectsList = Array.isArray(projectsData) ? projectsData : (projectsData.data || projectsData.projects || [])
         setProjects(projectsList)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workspace data:', error)
     } finally {
       setIsLoading(false)

@@ -58,7 +58,7 @@ export async function POST(
     }
 
     // Verify user has write access to the project
-    await assertProjectAccess({ id: auth.user.userId } as any, currentTask.projectId, 'MEMBER', auth.workspaceId)
+    await assertProjectAccess({ id: auth.user.userId }, currentTask.projectId, 'MEMBER', auth.workspaceId)
 
     // Validate that all dependency tasks exist and are in the same project
     if (dependsOn.length > 0) {
@@ -149,7 +149,7 @@ export async function POST(
     await updateReverseDependencies(taskId, newDependsOn, newBlocks)
 
     return NextResponse.json(updatedTask)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }
@@ -201,7 +201,7 @@ export async function GET(
     }
 
     // Verify user has access to the project (VIEWER+ can view task dependencies)
-    await assertProjectAccess({ id: auth.user.userId } as any, task.projectId, 'VIEWER', auth.workspaceId)
+    await assertProjectAccess({ id: auth.user.userId }, task.projectId, 'VIEWER', auth.workspaceId)
 
     // Get dependency details
     const dependencies = await prisma.task.findMany({
@@ -255,7 +255,7 @@ export async function GET(
       dependencies,
       blockedTasks
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

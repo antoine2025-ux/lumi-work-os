@@ -61,7 +61,7 @@ export function TodoQuickAdd({
       const todo = await response.json()
       onCreated(todo)
       setTitle('')
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating todo:', error)
     } finally {
       setIsSubmitting(false)

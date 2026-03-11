@@ -93,7 +93,7 @@ export function PersonalSpaceView() {
           return []
         }
         return r.json()
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Failed to load personal notes:", error)
         return []
       }
@@ -167,28 +167,26 @@ export function PersonalSpaceView() {
           <h1 className="text-lg font-semibold text-foreground tracking-tight">My Work</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Spaces / Personal</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
-            variant="default"
-            size="sm"
-            className="h-8 gap-1.5 text-sm"
+            variant="ghostMuted"
+            size="xs"
             onClick={() => (personalSpace ? createPageDirectly() : setIsCreatePageOpen(true))}
             disabled={personalSpace ? isCreatingPage : false}
           >
             {personalSpace && isCreatingPage ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
             ) : (
-              <FileText className="w-4 h-4" />
+              <FileText className="w-3.5 h-3.5 mr-1" />
             )}
             New Page
           </Button>
           <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 text-sm"
+            variant="ghostMuted"
+            size="xs"
             onClick={() => setIsCreateProjectOpen(true)}
           >
-            <Target className="w-4 h-4" />
+            <Target className="w-3.5 h-3.5 mr-1" />
             New Project
           </Button>
         </div>

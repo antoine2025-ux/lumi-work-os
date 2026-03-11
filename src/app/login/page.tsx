@@ -36,13 +36,8 @@ function LoginPageContent() {
     // This ensures fresh OAuth attempts don't get blocked
     const logoutFlag = sessionStorage.getItem('__logout_flag__')
     if (logoutFlag === 'true') {
-      console.log('🧹 Clearing logout flag on login page load')
       sessionStorage.removeItem('__logout_flag__')
     }
-
-    // DON'T check session at all - this causes the redirect loop
-    // Users should explicitly sign in, not be auto-redirected
-    console.log('🔵 Login page loaded - no auto-redirect, user must click sign in')
 
     // Check if Google OAuth is available via providers API
     // The API will check server-side env vars (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
@@ -50,32 +45,26 @@ function LoginPageContent() {
     fetch('/api/auth/providers')
       .then(res => res.json())
       .then(providers => {
-        console.log('Available providers:', providers)
         const googleAvailable = !!providers.google
         setHasGoogleAuth(googleAvailable)
-        
+
         // In dev mode, if no Google provider but we expect it, log a warning
         if (!googleAvailable && process.env.NODE_ENV === 'development') {
-          console.warn('⚠️ Google OAuth not available. Check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local')
           if (!authError) {
             setAuthError('Google OAuth is not configured. Please replace REPLACE_WITH_GOOGLE_CLIENT_ID and REPLACE_WITH_GOOGLE_CLIENT_SECRET in .env.local with your actual Google OAuth credentials.')
           }
         }
       })
-      .catch((err) => {
-        console.error('Error fetching providers:', err)
+      .catch((_err) => {
         setHasGoogleAuth(false)
       })
     }, [router, searchParams, authError])
 
   const handleGoogleSignIn = async () => {
-    console.log('🟢 [login] Google sign-in button clicked')
-    
     // CRITICAL: Clear the logout flag before starting OAuth
     // This prevents AuthWrapper from blocking the OAuth callback
     sessionStorage.removeItem('__logout_flag__')
-    console.log('✅ [login] Cleared logout flag before OAuth')
-    
+
     // Clear any Google OAuth state/cookies to force fresh account selection
     // This ensures users can select a different account even if they're logged into Google
     try {
@@ -91,46 +80,23 @@ function LoginPageContent() {
           document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.googleapis.com`
         }
       })
-    } catch (e) {
-      console.log('Note: Could not clear Google cookies (may be cross-domain)', e)
+    } catch (_e: unknown) {
+      // Cookie clearing is best-effort (may fail cross-domain)
     }
 
     // Get callbackUrl from query params if provided (e.g. from invite links)
     const callbackUrl = searchParams.get('callbackUrl') || '/home'
-    
+
     setIsLoading(true)
     try {
-      // Log sign-in attempt with callbackUrl for debugging invite flow
-      const logData = {
-        message: 'Login: calling signIn with callbackUrl',
-        callbackUrl,
-        href: typeof window !== 'undefined' ? window.location.href : null,
-        searchParams: typeof window !== 'undefined' ? window.location.search : null,
-        timestamp: new Date().toISOString()
-      }
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔐 [Login] Calling signIn("google"):', logData)
-      } else {
-        // In production, log as JSON for server logs
-        console.log(JSON.stringify({
-          level: 'info',
-          ...logData
-        }))
-      }
-      
       // Force account selection by passing authorizationParams
       // This will override the default and ensure Google shows account picker
       // Use dynamic callbackUrl to preserve invite URLs through OAuth flow
-      const result = await signIn('google', { 
+      await signIn('google', {
         callbackUrl,
         redirect: true,
       })
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🟢 [login] signIn result:', result)
-      }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ [login] Sign in error:', error)
     } finally {
       setIsLoading(false)

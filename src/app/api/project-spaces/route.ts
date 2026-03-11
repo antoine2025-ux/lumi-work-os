@@ -62,13 +62,13 @@ export async function GET(request: NextRequest) {
           }
         })
         return NextResponse.json({ spaces: [generalSpace] })
-      } catch (error) {
+      } catch (error: unknown) {
     return handleApiError(error, request)
   }
     }
 
     return NextResponse.json({ spaces })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

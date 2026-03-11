@@ -26,6 +26,7 @@ export const ProjectTemplateDataSchema = z.object({
 export const ProjectCreateSchema = z.object({
   workspaceId: z.string().min(1, 'Workspace ID is required'),
   name: z.string().min(1, 'Project name is required').max(255, 'Project name too long'),
+  excerpt: z.string().max(300).optional(),
   description: z.string().optional(),
   status: z.enum(['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED']).default('ACTIVE'),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'),
@@ -69,6 +70,7 @@ export const ProjectCreateSchema = z.object({
 
 export const ProjectUpdateSchema = z.object({
   name: z.string().min(1, 'Project name is required').max(255, 'Project name too long').optional(),
+  excerpt: z.string().max(300).optional(),
   description: z.string().optional(),
   status: z.enum(['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),

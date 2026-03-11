@@ -83,12 +83,13 @@ export async function GET(req: NextRequest) {
       roles: rolesTable,
       validation,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to fetch roles for dev debug.";
     console.error("[Org] Failed to fetch roles for dev debug", err);
     return NextResponse.json(
       {
         ok: false,
-        error: err?.message ?? "Failed to fetch roles for dev debug.",
+        error: message,
       },
       { status: 500 }
     );

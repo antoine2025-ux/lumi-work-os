@@ -57,9 +57,11 @@ export async function GET(request: NextRequest) {
       { flags },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const stack = error instanceof Error ? error.stack : undefined;
     console.error("[GET /api/org/flags] Error:", error);
-    console.error("[GET /api/org/flags] Error stack:", error?.stack);
+    console.error("[GET /api/org/flags] Error stack:", stack);
     
     if (!userId || !workspaceId) {
       console.error("[GET /api/org/flags] Missing userId or workspaceId in catch", { userId, workspaceId });
@@ -72,10 +74,10 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
+    if (message.includes("Forbidden") || message.includes("Unauthorized")) {
       return NextResponse.json(
         { 
-          error: error.message || "Forbidden",
+          error: message || "Forbidden",
           hint: "You don't have permission to access this resource."
         },
         { status: 403 }
@@ -83,7 +85,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Return default flags on error to prevent UI breakage
-    console.error("[GET /api/org/flags] Returning default flags due to error:", error.message);
+    console.error("[GET /api/org/flags] Returning default flags due to error:", message);
     return NextResponse.json(
       { 
         flags: {

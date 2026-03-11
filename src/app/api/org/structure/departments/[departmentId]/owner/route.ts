@@ -172,10 +172,9 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
             userIdToAssign
           );
         });
-      } catch (error: any) {
-        // If transaction fails (e.g., table doesn't exist), log and continue
-        console.warn("[setDepartmentOwner] Could not update owner assignment:", error?.message);
-        // Don't fail the request - owner assignment is optional for MVP
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn("[setDepartmentOwner] Could not update owner assignment:", message);
       }
     } else {
       // Remove owner: delete existing assignment (raw SQL)
@@ -191,9 +190,9 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
           'DEPARTMENT',
           departmentId
         ).catch(() => {}); // Ignore if table doesn't exist
-      } catch (error: any) {
-        console.warn("[setDepartmentOwner] Could not delete owner assignment:", error?.message);
-        // Don't fail the request
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn("[setDepartmentOwner] Could not delete owner assignment:", message);
       }
     }
 
@@ -240,8 +239,9 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
         entity: { type: "department", id: departmentId },
         payload: { ownerPersonId: userIdToAssign },
       });
-    } catch (contextError: any) {
-      console.warn("[PUT /api/org/structure/departments/[departmentId]/owner] Failed to emit context object (non-blocking):", contextError?.message);
+    } catch (contextError: unknown) {
+      const message = contextError instanceof Error ? contextError.message : String(contextError);
+      console.warn("[PUT /api/org/structure/departments/[departmentId]/owner] Failed to emit context object (non-blocking):", message);
     }
 
     // Step 15: Return canonical MutationResult
@@ -261,7 +261,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
     };
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

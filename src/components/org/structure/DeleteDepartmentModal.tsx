@@ -26,7 +26,7 @@ export function DeleteDepartmentModal({
     try {
       await onConfirm();
       onClose();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to delete department:", error);
       // Error handling is done by the parent component
     } finally {

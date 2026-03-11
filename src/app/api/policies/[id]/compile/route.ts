@@ -80,7 +80,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       suggestions: result.suggestions ?? [],
       estimatedTokens: result.estimatedTokens,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -115,7 +115,7 @@ export function PositionInviteDialog({
         setInviteUrl("")
         onClose()
       }, 3000)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsLoading(false)

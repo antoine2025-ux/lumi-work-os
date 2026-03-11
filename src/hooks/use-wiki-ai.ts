@@ -33,7 +33,7 @@ export function useAIContentAnalysis() {
       
       logger.info('Content analysis completed', { pageId, analysisType: result.type })
       return result
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Content analysis failed', { pageId }, error instanceof Error ? error : undefined)
       throw error
     } finally {
@@ -77,7 +77,7 @@ export function useAIAutoTagging() {
       
       logger.info('Tags generated', { tagCount: result.tags?.length })
       return result.tags || []
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Tag generation failed', {}, error instanceof Error ? error : undefined)
       throw error
     } finally {
@@ -122,7 +122,7 @@ export function useAIContentGeneration() {
       
       logger.info('Content generated', { contentLength: result.content?.length })
       return result.content || ''
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Content generation failed', {}, error instanceof Error ? error : undefined)
       throw error
     } finally {
@@ -166,7 +166,7 @@ export function useAISearchEnhancement() {
       
       logger.info('Search enhanced', { resultCount: result.results?.length })
       return result.results || []
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Search enhancement failed', {}, error instanceof Error ? error : undefined)
       throw error
     } finally {
@@ -210,7 +210,7 @@ export function useAIContentSuggestions() {
       
       logger.info('Content suggestions generated', { suggestionCount: result.suggestions?.length })
       return result.suggestions || []
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Suggestion generation failed', {}, error instanceof Error ? error : undefined)
       throw error
     } finally {
@@ -254,7 +254,7 @@ export function useAIContentQuality() {
       
       logger.info('Content quality checked', { score: result.score })
       return result
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Quality check failed', {}, error instanceof Error ? error : undefined)
       throw error
     } finally {

@@ -207,7 +207,7 @@ export async function callLoopbrainAssistant(
 
     // Type assertion - backend should return LoopbrainResponse (agent loop may add conversationId)
     return data as LoopbrainClientResponse
-  } catch (error) {
+  } catch (error: unknown) {
     // Re-throw with user-friendly message
     if (error instanceof Error) {
       // If it's already a user-friendly error, re-throw as-is

@@ -78,7 +78,7 @@ export function OrgQnaSummaryStrip() {
           .slice(0, 3);
 
         setLocations(stats);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Failed to load Org AI summary", err);
         if (!cancelled) {
           setError("Unable to load Org AI activity.");

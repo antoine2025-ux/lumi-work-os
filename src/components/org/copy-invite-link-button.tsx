@@ -46,7 +46,7 @@ export function CopyInviteLinkButton({
         title: "Invite link copied",
         description: "You can now paste the link to share the invitation.",
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
       toast({
         variant: "destructive",

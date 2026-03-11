@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ success: true })
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Gmail Webhook] Error', {
       error: err instanceof Error ? err.message : String(err),
     })

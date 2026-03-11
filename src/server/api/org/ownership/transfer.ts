@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     });
 
     return createSuccessResponse<Record<string, never>>({});
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("[ORG_OWNERSHIP_TRANSFER_ERROR]", err);
     return createErrorResponse(
       "INTERNAL_SERVER_ERROR",

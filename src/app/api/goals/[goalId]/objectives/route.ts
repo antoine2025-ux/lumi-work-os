@@ -113,7 +113,7 @@ export async function POST(
     )
 
     return NextResponse.json(objective, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }
@@ -199,7 +199,7 @@ export async function PATCH(
     })
 
     return NextResponse.json(objective)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }
@@ -286,7 +286,7 @@ export async function DELETE(
     await updateGoalProgress(goalId)
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

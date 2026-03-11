@@ -108,7 +108,7 @@ export function turnIntoBlock(editor: Editor, targetType: string): boolean {
     }
 
     return true
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error turning into block:', error)
     return false
   }
@@ -140,7 +140,7 @@ export function duplicateBlock(editor: Editor): boolean {
       .run()
 
     return true
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error duplicating block:', error)
     return false
   }
@@ -175,7 +175,7 @@ export function deleteBlock(editor: Editor): boolean {
     }
 
     return true
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error deleting block:', error)
     return false
   }

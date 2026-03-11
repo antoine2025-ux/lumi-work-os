@@ -6,6 +6,7 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { getOrgContext } from "@/server/rbac";
 import { handleApiError } from "@/lib/api-errors";
 import { CreateOrgViewSchema } from '@/lib/validations/org';
+import type { Prisma } from '@prisma/client'
 
 function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, views });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
     let ctx;
     try {
       ctx = await getOrgContext(req);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[POST /api/org/views] Error getting org context:", error);
       return NextResponse.json({ ok: false, error: "Failed to get organization context" }, { status: 500 });
     }
@@ -74,13 +75,13 @@ export async function POST(req: NextRequest) {
 
     const created = await prisma.orgSavedView.upsert({
       where: { workspaceId_scope_key: { workspaceId, scope, key: key || name.toLowerCase().replace(/\s+/g, '-') } },
-      update: { name: name.trim(), filters: filters as any },
-      create: { workspaceId, scope, name: name.trim(), key: (key || name.toLowerCase().replace(/\s+/g, '-')).trim(), filters: filters as any },
+      update: { name: name.trim(), filters: filters as Prisma.InputJsonValue },
+      create: { workspaceId, scope, name: name.trim(), key: (key || name.toLowerCase().replace(/\s+/g, '-')).trim(), filters: filters as Prisma.InputJsonValue },
       select: { id: true, name: true, key: true, filters: true },
     });
 
     return NextResponse.json({ ok: true, view: created });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

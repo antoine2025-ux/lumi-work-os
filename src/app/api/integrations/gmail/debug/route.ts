@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       hasTokensForCurrentUser,
       connected: !!integration && hasTokensForCurrentUser,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return NextResponse.json({
       ok: false,
       error: error instanceof Error ? error.message : String(error),

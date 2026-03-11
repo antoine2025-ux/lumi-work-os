@@ -85,21 +85,22 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ teamId
         entity: { type: "team", id: teamId },
         payload: { personId },
       });
-    } catch (contextError: any) {
-      // Log but don't fail - context emission is non-blocking
-      // Common case: context_items table may not exist yet if migrations haven't run
-      console.warn("[POST /api/org/structure/teams/[teamId]/members/remove] Failed to emit context object (non-blocking):", contextError?.message);
+    } catch (contextError: unknown) {
+      const message = contextError instanceof Error ? contextError.message : String(contextError);
+      const code = contextError && typeof contextError === 'object' && 'code' in contextError ? (contextError as { code: string }).code : undefined;
+      const stack = contextError instanceof Error ? contextError.stack : undefined;
+      console.warn("[POST /api/org/structure/teams/[teamId]/members/remove] Failed to emit context object (non-blocking):", message);
       if (process.env.NODE_ENV !== "production") {
         console.warn("[POST /api/org/structure/teams/[teamId]/members/remove] Context error details:", {
-          message: contextError?.message,
-          code: contextError?.code,
-          stack: contextError?.stack,
+          message,
+          code,
+          stack,
         });
       }
     }
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

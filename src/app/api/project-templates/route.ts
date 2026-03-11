@@ -5,6 +5,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
 import { ProjectTemplateCreateSchema } from '@/lib/pm/schemas'
+import type { Prisma } from '@prisma/client'
 
 // GET /api/project-templates - Get all project templates
 export async function GET(request: NextRequest) {
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
         category,
         isDefault: isDefault ?? false,
         isPublic: isPublic ?? true,
-        templateData: templateData as any,
+        templateData: templateData as Prisma.InputJsonValue,
         createdById: auth.user.userId
       }
     })

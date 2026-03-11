@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       hasMore,
       nextCursor,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

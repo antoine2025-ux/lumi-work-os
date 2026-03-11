@@ -39,7 +39,7 @@ export function useOrgAdminActivityStrip(): UseOrgAdminActivityResult {
 
         setItems(json.data as OrgAdminActivityItem[]);
         setIsLoading(false);
-      } catch (err) {
+      } catch (err: unknown) {
         if (cancelled) return;
         console.error("[useOrgAdminActivityStrip]", err);
         setError("Failed to load admin activity.");

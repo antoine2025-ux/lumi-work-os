@@ -210,7 +210,7 @@ export async function generateDailySummary(projectId: string, date: string): Pro
     )
 
     return aiResponse.content
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error generating daily summary:', error)
     throw error
   }
@@ -316,7 +316,7 @@ export async function saveDailySummary(projectId: string, date: string, summary:
         workspaceId
       }
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error saving daily summary:', error)
     throw error
   }
@@ -347,7 +347,7 @@ export async function getDailySummaries(projectId: string, limit: number = 30): 
       text: summary.text,
       createdAt: summary.createdAt.toISOString()
     }))
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching daily summaries:', error)
     throw error
   }

@@ -145,7 +145,7 @@ export function UserProfileForm({
         const data = await response.json()
         setDepartments(data || [])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading departments:', error)
     }
   }
@@ -160,7 +160,7 @@ export function UserProfileForm({
         const data = await response.json()
         setPositions(data || [])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading positions:', error)
     } finally {
       setLoadingPositions(false)
@@ -232,7 +232,7 @@ export function UserProfileForm({
     try {
       await onSave(formData)
       onClose()
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving user profile:', error)
     } finally {
       setLoading(false)

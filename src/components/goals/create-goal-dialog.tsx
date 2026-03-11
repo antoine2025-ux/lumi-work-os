@@ -42,7 +42,7 @@ export function CreateGoalDialog({ isOpen, onClose }: Props) {
         router.refresh()
         onClose()
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to create goal:', error)
     } finally {
       setIsLoading(false)

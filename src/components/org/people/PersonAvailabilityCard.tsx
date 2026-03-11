@@ -179,7 +179,7 @@ export function PersonAvailabilityCard({ personId, canEdit = false, onAvailabili
       }
 
       handleRefresh();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[PersonAvailabilityCard] Quick set failed:", error);
       toast({
         title: "Failed to update availability",

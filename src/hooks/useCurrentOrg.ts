@@ -61,7 +61,7 @@ export function useCurrentOrg(): UseCurrentOrgResult {
         setOrg(json.data.org);
         setCurrentMemberRole(json.data.currentMemberRole ?? null);
         setIsLoading(false);
-      } catch (err) {
+      } catch (err: unknown) {
         if (cancelled) return;
         console.error("[useCurrentOrg]", err);
         setError("Failed to load current organization.");

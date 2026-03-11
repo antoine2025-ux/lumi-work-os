@@ -169,7 +169,7 @@ export async function GET(
         pages: Math.ceil(totalCount / limit)
       }
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

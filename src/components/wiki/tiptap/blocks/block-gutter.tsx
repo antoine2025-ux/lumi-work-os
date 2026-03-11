@@ -125,7 +125,7 @@ export function BlockGutter({ editor, onInsertBlock: _onInsertBlock }: BlockGutt
         return
       } else if (CANARY_MODE) {
       }
-    } catch (error) {
+    } catch (error: unknown) {
       if (CANARY_MODE) {
         console.warn('[GUTTER] updatePosition: error getting block element', error)
       }
@@ -150,7 +150,7 @@ export function BlockGutter({ editor, onInsertBlock: _onInsertBlock }: BlockGutt
 
         setPosition({ top, left })
       }
-    } catch (error) {
+    } catch (error: unknown) {
       if (CANARY_MODE) {
         console.warn('[GUTTER] updatePosition: coordsAtPos failed', error)
       }

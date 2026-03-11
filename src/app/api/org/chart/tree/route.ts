@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       success: true,
       tree,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

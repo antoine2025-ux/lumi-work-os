@@ -127,7 +127,7 @@ export async function detectInsights(
     });
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[InsightDetector] Detection failed", {
       workspaceId,
       error,
@@ -284,7 +284,7 @@ export async function detectCapacityInsights(
     }
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[InsightDetector] Capacity detection failed", {
       workspaceId,
       error,
@@ -431,7 +431,7 @@ export async function detectWorkloadInsights(
     }
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[InsightDetector] Workload detection failed", {
       workspaceId,
       error,
@@ -526,7 +526,7 @@ export async function detectDependencyInsights(
     }
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[InsightDetector] Dependency detection failed", {
       workspaceId,
       error,
@@ -648,7 +648,7 @@ export async function detectCoverageInsights(
     }
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[InsightDetector] Coverage detection failed", {
       workspaceId,
       error,
@@ -796,7 +796,7 @@ export async function detectSkillGapInsights(
     }
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[InsightDetector] Skill gap detection failed", {
       workspaceId,
       error,
@@ -881,7 +881,7 @@ export async function detectCommunicationInsights(
     }
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[InsightDetector] Communication detection failed", {
       workspaceId,
       error,
@@ -1101,7 +1101,7 @@ export async function detectProjectHealthInsights(
     }
 
     return insights;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[InsightDetector] Project health detection failed", {
       workspaceId,
       error,
@@ -1180,7 +1180,7 @@ export async function storeInsights(
       workspaceId,
       count: insights.length,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[InsightDetector] Failed to store insights", {
       workspaceId,
       error,
@@ -1213,7 +1213,7 @@ export async function expireStaleInsights(workspaceId: string): Promise<number> 
     }
 
     return result.count;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[InsightDetector] Failed to expire insights", {
       workspaceId,
       error,

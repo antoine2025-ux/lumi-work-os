@@ -60,7 +60,7 @@ Generate only the title, nothing else:`
     }
     
     return title
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error generating chat title:', error)
     // Fallback to simple title generation
     const words = userMessage.split(' ').slice(0, 4)
@@ -112,9 +112,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Could not find user and AI messages' }, { status: 400 })
     }
 
-    console.log('🎯 Regenerating title for existing chat...')
     const newTitle = await generateChatTitle(userMessage, aiMessage)
-    console.log('📝 New title:', newTitle)
 
     // Update the session with the new title
     await prisma.chatSession.update({
@@ -130,7 +128,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       title: newTitle
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

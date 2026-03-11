@@ -58,7 +58,7 @@ export default function CustomFieldsSettingsPage() {
       } else {
         console.error('Failed to load custom fields:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading custom fields:', error)
     } finally {
       setIsLoading(false)
@@ -92,7 +92,7 @@ export default function CustomFieldsSettingsPage() {
       } else {
         console.error('Failed to create custom field:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating custom field:', error)
     }
   }
@@ -128,7 +128,7 @@ export default function CustomFieldsSettingsPage() {
       } else {
         console.error('Failed to update custom field:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating custom field:', error)
     }
   }
@@ -148,7 +148,7 @@ export default function CustomFieldsSettingsPage() {
       } else {
         console.error('Failed to delete custom field:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting custom field:', error)
     }
   }

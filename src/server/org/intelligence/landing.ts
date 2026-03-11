@@ -229,7 +229,7 @@ export async function getIntelligenceLanding(
         impactSummariesByWorkRequestId[result.workRequestId] = result.summary;
       }
     }
-  } catch (err) {
+  } catch (err: unknown) {
     // Non-blocking: log error but continue without workRiskSummary
     console.warn("[getIntelligenceLanding] Failed to compute workRiskSummary:", err);
   }

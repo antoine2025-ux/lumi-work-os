@@ -59,7 +59,7 @@ export async function PUT(
     })
 
     return NextResponse.json({ ok: true, positionId, jobDescriptionId })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

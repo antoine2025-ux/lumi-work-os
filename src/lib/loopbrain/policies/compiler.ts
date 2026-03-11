@@ -174,7 +174,7 @@ export async function compilePolicy(
       suggestions,
       estimatedTokens: response.usage?.totalTokens,
     }
-  } catch (err) {
+  } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     logger.error('[PolicyCompiler] Compilation failed', { error: message })
     return { success: false, error: `Compilation failed: ${message}` }

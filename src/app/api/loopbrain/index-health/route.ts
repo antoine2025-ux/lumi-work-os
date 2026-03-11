@@ -223,7 +223,7 @@ export async function GET(request: NextRequest) {
               staleSampleIds[entityType as keyof typeof staleSampleIds].push(sample.id)
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error(`Error sampling ${entityType}:`, error)
         }
       }
@@ -250,7 +250,7 @@ export async function GET(request: NextRequest) {
         },
       }),
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

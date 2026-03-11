@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       })),
       nextCursor: activity.nextCursor,
     });
-  } catch (err) {
+  } catch (err: unknown) {
     return handleApiError(err, req);
   }
 }

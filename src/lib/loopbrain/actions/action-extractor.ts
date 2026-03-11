@@ -62,7 +62,7 @@ export function extractActions(content: string): LoopbrainAction[] {
         })
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warn('Error extracting actions from LLM response', {
       error: error instanceof Error ? error.message : String(error),
     })

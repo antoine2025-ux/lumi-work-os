@@ -43,7 +43,7 @@ export function OrgWelcomeOverlay({ shouldShow }: Props) {
             try {
               await fetch("/api/org/onboarding/complete", { method: "POST" });
               setDismissed(true);
-            } catch (error) {
+            } catch (error: unknown) {
               console.error("[OrgWelcomeOverlay] Failed to complete onboarding:", error);
               // Still dismiss on error to avoid blocking user
               setDismissed(true);

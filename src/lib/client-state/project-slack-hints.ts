@@ -23,7 +23,7 @@ function getAllHints(): ProjectHintsMap {
     // Validate structure
     if (typeof parsed !== 'object' || parsed === null) return {}
     return parsed
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error reading project Slack hints from localStorage:', error)
     return {}
   }
@@ -39,7 +39,7 @@ function saveAllHints(hints: ProjectHintsMap): void {
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(hints))
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error saving project Slack hints to localStorage:', error)
   }
 }

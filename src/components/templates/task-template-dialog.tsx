@@ -79,14 +79,13 @@ export function TaskTemplateDialog({
       })
 
       if (response.ok) {
-        const result = await response.json()
-        console.log('Template applied successfully:', result)
+        await response.json()
         onTemplateApplied(template)
         onClose()
       } else {
         console.error('Failed to apply template')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error applying template:', error)
     } finally {
       setIsApplying(false)

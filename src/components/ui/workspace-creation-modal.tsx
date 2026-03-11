@@ -91,7 +91,7 @@ export function WorkspaceCreationModal({ children }: WorkspaceCreationModalProps
         console.error('Failed to create workspace:', errorData)
         alert(`Failed to create workspace: ${errorData.error || 'Unknown error'}`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating workspace:', error)
       if (error instanceof Error && error.name === 'AbortError') {
         alert('Request timed out. Please try again.')

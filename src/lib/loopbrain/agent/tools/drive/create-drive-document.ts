@@ -43,7 +43,7 @@ export const createDriveDocumentTool: LoopbrainTool = {
         },
         humanReadable: `Created Google Doc "${p.title}" — ${result.webViewLink}`,
       }
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof DriveNotConnectedError) {
         return {
           success: false,

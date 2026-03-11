@@ -143,7 +143,7 @@ export async function stopGmailWatch(
     })
 
     logger.info('[Gmail Watch] Watch stopped', { userId, workspaceId })
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Gmail Watch] Failed to stop watch', {
       userId,
       error: err instanceof Error ? err.message : String(err),

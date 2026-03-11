@@ -276,7 +276,7 @@ export function CreateEntityModal({
       }
       onCreated()
       onClose()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setSaving(false)

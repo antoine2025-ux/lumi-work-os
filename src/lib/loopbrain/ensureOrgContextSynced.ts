@@ -31,15 +31,12 @@ export async function ensureOrgContextSynced(workspaceId: string): Promise<void>
 
     // If no context items exist, trigger sync in background
     if (count === 0) {
-      console.log(`[ensureOrgContextSynced] No org context found for workspace ${workspaceId}, triggering sync`)
-      
       // Fire-and-forget: don't wait for sync to complete
-      // This runs server-side, so we use a direct import instead of fetch
-      triggerSyncInBackground(workspaceId).catch(err => {
-        console.error('[ensureOrgContextSynced] Background sync failed:', err)
+      triggerSyncInBackground(workspaceId).catch(_err => {
+        // Background sync failure is non-fatal
       })
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[ensureOrgContextSynced] Error checking context:', error)
     // Don't throw - this is a best-effort optimization
   }
@@ -64,7 +61,6 @@ async function triggerSyncInBackground(workspaceId: string): Promise<void> {
   await syncPersonContexts(workspaceId)
   await syncRoleContexts(workspaceId)
 
-  console.log(`[ensureOrgContextSynced] Background sync completed for workspace ${workspaceId}`)
 }
 
 /**
@@ -88,14 +84,12 @@ export async function ensureOrgContextSyncedSync(workspaceId: string): Promise<b
 
     // If count is very low (< 2), sync is likely missing or incomplete
     if (count < 2) {
-      console.log(`[ensureOrgContextSyncedSync] Insufficient org context (count=${count}) for workspace ${workspaceId}, syncing`)
-      
       await triggerSyncInBackground(workspaceId)
       return true
     }
 
     return false
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[ensureOrgContextSyncedSync] Error:', error)
     throw error
   }

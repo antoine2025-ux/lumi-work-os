@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
 
     const resp = await answerQ7({ projectId, project, rolesByName });
     return NextResponse.json(resp);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

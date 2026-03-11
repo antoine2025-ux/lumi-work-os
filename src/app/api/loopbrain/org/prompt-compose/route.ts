@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       combinedPrompt,
       metadata: body?.metadata ?? null,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

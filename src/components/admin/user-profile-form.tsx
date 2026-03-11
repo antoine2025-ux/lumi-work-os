@@ -107,7 +107,7 @@ export function UserProfileForm({
       
       await onSave(cleanedData)
       onClose()
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving user:', error)
     } finally {
       setLoading(false)

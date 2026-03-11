@@ -132,7 +132,7 @@ export async function generateOnboardingBriefing(
       maxTokens: 2000,
       timeoutMs: 15000,
     });
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[onboarding-briefing] LLM call failed, using fallback", {
       userId,
       workspaceId,
@@ -230,7 +230,7 @@ async function persistBriefing(
         metadata: JSON.parse(JSON.stringify({ userId, briefing })) as Prisma.InputJsonValue,
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     // Non-fatal: briefing is still returned even if persistence fails
     logger.warn("[onboarding-briefing] Failed to persist briefing insight", {
       userId,

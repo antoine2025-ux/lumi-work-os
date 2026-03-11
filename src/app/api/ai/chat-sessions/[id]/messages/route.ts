@@ -41,7 +41,7 @@ export async function GET(
         metadata: msg.metadata
       }))
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -33,33 +33,20 @@ export class SliteAdapter {
       }
 
       const data = await response.json()
-      console.log('=== SLITE API RESPONSE DEBUG ===')
-      console.log('Full response data:', JSON.stringify(data, null, 2))
-      console.log('Response keys:', Object.keys(data))
-      console.log('Data type:', typeof data)
-      console.log('Is array:', Array.isArray(data))
-      console.log('=== END SLITE API RESPONSE DEBUG ===')
-      
       // Handle different response formats - Slite API returns 'hits' array
       if (data.hits && Array.isArray(data.hits)) {
-        console.log('Found hits array with', data.hits.length, 'items')
         documents.push(...data.hits)
         cursor = data.next_cursor
       } else if (data.notes) {
-        console.log('Found notes array with', data.notes.length, 'items')
         documents.push(...data.notes)
         cursor = data.next_cursor
       } else if (data.documents) {
-        console.log('Found documents array with', data.documents.length, 'items')
         documents.push(...data.documents)
         cursor = data.next_cursor
       } else if (Array.isArray(data)) {
-        console.log('Response is direct array with', data.length, 'items')
         documents.push(...data)
         cursor = null // No pagination for array response
       } else {
-        console.warn('Unexpected Slite API response format:', data)
-        console.log('Available keys in response:', Object.keys(data))
         break
       }
     } while (cursor)
@@ -135,7 +122,7 @@ export class SliteAdapter {
         }
 
         items.push(item)
-      } catch (error) {
+      } catch (error: unknown) {
         console.error(`Error converting Slite document ${doc.id}:`, error)
       }
     }

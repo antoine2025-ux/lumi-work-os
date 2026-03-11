@@ -211,7 +211,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
 
       // Redirect to the new workspace
       router.push(`/wiki/workspace/${newWorkspace.id}`)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating workspace:', error)
       setError(error instanceof Error ? error.message : 'Failed to create workspace')
     } finally {
@@ -254,7 +254,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
       if (pathname.includes(`/wiki/workspace/${workspaceIdToDelete}`)) {
         router.push('/wiki/personal-space')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting workspace:', error)
       alert(error instanceof Error ? error.message : 'Failed to delete workspace. Please try again.')
     }
@@ -295,7 +295,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
       } else {
         router.push('/spaces/home')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting page:', error)
       alert('Failed to delete page. Please try again.')
     }
@@ -444,7 +444,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
         const recentData = await recentResponse.json()
         setRecentPages(recentData)
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error creating page from template:', err)
       setError(err instanceof Error ? err.message : 'Failed to create page')
     } finally {
@@ -490,7 +490,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
       )
       window.dispatchEvent(new CustomEvent('workspacePagesRefreshed'))
       window.dispatchEvent(new CustomEvent('pageCreated'))
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error saving page:', err)
       setError(err instanceof Error ? err.message : 'Failed to save')
       throw err
@@ -529,7 +529,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error toggling favorite:', error)
     }
   }
@@ -657,7 +657,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', `/wiki/${newPage.slug}?edit=true`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating page:', error)
       setError(error instanceof Error ? error.message : 'Failed to create page. Please try again.')
     } finally {
@@ -722,7 +722,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
           // Don't fail completely - just log the error and continue with empty counts
           setPageCounts({})
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading workspaces:', error)
       }
     }
@@ -754,7 +754,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
           // Don't fail completely - just log the error and continue with empty counts
           setPageCounts({})
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading global wiki data:', error)
       }
     }
@@ -793,7 +793,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
             : (projectsResult.projects || [])
           setProjects(Array.isArray(projectsData) ? projectsData : [])
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading wiki data:', error)
       } finally {
         setIsLoading(false)
@@ -828,7 +828,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
           const favoritesData = await response.json()
           setFavoritePages(favoritesData)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error refreshing favorites:', error)
       }
     }
@@ -1227,7 +1227,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
                   
                   // Navigate to the new blank draft page with AI assistant open
                   router.push(`/wiki/${newPage.slug}?edit=true&ai=open`)
-                } catch (error) {
+                } catch (error: unknown) {
                   console.error('Error creating page:', error)
                   throw error
                 } finally {

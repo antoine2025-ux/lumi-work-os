@@ -203,7 +203,7 @@ export async function scanProjectHealth(
     );
 
     return alerts.slice(0, MAX_ALERTS_PER_WORKSPACE);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProjectHealthScanner] Scan failed", { workspaceId, error });
     return [];
   }
@@ -597,7 +597,7 @@ export async function persistProjectHealthAlerts(
       updated: result.updated,
       resolved: result.resolved,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProjectHealthScanner] Persistence failed", {
       workspaceId,
       error,
@@ -690,7 +690,7 @@ export async function createCriticalAlertNotifications(
         });
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProjectHealthScanner] Notification creation failed", {
       workspaceId,
       error,

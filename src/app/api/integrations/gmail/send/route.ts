@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       id: result.messageId,
       threadId: result.threadId,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

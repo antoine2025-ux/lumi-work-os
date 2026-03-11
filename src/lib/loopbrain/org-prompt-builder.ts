@@ -140,7 +140,7 @@ export async function buildOrgSummaryPreambleForCurrentWorkspace(
         entry.count++;
         if (entry.titles.length < 3) entry.titles.push(row.title);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to fetch wiki data for org preamble", err);
     }
   }

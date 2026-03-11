@@ -117,9 +117,9 @@ export async function GET(req: NextRequest) {
         })
         overrideByUserId = new Map(overrides.map((o: any) => [o.userId, o]))
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Model not available yet - will work after dev server restarts
-      console.warn("[directory] orgPersonProfileOverride not available yet (restart dev server):", e?.message || e)
+      console.warn("[directory] orgPersonProfileOverride not available yet (restart dev server):", e instanceof Error ? e.message : e)
     }
 
     // Create team lookup map (teams already fetched above)
@@ -211,7 +211,7 @@ export async function GET(req: NextRequest) {
       },
       ...(debug ? { debug } : {}),
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

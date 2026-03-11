@@ -64,7 +64,7 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
             setWikiPages([])
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error fetching wiki pages:', error)
       } finally {
         setIsLoading(false)

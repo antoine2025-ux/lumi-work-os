@@ -10,6 +10,7 @@ import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
 import { projectToContext } from '@/lib/context/context-builders'
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
+import { ProjectStatus, Priority } from '@prisma/client'
 import {
   createProjectAllocation,
 } from '@/lib/org/capacity/project-capacity'
@@ -48,13 +49,15 @@ export async function GET(request: NextRequest) {
         scope: 'workspace', 
         requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
       })
-    } catch (accessError: any) {
+    } catch (accessError: unknown) {
       const _accessDurationMs = performance.now() - accessStart
+      const errMessage = accessError instanceof Error ? accessError.message : String(accessError);
+      const errStack = accessError instanceof Error ? accessError.stack : undefined;
       console.error('[PROJECTS API] Access check failed:', {
         userId: auth.user.userId,
         workspaceId: auth.workspaceId,
-        error: accessError.message,
-        stack: accessError.stack
+        error: errMessage,
+        stack: errStack
       })
       
       // Check workspace membership directly for debugging
@@ -303,7 +306,7 @@ export async function GET(request: NextRequest) {
     }
     
     return response
-  } catch (error: any) {
+  } catch (error: unknown) {
     const totalDurationMs = performance.now() - startTime
     logger.error('Error in /api/projects', {
       ...baseContext,
@@ -337,6 +340,7 @@ export async function POST(request: NextRequest) {
     const validatedData = ProjectCreateSchema.parse(body)
     const { 
       name, 
+      excerpt,
       description, 
       status = 'ACTIVE',
       priority = 'MEDIUM',
@@ -366,6 +370,15 @@ export async function POST(request: NextRequest) {
 
     const effectiveOwnerId = cleanData.ownerId || auth.user.userId
 
+    // spaceId is required for Project model
+    const spaceId = validatedData.spaceId
+    if (!spaceId || spaceId === '_none') {
+      return NextResponse.json(
+        { error: 'Space is required to create a project' },
+        { status: 400 }
+      )
+    }
+
     // Collect all member IDs (owner + assignees, deduplicated)
     const allMemberIds = Array.from(
       new Set([effectiveOwnerId, ...assigneeIds].filter(Boolean))
@@ -387,9 +400,10 @@ export async function POST(request: NextRequest) {
         data: {
           workspaceId: auth.workspaceId,
           name,
-          description,
-          status: status as any,
-          priority: priority as any,
+          excerpt: (excerpt && excerpt.trim()) ? excerpt.trim() : null,
+          description: (description && description.trim()) ? description.trim() : null,
+          status: status as ProjectStatus,
+          priority: priority as Priority,
           startDate: cleanData.startDate ? new Date(cleanData.startDate) : null,
           endDate: cleanData.endDate ? new Date(cleanData.endDate) : null,
           color,
@@ -398,7 +412,7 @@ export async function POST(request: NextRequest) {
           teamId: cleanData.teamId ?? null,
           ownerId: effectiveOwnerId,
           wikiPageId: cleanData.wikiPageId,
-          spaceId: validatedData.spaceId ?? null,
+          spaceId,
           dailySummaryEnabled,
           createdById: auth.user.userId,
         },
@@ -484,6 +498,8 @@ export async function POST(request: NextRequest) {
                 status: 'TODO',
                 priority: (taskTemplate.priority ?? 'MEDIUM') as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
                 tags: [],
+                blocks: [],
+                dependsOn: [],
                 createdById,
                 assigneeId: effectiveOwnerId,
                 order: taskOrder,
@@ -585,7 +601,13 @@ export async function POST(request: NextRequest) {
       membersCreated: allMemberIds.length,
       warnings,
     })
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { code?: string; meta?: unknown; message?: string }
+    logger.error('[Project Create] Error creating project', {
+      error: err?.message ?? String(error),
+      prismaCode: err?.code,
+      prismaMeta: err?.meta,
+    }, error)
     return handleApiError(error, request)
   }
 }

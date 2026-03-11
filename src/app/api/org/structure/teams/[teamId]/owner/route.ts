@@ -137,7 +137,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ teamId:
     };
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

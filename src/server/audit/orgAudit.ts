@@ -49,7 +49,7 @@ export async function logOrgAuditEvent(
         entityId: workspaceId,
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     // Audit logging must never break primary flows.
     console.error("[ORG_AUDIT_LOG_ERROR]", err);
   }

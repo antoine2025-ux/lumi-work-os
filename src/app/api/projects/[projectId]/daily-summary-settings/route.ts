@@ -53,14 +53,13 @@ export async function PATCH(
       if (!accessResult) {
         return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
       }
-    } catch (err: any) {
-      // Fallback for local/dev when user isn't a project member
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       const project = await prisma.project.findUnique({ where: { id: projectId } })
       if (!project) {
         return NextResponse.json({ error: 'Project not found' }, { status: 404 })
       }
       accessResult = { project, user: { id: session.user.id } }
-      console.log('Daily summary settings access check failed, using development bypass:', err?.message)
     }
 
     // Update the project setting
@@ -80,7 +79,7 @@ export async function PATCH(
       message: `Daily summaries ${validatedData.dailySummaryEnabled ? 'enabled' : 'disabled'} for project`,
       project: updatedProject
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
