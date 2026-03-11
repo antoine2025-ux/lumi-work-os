@@ -247,12 +247,11 @@ beforeAll(async () => {
     },
   });
 
-  // ── 9. Projects (orgId = workspaceId for Q3's OR[{ orgId }, { workspaceId }]) ─
+  // ── 9. Projects ─────────────────────────────────────────────────────────────
   const [projA, projB, projC] = await Promise.all([
     prisma.project.create({
       data: {
         workspaceId,
-        orgId: workspaceId,
         name: "Platform Redesign",
         description: "Redesign core platform services for scalability and reliability",
         createdById: users.owner.id,
@@ -262,7 +261,6 @@ beforeAll(async () => {
     prisma.project.create({
       data: {
         workspaceId,
-        orgId: workspaceId,
         name: "API Gateway",
         description: "Build a unified API gateway for all internal services",
         createdById: users.owner.id,
@@ -272,7 +270,6 @@ beforeAll(async () => {
     prisma.project.create({
       data: {
         workspaceId,
-        orgId: workspaceId,
         name: "Brand Refresh",
         description: "Refresh the company visual identity and brand guidelines",
         createdById: users.owner.id,

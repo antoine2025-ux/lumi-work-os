@@ -48,7 +48,7 @@ const OrgChartLoopbrainPanel = dynamic(
 );
 
 type OrgChartClientProps = {
-  orgId: string;
+  workspaceId: string;
   chartData: {
     departments: Array<{
       id: string;
@@ -121,7 +121,7 @@ function normalizeOrgForOrgChart(
   });
 }
 
-export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation }: OrgChartClientProps) {
+export function OrgChartClient({ workspaceId: _workspaceId, chartData, chartTree, validation }: OrgChartClientProps) {
   const isLoading = !chartData;
   const noAccess = false; // Permission checked server-side
   const router = useRouter();

@@ -28,14 +28,14 @@ export async function POST(req: NextRequest) {
     if (!cleaned.length) return NextResponse.json({ ok: true })
 
     if (kind === "ROLE") {
-      await prisma.orgRoleTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId: workspaceId, label })) as any, skipDuplicates: true } as any)
+      await prisma.orgRoleTaxonomy.createMany({ data: cleaned.map((label) => ({ workspaceId, label })), skipDuplicates: true })
       revalidateTag("org:taxonomy", "default")
       revalidateTag("org:contracts", "default")
       return NextResponse.json({ ok: true })
     }
 
     if (kind === "SKILL") {
-      await prisma.orgSkillTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId: workspaceId, label })) as any, skipDuplicates: true } as any)
+      await prisma.orgSkillTaxonomy.createMany({ data: cleaned.map((label) => ({ workspaceId, label })), skipDuplicates: true })
       revalidateTag("org:taxonomy", "default")
       revalidateTag("org:contracts", "default")
       return NextResponse.json({ ok: true })

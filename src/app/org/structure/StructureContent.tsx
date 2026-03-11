@@ -59,7 +59,7 @@ async function StructureDataLoader({ context }: StructureContentProps) {
 
   return (
     <StructurePageClient
-      orgId={context.workspaceId}
+      workspaceId={context.workspaceId}
       role={context.role}
       initialTeams={structure.teams}
       initialDepartments={structure.departments}

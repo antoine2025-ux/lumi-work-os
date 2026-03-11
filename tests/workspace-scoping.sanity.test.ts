@@ -1,22 +1,22 @@
 /**
  * Workspace Scoping Sanity Tests
- * 
- * These tests verify that Prisma workspace scoping is enforced when
- * PRISMA_WORKSPACE_SCOPING_ENABLED=true.
- * 
+ *
+ * These tests verify that Prisma workspace scoping is enforced.
+ * Scoping is enabled by default (PRISMA_WORKSPACE_SCOPING_ENABLED !== 'false').
+ *
  * Run with: npm test -- tests/workspace-scoping.sanity.test.ts
- * 
+ *
  * Expected behavior:
- * - When flag is OFF: Tests are skipped (scoping not enforced)
- * - When flag is ON: Tests verify scoping errors are thrown
+ * - When scoping ON (default, or env unset/true): Tests verify scoping errors are thrown
+ * - When scoping OFF (PRISMA_WORKSPACE_SCOPING_ENABLED=false): Tests are skipped
  */
 
 import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma } from '@/lib/db'
 import { setWorkspaceContext, clearWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
-// Check if scoping is enabled
-const SCOPING_ENABLED = process.env.PRISMA_WORKSPACE_SCOPING_ENABLED === 'true'
+// Match db.ts: scoping enabled by default, opt-out with ='false'
+const SCOPING_ENABLED = process.env.PRISMA_WORKSPACE_SCOPING_ENABLED !== 'false'
 
 describe('Workspace Scoping Sanity Tests', () => {
   beforeAll(() => {
@@ -114,10 +114,10 @@ describe('Workspace Scoping Sanity Tests', () => {
   describe('Scoping Flag Status', () => {
     it('should report scoping status', () => {
       if (SCOPING_ENABLED) {
-        console.log('✅ PRISMA_WORKSPACE_SCOPING_ENABLED=true - Scoping is ENABLED')
+        console.log('✅ Scoping is ENABLED (default, or PRISMA_WORKSPACE_SCOPING_ENABLED=true)')
         expect(SCOPING_ENABLED).toBe(true)
       } else {
-        console.log('⚠️  PRISMA_WORKSPACE_SCOPING_ENABLED=false or unset - Scoping is DISABLED')
+        console.log('⚠️  Scoping DISABLED (PRISMA_WORKSPACE_SCOPING_ENABLED=false)')
         expect(SCOPING_ENABLED).toBe(false)
       }
     })
@@ -135,16 +135,15 @@ describe('Workspace Scoping Sanity Tests', () => {
 
 /**
  * Manual Test Instructions:
- * 
- * 1. With scoping DISABLED:
+ *
+ * 1. With scoping ENABLED (default):
+ *    - Unset PRISMA_WORKSPACE_SCOPING_ENABLED or set to true
+ *    - Run: npm test -- tests/workspace-scoping.sanity.test.ts
+ *    - Expected: Tests verify scoping is enforced, critical models throw without context
+ *
+ * 2. With scoping DISABLED:
  *    - Set PRISMA_WORKSPACE_SCOPING_ENABLED=false
  *    - Run: npm test -- tests/workspace-scoping.sanity.test.ts
  *    - Expected: Tests skip with warning
- * 
- * 2. With scoping ENABLED:
- *    - Set PRISMA_WORKSPACE_SCOPING_ENABLED=true
- *    - Run: npm test -- tests/workspace-scoping.sanity.test.ts
- *    - Expected: Tests verify scoping is enforced
- *    - Critical models throw errors without workspace context
  */
 

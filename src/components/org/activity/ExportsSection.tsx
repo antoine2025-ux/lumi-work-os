@@ -2,7 +2,7 @@
 import { OrgExportsScreen } from "@/components/org/activity/OrgExportsScreen";
 
 type ExportsSectionProps = {
-  orgId?: string;
+  workspaceId?: string;
 };
 
 /**
@@ -10,8 +10,8 @@ type ExportsSectionProps = {
  *
  * Wraps the existing OrgExportsScreen inside the new Org Center layout.
  */
-export function ExportsSection({ orgId }: ExportsSectionProps) {
-  if (!orgId) {
+export function ExportsSection({ workspaceId }: ExportsSectionProps) {
+  if (!workspaceId) {
     return (
       <section className="rounded-2xl border border-border bg-background p-4 text-xs text-muted-foreground">
         No organization selected.

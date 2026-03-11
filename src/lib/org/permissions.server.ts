@@ -25,7 +25,7 @@ export type OrgPermissionContext = {
  *
  * IMPORTANT:
  * - This uses your auth helper + Prisma membership.
- * - Uses `Workspace` and `WorkspaceMember` models (workspaceId = orgId).
+ * - Uses `Workspace` and `WorkspaceMember` models.
  * - Gets current workspace from `getCurrentWorkspaceId()` (from unified auth).
  * 
  * PERFORMANCE NOTE:

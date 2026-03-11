@@ -270,11 +270,11 @@ Tracked debt with current counts and target dates.
 | Auth coverage (`assertAccess`) | 83.3% (415/498) | 95%+ | Same sweep as above |
 | `handleApiError` coverage | 90.5% (447/494) — 100% of eligible routes ✅ | DONE | 47 excluded routes are auth/cron/webhook/dev/streaming with intentional patterns |
 | Genuinely unprotected routes | 0 (fixed March 10: deleted 4 test dirs, secured org-context-diagnostics + 8 embeds) | 0 | Done ✅ |
-| `as any` casts | 178 → ~123 remaining (52 fixed, 58 blocked on orgId migration, ~42 complex Prisma types, 3 debug/test) | 0 non-Prisma casts | Security-relevant and easy-type casts eliminated. orgId cluster resolves with migration. Complex Prisma types are low-risk, tracked for post-MVP. |
+| `as any` casts | 178 → ~85 remaining (52 fixed prev, 38 Tier B orgId fixed Mar 11, ~42 complex Prisma types, 3 debug/test) | 0 non-Prisma casts | Security-relevant and easy-type casts eliminated. Tier B orgId bugs fixed. Complex Prisma types are low-risk, tracked for post-MVP. |
 | `catch (error: any)` | Unknown | 0 | Grep + replace with `error: unknown` |
-| `orgId` fallback pattern | 69 routes | 0 | Systematic rename: `const orgId = workspaceId` → direct use |
+| `orgId` fallback pattern | 0 route fallbacks, 0 schema refs. 53 source files with variable name cleanup remaining (P1) ✅ Phase 1 | Phase 2: rename variables in 53 files | Schema migration done. Variable cleanup is cosmetic — tracked in TECH_DEBT.md P1. |
 | `console.log` in production | Unknown | 0 | Grep + remove or replace with structured logging |
-| `WORKSPACE_SCOPING_ENABLED` | `false` | `true` | Enable after full model registration audit |
+| `WORKSPACE_SCOPING_ENABLED` | ~~`false`~~ → `true` (default) | DONE | Enabled March 11, 2026. Default ON, opt-out with `PRISMA_WORKSPACE_SCOPING_ENABLED=false` |
 | Agent tool triple registration | 3 files per tool | Auto-dispatch from registry | Refactor `executeReadTool` in `agent-loop.ts` to use `toolRegistry.get(name)` instead of manual switch |
 
 ### 3.2 Post-MVP (pre-YC review)
@@ -315,11 +315,12 @@ Architectural decisions with context, so future sessions don't re-litigate them.
 ### ADR-003: Agent loop is the primary execution path, not the orchestrator
 
 **Date:** 2026-02
-**Status:** Active
+**Status:** Completed (March 11, 2026)
 **Context:** The orchestrator (`orchestrator.ts`, 5,400L) grew organically with 12+ mode handlers. The agent system (`planner.ts` → `executor.ts` → `tool-registry.ts`) is the newer, cleaner architecture.
 **Decision:** New Loopbrain features go through the agent loop. The orchestrator is a legacy fallback — no new features added to it.
 **Rationale:** The agent system has proper separation (planning vs execution vs tools), is more extensible (add a tool, not a mode), and is testable in isolation.
 **Consequences:** Orchestrator will be decomposed post-MVP. Until then, it remains functional but frozen.
+**Resolution:** Orchestrator deleted March 11, 2026. Agent loop is the sole execution path. Shared utilities (`callLoopbrainLLM`, `getLastOrgDebugSnapshot`) extracted to `llm-caller.ts`.
 
 ### ADR-004: Authentication via NextAuth.js 4 with JWT sessions
 

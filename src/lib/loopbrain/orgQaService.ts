@@ -21,7 +21,7 @@ import { ORG_SYSTEM_PROMPT } from "./prompts/org-system-prompt";
 import { buildOrgSystemAddendum } from "./org/buildOrgSystemAddendum";
 import { buildOrgFewShotExamples } from "./org/buildOrgFewShotExamples";
 import { ORG_GUARDRAILS, ORG_OUTPUT_FORMAT_RULES } from "./promptBlocks/orgGuardrails";
-import { callLoopbrainLLM } from "./orchestrator";
+import { callLoopbrainLLM } from "./llm-caller";
 import { logOrgLoopbrainQuery } from "./orgTelemetry";
 import { LOOPBRAIN_ORG_CONFIG } from "./config";
 

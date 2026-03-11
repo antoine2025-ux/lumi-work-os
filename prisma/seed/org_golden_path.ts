@@ -221,7 +221,6 @@ async function seedGoldenPath() {
     create: {
       id: 'golden-path-payments-migration',
       workspaceId: workspace.id,
-      orgId: orgId,
       name: 'Payments Migration',
       description: 'Migrate payment processing to new infrastructure',
       status: 'ACTIVE',

@@ -1249,7 +1249,6 @@ model Project {
   id                  String                 @id @default(cuid())
   workspaceId         String
   teamId              String? // Optional org team assignment
-  orgId               String? // Org identifier (same as workspaceId for v1, optional for backward compatibility)
   name                String
   excerpt             String?   // Short summary (1-2 lines)
   description         String?
@@ -1292,7 +1291,6 @@ model Project {
   @@index([workspaceId, ownerId])  // Dashboard "my projects" query
   @@index([status])                // Project filtering by status
   @@index([updatedAt(sort: Desc)], map: "idx_projects_updated_at")
-  @@index([orgId])
   @@index([teamId])
   @@index([spaceId])
   @@map("projects")
@@ -2235,8 +2233,6 @@ model OrgInvitation {
   id          String     @id @default(cuid())
   workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   workspaceId String?
-  org         Org?       @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  orgId       String?
   email       String
   fullName    String?    // Intended name, shown in pending profile preview
   role        OrgRole?   @default(VIEWER)
@@ -2259,7 +2255,6 @@ model OrgInvitation {
   @@unique([workspaceId, email])
   @@index([workspaceId])
   @@index([workspaceId, status], map: "idx_org_invitations_workspace_status")
-  @@index([orgId, status])
   @@index([email])
   @@index([token])
   @@map("org_invitations")
@@ -2282,7 +2277,6 @@ model Org {
   updatedAt DateTime @updatedAt
 
   memberships OrgMembership[]
-  invitations OrgInvitation[]
   audit       AuditLogEntry[]
   roles       Role[]
 
@@ -3016,7 +3010,7 @@ enum AvailabilityStatus {
 
 model PersonAvailabilityHealth {
   id          String @id @default(cuid())
-  workspaceId String // Phase 1: migrated from orgId to workspaceId
+  workspaceId String
   personId    String
 
   status AvailabilityStatus @default(AVAILABLE)
@@ -3164,7 +3158,7 @@ enum OwnedEntityType {
 
 model OwnerAssignment {
   id          String @id @default(cuid())
-  workspaceId String // Phase 1: migrated from orgId to workspaceId
+  workspaceId String
 
   entityType  OwnedEntityType
   entityId    String
@@ -3216,7 +3210,7 @@ model SystemEntity {
 
 model PersonManagerLink {
   id          String @id @default(cuid())
-  workspaceId String // Phase 1: migrated from orgId to workspaceId
+  workspaceId String
   personId    String
   managerId   String
 

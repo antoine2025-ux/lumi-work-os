@@ -131,7 +131,7 @@ async function handleRequest(request: NextRequest) {
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
-      OR: [{ orgId: workspaceId }, { workspaceId }],
+      workspaceId,
     },
   });
 

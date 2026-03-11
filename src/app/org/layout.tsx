@@ -58,7 +58,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
       );
     }
 
-    // Fetch server-side permission context (userId, orgId, role)
+    // Fetch server-side permission context (userId, workspaceId, role)
     // This already handles auto-selection via getOrgAndMembershipForUser
     // PERFORMANCE: This is cached per-request via React.cache(), so child pages
     // that also call getOrgPermissionContext() will get the cached result.

@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
-        OR: [{ orgId: workspaceId }, { workspaceId }],
+        workspaceId,
       },
       include: {
         accountability: {
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch people for name resolution
-    const _workspaceId = project.orgId || workspaceId; // Reading Prisma field project.orgId
+    const _workspaceId = project.workspaceId;
     const users = await prisma.user.findMany({
       where: {
         orgPositions: {

@@ -13,7 +13,6 @@
 
 import { prisma, prismaUnscoped } from '@/lib/db'
 import { sendSlackMessage, getSlackUserEmail, getSlackIntegration } from '@/lib/integrations/slack-service'
-import { runLoopbrainQuery } from '@/lib/loopbrain/orchestrator'
 import { executeAgentPlan } from '@/lib/loopbrain/agent/executor'
 import { toolRegistry } from '@/lib/loopbrain/agent/tool-registry'
 import type { AgentPlan } from '@/lib/loopbrain/agent/types'
@@ -128,37 +127,17 @@ export async function handleSlackLoopbrainMessage(
       return
     }
 
-    // 4. Call Loopbrain orchestrator
-    const response = await runLoopbrainQuery({
-      workspaceId: resolved.workspaceId,
-      userId: resolved.userId,
-      mode: 'dashboard',
-      query: cleanedText,
-      requestId: `slack-${messageTs}`,
-    })
-
-    // 5. Handle ACTION responses with pending plans
-    if (response.pendingPlan) {
-      await handlePendingPlan(
-        resolved.workspaceId,
-        resolved.userId,
-        channelId,
-        threadTs ?? messageTs,
-        response.pendingPlan,
-        response.answer
-      )
-      return
-    }
-
-    // 6. Post response back to Slack
-    const formattedAnswer = formatForSlack(response.answer)
-    const blocks = buildResponseBlocks(formattedAnswer, response.suggestions)
-
+    // 4. Slack → Loopbrain integration is temporarily disabled
+    // TODO: Migrate to agent loop (runAgentLoop) when Slack integration is re-enabled
+    // The orchestrator was deleted March 11, 2026 — this needs to be updated to use the agent loop
     await sendSlackMessage(workspaceId, {
       channel: channelId,
-      text: formattedAnswer.slice(0, 3000),
-      blocks,
+      text: "Slack integration is temporarily unavailable. Please use the Loopwell web app to ask Loopbrain questions.",
       threadTs: threadTs ?? messageTs,
+    })
+    logger.warn('[SlackInteractive] Slack integration disabled — orchestrator deleted', {
+      workspaceId: resolved.workspaceId,
+      userId: resolved.userId,
     })
   } catch (error: unknown) {
     logger.error('[SlackInteractive] Processing failed', {

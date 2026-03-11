@@ -19,7 +19,7 @@ export type Invitation = {
 };
 
 type InvitesSectionProps = {
-  orgId?: string;
+  workspaceId?: string;
   initialInvitations?: Invitation[];
 };
 
@@ -29,12 +29,12 @@ type InvitesSectionProps = {
  * Renders invitations using data loaded server-side to avoid Server Component issues.
  */
 export function InvitesSection({
-  orgId,
+  workspaceId,
   initialInvitations = [],
 }: InvitesSectionProps) {
   const perms = useOrgPermissions();
 
-  if (!orgId) {
+  if (!workspaceId) {
     return (
       <div className="rounded-2xl border border-border bg-background p-4 text-xs text-muted-foreground">
         No organization selected.
@@ -71,7 +71,7 @@ export function InvitesSection({
             title="No invitations yet"
             description="Use the form below to invite people to this organization."
             primaryActionLabel="Invite member"
-            primaryAction={<InviteMemberForm workspaceId={orgId} />}
+            primaryAction={<InviteMemberForm workspaceId={workspaceId} />}
           />
         ) : (
           <div className="space-y-4">
@@ -108,7 +108,7 @@ export function InvitesSection({
                           inviteUrl={invitation.inviteUrl}
                         />
                         <CancelInvitationButton
-                          workspaceId={orgId}
+                          workspaceId={workspaceId}
                           invitationId={invitation.id}
                           email={invitation.email}
                         />
@@ -175,7 +175,7 @@ export function InvitesSection({
             )}
 
             <div className="mt-4">
-              <InviteMemberForm workspaceId={orgId} />
+              <InviteMemberForm workspaceId={workspaceId} />
             </div>
           </div>
         )}

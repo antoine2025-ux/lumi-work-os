@@ -62,7 +62,7 @@ const STRUCTURE_TABS: OrgTab[] = [
 ];
 
 type StructurePageClientProps = {
-  orgId: string;
+  workspaceId: string;
   role: OrgRole;
   initialTeams: StructureTeam[];
   initialDepartments: StructureDepartment[];
@@ -71,7 +71,7 @@ type StructurePageClientProps = {
 };
 
 export function StructurePageClient({
-  _orgId,
+  _workspaceId,
   role,
   initialTeams,
   initialDepartments,

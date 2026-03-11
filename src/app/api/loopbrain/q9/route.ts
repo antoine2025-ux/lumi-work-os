@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
-        OR: [{ orgId: workspaceId }, { workspaceId }],
+        workspaceId,
       },
       include: {
         accountability: {
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Fetch roles with responsibilities
-    const projectWorkspaceId = project.orgId || workspaceId; // Reading Prisma field project.orgId
+    const projectWorkspaceId = project.workspaceId;
     const roles = await prisma.role.findMany({
       where: { workspaceId: projectWorkspaceId },
       include: {

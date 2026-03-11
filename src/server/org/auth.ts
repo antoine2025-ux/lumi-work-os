@@ -7,9 +7,9 @@ type OrgScope = "org:read" | "org:write";
 
 /**
  * Canonical Org auth gate.
- * 
- * IMPORTANT: workspaceId is the ONLY tenant identifier. orgId is forbidden.
- * 
+ *
+ * IMPORTANT: workspaceId is the ONLY tenant identifier.
+ *
  * This function enforces the required auth pattern for all Org routes:
  * 1. getUnifiedAuth(request)
  * 2. assertAccess({ userId, workspaceId, scope, role })

@@ -101,7 +101,9 @@ loopbrain/
 ├── reasoning/             — Answer generation (calendar, entity links, workload)
 ├── store/                 — Summary repository
 ├── __tests__/             — Snapshot & personalization tests
-├── orchestrator.ts        5,391 lines — Core routing for 4 modes (spaces/org/dashboard/goals)
+├── agent-loop.ts          — Main execution engine (replaced orchestrator March 11, 2026)
+├── agent/                 — Planner, executor, tool registry
+├── llm-caller.ts          — Shared LLM utility (extracted from orchestrator)
 ├── intent-router.ts       — Intent classification
 ├── q1.ts–q9.ts            — Question pipeline implementations
 ├── context-ranker.ts      — Evidence ranking
@@ -110,7 +112,7 @@ loopbrain/
 └── [20+ supporting files] — Citations, formatting, budgets, caching, error types
 ```
 
-**Orchestrator modes:** spaces, org, dashboard, goals. Each mode loads different context bundles and applies different prompt strategies.
+**Agent loop:** Single execution path using planner → executor → tool registry pattern. Supports tool-based actions, clarification flows, and multi-step plans.
 
 **Q pipelines:** Q1 (general), Q2 (people), Q3 (org structure — via org/), Q4 (org health — via org/), Q5 (capacity), Q6 (workload), Q7 (project health), Q8 (goals), Q9 (calendar). All fully implemented.
 
@@ -202,9 +204,9 @@ User types question in /ask
     ↓
 POST /api/loopbrain/chat (or /execute-stream)
     ↓
-orchestrator.ts → detect mode (spaces/org/dashboard/goals)
+agent-loop.ts → planner → executor → tool registry
     ↓
-intent-router.ts → classify to Q pipeline (Q1–Q9)
+intent-router.ts → classify to Q pipeline (Q1–Q9) or action
     ↓
 Context bundling:
   - OrgSemanticSnapshotV0 (org state)
@@ -326,7 +328,7 @@ Manager-scoped: `assertManagerOrAdmin()` checks ADMIN+ first, then `OrgPosition.
 
 - `scopingMiddleware.ts` intercepts Prisma queries, injects `workspaceId` filters
 - **152 models** registered in `WORKSPACE_SCOPED_MODELS`
-- Middleware controlled by `WORKSPACE_SCOPING_ENABLED` env var (default: false)
+- Middleware controlled by `PRISMA_WORKSPACE_SCOPING_ENABLED` (default: ON, opt-out with `=false`)
 - Application-layer: manual `where: { workspaceId }` is primary defense
 - `prismaUnscoped` available for auth operations without workspace context
 
@@ -362,12 +364,12 @@ Events: task CRUD, project CRUD, wiki page updates, comment CRUD, user presence 
 
 | Risk | Status | Detail |
 |------|--------|--------|
-| **Orchestrator god-object** | Open | `orchestrator.ts` is 5,391 lines. Decompose into mode-specific submodules. |
+| **Orchestrator god-object** | ✅ Resolved (March 11, 2026) | Orchestrator deleted. Agent loop is the sole execution path. |
 | **orgId drift** | Open | ~69 routes use `const orgId = workspaceId` fallback pattern. |
-| **Prisma scoping disabled** | Open | `WORKSPACE_SCOPING_ENABLED` defaults to false. Application-layer only. |
-| **Activity model no workspaceId** | Open | Global across workspaces — critical isolation gap. |
+| **Prisma scoping disabled** | ✅ Resolved (March 11, 2026) | Scoping enabled by default. Opt-out with `PRISMA_WORKSPACE_SCOPING_ENABLED=false`. |
+| **Activity model no workspaceId** | ✅ Resolved | Activity model has `workspaceId` field (verified March 9, 2026). |
 | **Blog migration no auth** | Open | `POST /api/migrations/blog` has no auth check. |
-| **Zod coverage low** | Open | 23% of routes validate inputs. Target 50%+. |
+| **Zod coverage low** | ✅ Improved | 60% of mutating routes validated (March 10, 2026). |
 
 ---
 

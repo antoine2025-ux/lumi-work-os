@@ -20,7 +20,7 @@ const ACTIVITY_TABS: OrgTab[] = [
 ];
 
 type ActivityExportsClientProps = {
-  orgId: string;
+  workspaceId: string;
   initialAdminActivity: OrgAdminActivityItem[];
   initialOrgActivity: {
     items: {
@@ -42,7 +42,7 @@ type ActivityExportsClientProps = {
 };
 
 export function ActivityExportsClient({
-  orgId,
+  workspaceId,
   initialAdminActivity: _initialAdminActivity,
   initialOrgActivity,
   role: _role,
@@ -68,13 +68,13 @@ export function ActivityExportsClient({
 
       {activeTab === "activity" && (
         <ActivitySection
-          orgId={orgId}
+          workspaceId={workspaceId}
           initialOrgActivity={initialOrgActivity}
         />
       )}
 
       {activeTab === "exports" && (
-        <ExportsSection orgId={orgId} />
+        <ExportsSection workspaceId={workspaceId} />
       )}
     </div>
   );

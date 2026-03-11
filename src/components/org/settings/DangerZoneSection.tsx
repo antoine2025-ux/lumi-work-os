@@ -7,10 +7,10 @@ import { useCurrentOrg } from "@/hooks/useCurrentOrg";
 import { hasOrgCapability } from "@/lib/org/capabilities";
 
 type DangerZoneSectionProps = {
-  orgId?: string;
+  workspaceId?: string;
 };
 
-export function DangerZoneSection({ orgId }: DangerZoneSectionProps) {
+export function DangerZoneSection({ workspaceId }: DangerZoneSectionProps) {
   const perms = useOrgPermissions();
   const { org } = useCurrentOrg();
   const [deleting, setDeleting] = useState(false);
@@ -80,9 +80,9 @@ export function DangerZoneSection({ orgId }: DangerZoneSectionProps) {
             Transfer organization ownership to another admin. This action is sensitive and should be
             done carefully.
           </p>
-          {orgId && (
+          {workspaceId && (
             <div className="mt-1 text-[11px] text-red-200">
-              Current org: <span className="font-mono">{orgId}</span>
+              Current workspace: <span className="font-mono">{workspaceId}</span>
             </div>
           )}
           <div className="mt-3 rounded-lg border border-dashed border-red-900/70 bg-red-950/60 px-3 py-2 text-[11px] text-red-100">

@@ -17,7 +17,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resolveUserContext } from "@/lib/loopbrain/user-context";
-import { callLoopbrainLLM } from "@/lib/loopbrain/orchestrator";
+import { callLoopbrainLLM } from "@/lib/loopbrain/llm-caller";
 
 // =============================================================================
 // Public Types

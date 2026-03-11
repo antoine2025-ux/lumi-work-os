@@ -1,7 +1,7 @@
 // src/app/api/dev/org-debug/route.ts
 
 import { NextResponse } from "next/server";
-import { getLastOrgDebugSnapshot } from "@/lib/loopbrain/orchestrator";
+import { getLastOrgDebugSnapshot } from "@/lib/loopbrain/llm-caller";
 
 export const dynamic = "force-dynamic";
 

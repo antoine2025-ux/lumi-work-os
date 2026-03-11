@@ -16,7 +16,7 @@ import { Prisma } from "@prisma/client";
 import { prisma, prismaUnscoped } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { google } from "googleapis";
-import { callLoopbrainLLM } from "@/lib/loopbrain/orchestrator";
+import { callLoopbrainLLM } from "@/lib/loopbrain/llm-caller";
 import { createNotification } from "@/lib/notifications/create";
 import { loadCalendarEvents } from "@/lib/loopbrain/context-sources/calendar";
 import { loadGmailThreads, type GmailThreadSummary } from "@/lib/loopbrain/context-sources/gmail";
