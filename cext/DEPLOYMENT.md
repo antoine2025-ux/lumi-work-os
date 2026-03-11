@@ -476,9 +476,13 @@ npx prisma studio
 
 ### Current State
 
-- **Error monitoring:** None (Sentry integration tracked in `TECH_DEBT.md` P2)
+- **Error monitoring:** Sentry (requires `NEXT_PUBLIC_SENTRY_DSN`)
+  - Captures 500-level API errors automatically
+  - Captures Loopbrain LLM and tool execution failures
+  - Captures client-side crashes via global error boundary
+  - 10% transaction sampling for performance monitoring
 - **Logging:** Console logs to stdout (Vercel Function Logs)
-- **Metrics:** None (no APM)
+- **Metrics:** None (no APM beyond Sentry performance monitoring)
 
 ### Vercel Function Logs
 

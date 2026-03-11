@@ -17,6 +17,7 @@ import type { AgentContext } from './agent/types'
 import type { LoopbrainClientAction } from './orchestrator-types'
 import { enrichAgentContext } from './permissions'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import * as Sentry from '@sentry/nextjs'
 
 const MAX_TOOL_ITERATIONS = 10
 const LOOPBRAIN_MODEL = process.env.LOOPBRAIN_MODEL || 'claude-sonnet-4-6'
@@ -500,11 +501,21 @@ async function callLLMWithTools(
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error'
     if (msg.includes('invalid model') || msg.includes('not found')) {
-      throw new Error(
+      const modelError = new Error(
         `Model "${LOOPBRAIN_MODEL}" is not supported by provider ${provider.name}. ` +
         `Check LOOPBRAIN_MODEL env var.`
       )
+      Sentry.captureException(modelError, {
+        tags: { component: 'loopbrain', errorType: 'invalid_model' },
+        extra: { model: LOOPBRAIN_MODEL, provider: provider.name },
+      })
+      throw modelError
     }
+    // Capture LLM API failures
+    Sentry.captureException(error, {
+      tags: { component: 'loopbrain', errorType: 'llm_api_failure' },
+      extra: { model: LOOPBRAIN_MODEL, provider: provider.name },
+    })
     throw error
   }
 }
@@ -526,6 +537,11 @@ async function executeReadTool(
       ? result.data ?? { message: result.humanReadable }
       : { error: result.error ?? result.humanReadable }
   } catch (err: unknown) {
+    // Capture tool execution failures
+    Sentry.captureException(err, {
+      tags: { component: 'loopbrain', errorType: 'tool_execution_failure' },
+      extra: { toolName: toolCall.name, toolArgs: toolCall.arguments },
+    })
     return { error: String(err) }
   }
 }
@@ -547,6 +563,11 @@ async function executeWriteTool(
       ? result.data ?? { message: result.humanReadable }
       : { error: result.error ?? result.humanReadable }
   } catch (err: unknown) {
+    // Capture write tool execution failures
+    Sentry.captureException(err, {
+      tags: { component: 'loopbrain', errorType: 'write_tool_failure' },
+      extra: { toolName: toolCall.name, toolArgs: toolCall.arguments },
+    })
     return { error: String(err) }
   }
 }

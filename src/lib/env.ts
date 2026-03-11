@@ -57,8 +57,8 @@ const envSchema = z
 
     // ── Email (Resend) ────────────────────────────────────────────────────────
     RESEND_API_KEY: z.string().startsWith('re_').optional(),
-    EMAIL_FROM: z.string().email().optional(),
-    MAIL_FROM: z.string().email().optional(),
+    EMAIL_FROM: z.string().optional(), // Allows "Name <email@example.com>" format
+    MAIL_FROM: z.string().optional(), // Allows "Name <email@example.com>" format
 
     // ── Redis (optional — app degrades gracefully without it) ─────────────────
     REDIS_URL: z.string().optional(),

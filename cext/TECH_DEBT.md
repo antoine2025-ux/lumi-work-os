@@ -79,13 +79,6 @@
 - **Risk:** Low.
 - **Dependencies:** Remove `console.log` first (P0 item).
 
-### Error monitoring (Sentry)
-- **What:** No error tracking in production. Errors are logged to stdout and lost.
-- **Why it matters:** You won't know about production errors until users report them.
-- **Fix:** Integrate Sentry. Add to error boundaries, API routes, and the agent loop.
-- **Effort:** 1 day.
-- **Risk:** None.
-- **Dependencies:** None.
 
 ### E2E test coverage
 - **What:** Playwright tests exist but coverage is minimal. Critical flows (onboarding, wiki CRUD, task CRUD, Loopbrain Q&A) need E2E coverage.
@@ -106,6 +99,25 @@
 ---
 
 ## DONE — Completed Items
+
+### ✅ Sentry error monitoring (March 11, 2026)
+- **Was:** No error tracking in production. Errors logged to stdout and lost.
+- **Now:** Sentry integrated with comprehensive error capture:
+  - All 500-level API errors captured via `handleApiError`
+  - Loopbrain LLM failures and tool execution errors captured in agent loop
+  - Client-side crashes captured via global error boundary
+  - 10% transaction sampling for performance monitoring
+  - Session replay disabled (privacy concern for enterprise customers)
+- **What was done:**
+  - Installed `@sentry/nextjs` package
+  - Created Sentry config files (`sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`)
+  - Verified `next.config.ts` already wrapped with `withSentryConfig`
+  - Added Sentry capture to `src/lib/api-errors.ts` (500-level errors only)
+  - Added Sentry capture to `src/lib/loopbrain/agent-loop.ts` (LLM failures, tool execution failures)
+  - Created `src/app/global-error.tsx` for client-side crash handling
+  - Updated documentation (DEPLOYMENT.md, TECH_DEBT.md)
+- **Files created:** `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`, `src/app/global-error.tsx`
+- **Files modified:** `src/lib/api-errors.ts`, `src/lib/loopbrain/agent-loop.ts`
 
 ### ✅ Infrastructure documentation (March 11, 2026)
 - **Was:** No documentation for deployment, environment variables, or operational procedures. All knowledge was tribal (bus factor of 1).
