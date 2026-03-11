@@ -72,13 +72,15 @@ export function createCollabServer(): InstanceType<typeof Server> {
       }
 
       // Service token bypass for server-to-server connections (Loopbrain document writer)
+      // Check this FIRST before trying JWT decode
       const serviceSecret = process.env.COLLAB_SERVICE_SECRET
       if (serviceSecret && token === serviceSecret) {
-        console.log('[Hocuspocus] Service token authenticated')
+        console.log('[Hocuspocus] Service token authenticated for document:', data.documentName)
+        // Service connections bypass workspace checks - they can access any document
         return {
           user: {
             id: 'loopbrain-service',
-            name: 'Loopbrain',
+            name: 'Loopbrain Service',
             workspaceId: 'service',
           },
         }

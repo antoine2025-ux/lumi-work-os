@@ -56,14 +56,6 @@
 
 ## P2 — Post-Launch Improvements
 
-### Yjs dual import issue
-- **What:** Two copies of Yjs are loaded in the Next.js server, causing `instanceof` checks to fail. The Hocuspocus provider connects but never reaches "synced" state from server-side code.
-- **Why it matters:** Blocks the live-streaming wiki drafting UX (Loopbrain writing into a page in real-time while the user watches). DB fallback works but no streaming.
-- **Fix:** Add `resolve.alias` in webpack/bundler config to force a single Yjs instance. Or deduplicate via `npm dedupe` / package.json `overrides`.
-- **Effort:** 1-3 hours to diagnose and fix.
-- **Risk:** Low — bundler config change.
-- **Dependencies:** None.
-
 ### Structured logging (Pino)
 - **What:** Logging is ad-hoc `console.log` / `console.error`. No structured format, no log levels, no correlation IDs.
 - **Why it matters:** Production debugging requires searchable, structured logs. Current logging is noise.
@@ -78,6 +70,25 @@
 ---
 
 ## DONE — Completed Items
+
+### ✅ Yjs dual import fix (March 11, 2026)
+- **Was:** HocuspocusProvider from server-side code (LoopbrainDocumentWriter) connected but never reached "synced" state, timing out after 5 seconds. This blocked live-streaming wiki drafting (Loopbrain writing content into a page in real-time while the user watches).
+- **Now:** Provider reaches "synced" state in ~20ms. Live-streaming wiki drafting works via Hocuspocus (enabled by default, opt-out via `DRAFT_USE_HOCUSPOCUS=false`).
+- **Root cause:** Not a Yjs dual import issue (npm correctly deduped to single version 13.6.29). The issue was HocuspocusProviderWebsocket created separately from HocuspocusProvider, preventing proper WebSocket handshake.
+- **What was done:**
+  - Added webpack alias in `next.config.ts` to force single Yjs instance in Next.js server bundle (preventative measure for future bundler issues)
+  - Fixed `document-writer.ts` to pass `WebSocketPolyfill` directly to `HocuspocusProvider` constructor instead of creating separate `HocuspocusProviderWebsocket`
+  - Added comprehensive event logging (`onConnect`, `onStatus`, `onSynced`, `onAuthenticationFailed`, `onClose`, `onDisconnect`)
+  - Fixed service token authentication in `hocuspocus-server.ts` (was already checking service secret first, but server wasn't receiving the env var)
+  - Changed `draft-page.ts` default from DB-only to Hocuspocus streaming
+  - Created `scripts/test-yjs-fix.ts` verification test (connects, inserts content, verifies sync)
+- **Files modified:**
+  - `next.config.ts` — webpack alias for Yjs
+  - `src/lib/loopbrain/services/document-writer.ts` — inline WebSocket config + logging
+  - `src/lib/loopbrain/services/draft-page.ts` — Hocuspocus now primary path
+  - `src/lib/collab/hocuspocus-server.ts` — improved service token logging
+- **Verification:** Test script confirms connection in 21ms, document sync, content insertion successful
+- **Impact:** Users now see Loopbrain-drafted wiki pages appear live, section by section, instead of waiting for full generation + DB write
 
 ### ✅ Real-time collaboration auth hardening (March 11, 2026)
 - **Was:** Hocuspocus `onAuthenticate` trusted `data.token` as userId with no verification. Anyone who guessed a userId could connect to any document's collaboration session.

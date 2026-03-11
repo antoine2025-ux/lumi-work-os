@@ -11,8 +11,7 @@
  * reads from.
  */
 import * as Y from 'yjs'
-import { HocuspocusProvider } from '@hocuspocus/provider'
-import { HocuspocusProviderWebsocket } from '@hocuspocus/provider'
+import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider'
 import WS from 'ws'
 
 const CONNECTION_TIMEOUT_MS = 5_000
@@ -82,38 +81,35 @@ export class LoopbrainDocumentWriter {
         fn()
       }
 
-      // Create a dedicated WebSocket provider with Node.js polyfill
-      this.wsProvider = new HocuspocusProviderWebsocket({
-        url: collabUrl,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        WebSocketPolyfill: WS as any,
-        // Disable automatic reconnection — we are a one-shot writer
-        maxAttempts: 1,
-      })
-
+      // Create provider with inline WebSocket configuration
+      // WebSocketPolyfill and maxAttempts are valid runtime options but not in the
+      // TypeScript union type, so we use 'any' for the config object
       this.provider = new HocuspocusProvider({
-        websocketProvider: this.wsProvider,
+        url: collabUrl,
         name: `wiki-${pageId}`,
         token: token,
         document: this.doc,
+        WebSocketPolyfill: WS,
+        maxAttempts: 1,
         onSynced: () => {
           settle(() => {
             this.connected = true
             resolve()
           })
         },
-        onAuthenticationFailed: ({ reason }) => {
+        onAuthenticationFailed: ({ reason }: { reason: string }) => {
           settle(() => {
             this.disconnect()
             reject(new Error(`Hocuspocus authentication failed: ${reason}`))
           })
         },
-        onClose: ({ event }) => {
+        onClose: ({ event }: { event?: { reason?: string } }) => {
           settle(() => {
             reject(new Error(`Hocuspocus connection closed: ${event?.reason || 'unknown'}`))
           })
         },
-      })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any)
     })
   }
 

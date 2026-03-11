@@ -1,13 +1,13 @@
 /**
  * Draft Page Service — generates LLM content and writes it to a wiki page.
  *
- * Primary path: DB-only write (direct Prisma update with generated markdown).
- * Hocuspocus streaming path: opt-in via DRAFT_USE_HOCUSPOCUS=true env var
- * (disabled by default until the Yjs dual-import issue is resolved).
+ * Primary path: Hocuspocus streaming (real-time Yjs updates via WebSocket).
+ * Fallback path: DB-only write (direct Prisma update with generated markdown).
+ * Opt-out via DRAFT_USE_HOCUSPOCUS=false env var.
  *
  * Called as a fire-and-forget background task after the agent loop returns
  * a redirect response. The user navigates to the blank page and sees content
- * once this completes.
+ * stream in live.
  */
 import { LoopbrainDocumentWriter } from './document-writer'
 import { getProvider } from '@/lib/ai/providers'
@@ -31,15 +31,15 @@ export interface StreamDraftParams {
 /**
  * Generate wiki page content via LLM and persist it to the WikiPage record.
  *
- * Default: writes directly to DB (DB-only path, no Hocuspocus dependency).
- * Set DRAFT_USE_HOCUSPOCUS=true to enable the real-time Yjs streaming path.
+ * Default: streams via Hocuspocus (real-time Yjs updates).
+ * Set DRAFT_USE_HOCUSPOCUS=false to use DB-only fallback.
  *
  * This function is designed to be called with `void streamDraftToPage(...)`
  * — it handles its own errors internally and never throws.
  */
 export async function streamDraftToPage(params: StreamDraftParams): Promise<void> {
   const { pageId, workspaceId, topic, userId } = params
-  const useHocuspocus = process.env.DRAFT_USE_HOCUSPOCUS === 'true'
+  const useHocuspocus = process.env.DRAFT_USE_HOCUSPOCUS !== 'false'
 
   if (useHocuspocus) {
     await streamViaHocuspocus(params)
@@ -49,7 +49,7 @@ export async function streamDraftToPage(params: StreamDraftParams): Promise<void
 }
 
 // ---------------------------------------------------------------------------
-// DB-only path (primary)
+// DB-only path (fallback)
 // ---------------------------------------------------------------------------
 
 async function writeDirectlyToDB(params: StreamDraftParams): Promise<void> {
@@ -87,7 +87,7 @@ async function writeDirectlyToDB(params: StreamDraftParams): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Hocuspocus streaming path (opt-in via DRAFT_USE_HOCUSPOCUS=true)
+// Hocuspocus streaming path (primary, opt-out via DRAFT_USE_HOCUSPOCUS=false)
 // ---------------------------------------------------------------------------
 
 async function streamViaHocuspocus(params: StreamDraftParams): Promise<void> {
