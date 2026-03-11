@@ -424,12 +424,12 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
 
               {/* Create New Page */}
               <Button
-                variant="outline"
+                variant="ghostMuted"
+                size="xs"
                 className="w-full"
-                style={{ borderColor: colors.border }}
                 onClick={handleCreatePage}
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="w-3.5 h-3.5 mr-1" />
                 Create New Page
               </Button>
             </div>

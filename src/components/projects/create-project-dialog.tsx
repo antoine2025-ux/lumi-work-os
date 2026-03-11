@@ -3,13 +3,13 @@
 import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useWorkspace } from "@/lib/workspace-context"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, Loader2, Target, Calendar, X, Users, LayoutGrid, Globe, Lock, AlignLeft, User, Hash, Circle, AlertTriangle, FileText } from "lucide-react"
+import { AlertCircle, Loader2, Target, Calendar, X, Users, Globe, Lock, User, Hash, Circle, AlertTriangle, FileText } from "lucide-react"
 import { setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
 import type { ProjectTemplateData } from "@/lib/projects/templates"
 import { PROJECT_TEMPLATES } from "@/lib/projects/templates"
@@ -33,6 +33,7 @@ interface CreateProjectDialogProps {
 
 interface ProjectFormData {
   name: string
+  excerpt: string
   description: string
   status: 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED'
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
@@ -81,6 +82,7 @@ export function CreateProjectDialog({
   
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
+    excerpt: '',
     description: '',
     status: 'ACTIVE',
     priority: 'MEDIUM',
@@ -113,7 +115,7 @@ export function CreateProjectDialog({
 
   // Expanded option state (only one pill expanded at a time)
   const [expandedOption, setExpandedOption] = useState<
-    'template' | 'space' | 'description' | 'visibility' | 'owner' | 'assignees' | 
+    'template' | 'visibility' | 'owner' | 'assignees' | 
     'channels' | 'status' | 'priority' | 'startDate' | 'endDate' | null
   >(null)
 
@@ -186,6 +188,7 @@ export function CreateProjectDialog({
     if (open) {
       setFormData({
         name: '',
+        excerpt: '',
         description: '',
         status: 'ACTIVE',
         priority: 'MEDIUM',
@@ -280,6 +283,9 @@ export function CreateProjectDialog({
       }
 
       // Only include optional fields if they have values
+      if (formData.excerpt.trim()) {
+        requestBody.excerpt = formData.excerpt.trim()
+      }
       if (formData.description.trim()) {
         requestBody.description = formData.description.trim()
       }
@@ -358,36 +364,80 @@ export function CreateProjectDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Target className="h-5 w-5" />
-            <span>Create New Project</span>
-          </DialogTitle>
-          <DialogDescription>
-            Create a new project to organize your team&apos;s work
-          </DialogDescription>
+        <DialogHeader className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <DialogTitle className="flex items-center space-x-2 text-base font-semibold">
+              <Target className="h-4 w-4" />
+              <span>Create New Project</span>
+            </DialogTitle>
+            {/* Compact space selector */}
+            {loadingSpaces ? (
+              <span className="text-xs text-muted-foreground">Loading spaces...</span>
+            ) : (
+              <Select
+                value={selectedSpaceId || '_none'}
+                onValueChange={(v) => {
+                  setSelectedSpaceId(v === '_none' ? '' : v)
+                  if (errors.space) {
+                    setErrors(prev => { const e = { ...prev }; delete e.space; return e })
+                  }
+                }}
+                disabled={isLoading}
+              >
+                <SelectTrigger className={cn(
+                  "h-7 w-auto min-w-[120px] max-w-[180px] text-xs border-border",
+                  errors.space && "border-red-500"
+                )}>
+                  <SelectValue placeholder="Select space" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none" disabled>Select space *</SelectItem>
+                  {spaces.map((space) => (
+                    <SelectItem key={space.id} value={space.id}>
+                      {space.name}
+                      {space.id === defaultSpaceId ? ' (suggested)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Project Name - No Label */}
-          <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-4 -mt-1">
+          {/* Project name + short summary - unboxed flow */}
+          <div className="space-y-1 border-b border-border/50 pb-3">
             <Input
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
               placeholder="Project name *"
-              className={errors.name ? 'border-red-500' : ''}
+              className={cn(
+                "text-lg font-medium border-0 rounded-none px-0 h-auto py-2 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground",
+                errors.name && "text-red-500"
+              )}
               disabled={isLoading}
               autoFocus
             />
+            <input
+              type="text"
+              value={formData.excerpt}
+              onChange={(e) => handleInputChange('excerpt', e.target.value)}
+              placeholder="Add a short summary..."
+              className={cn(
+                "w-full text-sm bg-transparent border-0 rounded-none px-0 py-1 focus:outline-none focus:ring-0 placeholder:text-muted-foreground/70",
+                formData.excerpt ? "text-foreground" : "text-muted-foreground"
+              )}
+              disabled={isLoading}
+            />
             {errors.name && (
-              <p className="text-sm text-red-500 flex items-center space-x-1">
+              <p className="text-sm text-red-500 flex items-center space-x-1 pt-0.5">
                 <AlertCircle className="h-4 w-4" />
                 <span>{errors.name}</span>
               </p>
             )}
           </div>
 
-          {/* Row 1 - Core Settings */}
+          {/* Row 1 - Core Settings (Space moved to header) */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Template Pill */}
             <button
@@ -402,39 +452,6 @@ export function CreateProjectDialog({
               <span className="text-muted-foreground">Template</span>
               <span className="text-foreground">
                 {selectedTemplate ? selectedTemplate.name : 'Blank'}
-              </span>
-            </button>
-
-            {/* Space Pill */}
-            <button
-              type="button"
-              onClick={() => setExpandedOption(expandedOption === 'space' ? null : 'space')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
-                expandedOption === 'space' ? "bg-accent" : "hover:bg-accent/50",
-                errors.space && "border-red-500"
-              )}
-            >
-              <LayoutGrid className="w-4 h-4" />
-              <span className="text-muted-foreground">Space *</span>
-              <span className="text-foreground">
-                {selectedSpaceId ? spaces.find(s => s.id === selectedSpaceId)?.name : 'Not set'}
-              </span>
-            </button>
-
-            {/* Description Pill */}
-            <button
-              type="button"
-              onClick={() => setExpandedOption(expandedOption === 'description' ? null : 'description')}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
-                expandedOption === 'description' ? "bg-accent" : "hover:bg-accent/50"
-              )}
-            >
-              <AlignLeft className="w-4 h-4" />
-              <span className="text-muted-foreground">Description</span>
-              <span className="text-foreground">
-                {formData.description ? (formData.description.length > 20 ? formData.description.slice(0, 20) + '...' : formData.description) : 'Not set'}
               </span>
             </button>
 
@@ -575,6 +592,18 @@ export function CreateProjectDialog({
             </button>
           </div>
 
+          {/* Description - always visible */}
+          <div className="space-y-2">
+            <Textarea
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              placeholder="Describe what this project is about"
+              rows={4}
+              className="min-h-[100px] resize-y"
+              disabled={isLoading}
+            />
+          </div>
+
           {/* Expanded Options */}
           {expandedOption === 'template' && (
             <div className="pt-2">
@@ -654,62 +683,6 @@ export function CreateProjectDialog({
                   )}
                 </SelectContent>
               </Select>
-            </div>
-          )}
-
-          {expandedOption === 'space' && (
-            <div className="pt-2">
-              {loadingSpaces ? (
-                <div className="text-sm text-muted-foreground">Loading spaces...</div>
-              ) : (
-                <Select
-                  value={selectedSpaceId || '_none'}
-                  onValueChange={(v) => {
-                    setSelectedSpaceId(v === '_none' ? '' : v)
-                    if (errors.space) {
-                      setErrors(prev => { const e = { ...prev }; delete e.space; return e })
-                    }
-                  }}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger className={errors.space ? 'border-red-500' : ''}>
-                    <SelectValue placeholder="Select a space" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none" disabled>Select a space</SelectItem>
-                    {spaces.map((space) => (
-                      <SelectItem key={space.id} value={space.id}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>{space.icon ? `${space.icon} ` : ''}{space.name}</span>
-                          {space.id === defaultSpaceId && (
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              (suggested)
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {errors.space && (
-                <p className="text-sm text-red-500 flex items-center space-x-1 mt-1">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{errors.space}</span>
-                </p>
-              )}
-            </div>
-          )}
-
-          {expandedOption === 'description' && (
-            <div className="pt-2">
-              <Textarea
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Describe what this project is about"
-                rows={3}
-                disabled={isLoading}
-              />
             </div>
           )}
 

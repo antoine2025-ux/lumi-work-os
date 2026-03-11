@@ -1251,6 +1251,7 @@ model Project {
   teamId              String? // Optional org team assignment
   orgId               String? // Org identifier (same as workspaceId for v1, optional for backward compatibility)
   name                String
+  excerpt             String?   // Short summary (1-2 lines)
   description         String?
   status              ProjectStatus          @default(ACTIVE)
   priority            Priority               @default(MEDIUM)

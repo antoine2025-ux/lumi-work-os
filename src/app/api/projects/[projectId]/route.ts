@@ -316,6 +316,7 @@ export async function PUT(
     const validatedData = ProjectUpdateSchema.parse(bodyWithoutExtras)
     const { 
       name, 
+      excerpt,
       description, 
       status,
       priority,
@@ -522,6 +523,7 @@ export async function PUT(
       where: { id: projectId },
       data: {
         ...(name && { name }),
+        ...(excerpt !== undefined && { excerpt: excerpt?.trim() || null }),
         ...(description !== undefined && { description }),
         ...(status && { status: status as any }),
         ...(priority && { priority: priority as any }),

@@ -337,6 +337,7 @@ export async function POST(request: NextRequest) {
     const validatedData = ProjectCreateSchema.parse(body)
     const { 
       name, 
+      excerpt,
       description, 
       status = 'ACTIVE',
       priority = 'MEDIUM',
@@ -387,6 +388,7 @@ export async function POST(request: NextRequest) {
         data: {
           workspaceId: auth.workspaceId,
           name,
+          excerpt: excerpt?.trim() || null,
           description,
           status: status as any,
           priority: priority as any,

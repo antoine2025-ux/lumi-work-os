@@ -9,7 +9,7 @@ interface SendInviteParams {
   role: string
 }
 
-function buildInviteHtml({
+export function buildInviteHtml({
   workspaceName,
   inviterName,
   inviteLink,
@@ -20,18 +20,14 @@ function buildInviteHtml({
   inviteLink: string
   role: string
 }): string {
-  const roleLower = role.charAt(0) + role.slice(1).toLowerCase()
   return `
     <div style="font-family: system-ui, -apple-system, sans-serif; padding: 40px 20px; background-color: #f9fafb;">
       <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <h1 style="color: #1a1a2e; font-size: 24px; font-weight: 600; margin: 0 0 16px 0;">
-          You&apos;ve been invited to join ${workspaceName}
+          You&apos;ve been invited to join ${workspaceName} on Loopwell.
         </h1>
-        <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
-          <strong>${inviterName}</strong> has invited you to join <strong>${workspaceName}</strong> on Loopwell as a <strong>${roleLower}</strong>.
-        </p>
         <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 32px 0;">
-          Loopwell is an intelligent workspace operating system that helps teams manage projects, documentation, and organizational knowledge with AI-powered assistance.
+          Loopwell brings your team&apos;s projects, docs, and knowledge together, with your own agent that understands your organization. Manage work, find answers, and stay aligned in one place.
         </p>
         <div style="text-align: center; margin: 32px 0;">
           <a href="${inviteLink}" style="display: inline-block; background-color: #3b82f6; color: #ffffff; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">
@@ -43,7 +39,7 @@ function buildInviteHtml({
         </p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;" />
         <p style="color: #9ca3af; font-size: 12px; margin: 0; text-align: center;">
-          Loopwell &mdash; Your intelligent workspace operating system
+          Loopwell &mdash; Projects, docs & AI that knows your org
         </p>
       </div>
     </div>

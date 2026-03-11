@@ -157,12 +157,12 @@ export function WikiSectionView({ page }: WikiSectionViewProps) {
             </div>
           </div>
           {canCreatePage && (
-            <Button onClick={createPage} variant="outline" size="sm" className="h-8 shrink-0" disabled={isCreatingPage}>
+            <Button onClick={createPage} variant="ghostMuted" size="xs" className="shrink-0" disabled={isCreatingPage}>
               {isCreatingPage ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
               ) : (
                 <>
-                  <Plus className="h-4 w-4 mr-1.5" />
+                  <Plus className="w-3.5 h-3.5 mr-1" />
                   New Page
                 </>
               )}
@@ -234,11 +234,11 @@ export function WikiSectionView({ page }: WikiSectionViewProps) {
             <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
             <p className="text-muted-foreground mb-3">No pages in this section yet</p>
             {canCreatePage && (
-              <Button onClick={createPage} variant="outline" size="sm" disabled={isCreatingPage}>
+              <Button onClick={createPage} variant="ghostMuted" size="xs" disabled={isCreatingPage}>
                 {isCreatingPage ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
                 ) : (
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="w-3.5 h-3.5 mr-1" />
                 )}
                 Create Page
               </Button>
