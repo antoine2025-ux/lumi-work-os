@@ -6,7 +6,7 @@
  */
 
 import OpenAI from 'openai'
-import { callLoopbrainLLM } from '../orchestrator'
+import { callLoopbrainLLM } from '../llm-caller'
 import type { PolicySuggestion } from './types'
 
 const SUGGESTION_MODEL = 'gpt-4o-mini'

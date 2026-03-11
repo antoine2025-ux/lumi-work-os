@@ -25,7 +25,7 @@ const SETTINGS_TABS: OrgTab[] = [
 ];
 
 type OrgSettingsClientProps = {
-  orgId: string;
+  workspaceId: string;
   role: OrgRole;
   canSeeMembers: boolean;
   canManageInvites: boolean;
@@ -37,7 +37,7 @@ type OrgSettingsClientProps = {
 };
 
 export function OrgSettingsClient({
-  orgId,
+  workspaceId,
   role,
   canSeeMembers,
   canManageInvites,
@@ -78,7 +78,7 @@ export function OrgSettingsClient({
       <div className="px-10 pb-10">
         {activeTab === "members" && (
           <MembersSection
-            orgId={orgId}
+            workspaceId={workspaceId}
             currentUserId={currentUserId}
             initialMembers={initialMembers}
             initialCustomRoles={initialCustomRoles}
@@ -86,18 +86,18 @@ export function OrgSettingsClient({
         )}
 
         {activeTab === "invites" && canManageInvites && (
-          <InvitesSection orgId={orgId} initialInvitations={initialInvitations} />
+          <InvitesSection workspaceId={workspaceId} initialInvitations={initialInvitations} />
         )}
 
         {activeTab === "general" && (
           <GeneralSettingsSection 
-            orgId={orgId} 
-            permissions={{ workspaceId: orgId, role, userId: currentUserId }} 
+            workspaceId={workspaceId} 
+            permissions={{ workspaceId, role, userId: currentUserId }} 
           />
         )}
 
         {activeTab === "danger" && canSeeDanger && (
-          <DangerZoneSection orgId={orgId} />
+          <DangerZoneSection workspaceId={workspaceId} />
         )}
       </div>
     </>

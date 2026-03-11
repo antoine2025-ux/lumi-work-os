@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod'
-import { callLoopbrainLLM } from '../orchestrator'
+import { callLoopbrainLLM } from '../llm-caller'
 import { ToolRegistry } from './tool-registry'
 import { logger } from '@/lib/logger'
 import type { AgentContext, AgentPlan, MessageIntent, PlannerResult } from './types'

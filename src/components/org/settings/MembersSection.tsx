@@ -23,7 +23,7 @@ export type Member = {
 };
 
 type MembersSectionProps = {
-  orgId?: string;
+  workspaceId?: string;
   currentUserId?: string;
   initialMembers?: Member[];
   initialCustomRoles?: Array<{ id: string; name: string }>;
@@ -35,14 +35,14 @@ type MembersSectionProps = {
  * Renders members using data loaded server-side to avoid Server Component issues.
  */
 export function MembersSection({
-  orgId,
+  workspaceId,
   currentUserId = "",
   initialMembers = [],
   initialCustomRoles = [],
 }: MembersSectionProps) {
   const perms = useOrgPermissions();
 
-  if (!orgId) {
+  if (!workspaceId) {
     return (
       <div className="rounded-2xl border border-border bg-background p-4 text-xs text-muted-foreground">
         No organization selected.

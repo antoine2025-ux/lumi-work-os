@@ -8,12 +8,12 @@ import { OrgCapabilityGate } from "@/components/org/OrgCapabilityGate";
 import type { OrgClientPermissions } from "@/lib/org/permissions.client";
 
 type GeneralSettingsSectionProps = {
-  orgId?: string;
+  workspaceId?: string;
   permissions: OrgClientPermissions | null;
 };
 
-export function GeneralSettingsSection({ orgId, permissions }: GeneralSettingsSectionProps) {
-  if (!orgId) {
+export function GeneralSettingsSection({ workspaceId, permissions }: GeneralSettingsSectionProps) {
+  if (!workspaceId) {
     return (
       <div className="rounded-2xl border border-border bg-background p-4 text-xs text-muted-foreground">
         No organization selected.
@@ -31,9 +31,9 @@ export function GeneralSettingsSection({ orgId, permissions }: GeneralSettingsSe
             Configure organization name, branding, and other defaults.
           </p>
           <div className="mt-1 text-[11px] text-muted-foreground">
-            General settings for org:{" "}
+            General settings for workspace:{" "}
             <span className="font-mono text-muted-foreground">
-              {orgId}
+              {workspaceId}
             </span>
           </div>
         </div>

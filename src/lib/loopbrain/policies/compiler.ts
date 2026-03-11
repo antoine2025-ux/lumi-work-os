@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod'
-import { callLoopbrainLLM } from '../orchestrator'
+import { callLoopbrainLLM } from '../llm-caller'
 import { ALL_TOOLS } from '../tool-schemas'
 import { logger } from '@/lib/logger'
 import type { AgentPlan, PlannedStep } from '../agent/types'

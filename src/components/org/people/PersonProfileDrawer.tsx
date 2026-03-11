@@ -20,7 +20,7 @@ type PersonProfileDrawerProps = {
   onClose: () => void;
   onPersonClick: (person: OrgPerson) => void;
   onFiltersChange?: (filters: Partial<PeopleFilters>) => void;
-  orgId?: string;
+  workspaceId?: string;
 };
 
 /**
@@ -70,7 +70,7 @@ export function PersonProfileDrawer({
   onClose,
   onPersonClick,
   onFiltersChange,
-  orgId,
+  workspaceId,
 }: PersonProfileDrawerProps) {
   const [isLoading, setIsLoading] = useState(true);
 
@@ -198,7 +198,7 @@ export function PersonProfileDrawer({
                 onClose={onClose}
                 onTeamClick={handleTeamClick}
                 onDepartmentClick={handleDepartmentClick}
-                orgId={orgId}
+                workspaceId={workspaceId}
               />
 
               <div className="space-y-6 pt-4">
@@ -227,7 +227,7 @@ export function PersonProfileDrawer({
                 <ActivityMiniTimeline person={person} />
 
                 {/* Cross-navigation Links */}
-                {orgId && (
+                {workspaceId && (
                   <div className="space-y-2 pt-4 border-t border-white/10">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Navigation

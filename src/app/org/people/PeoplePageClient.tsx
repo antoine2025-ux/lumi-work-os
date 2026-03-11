@@ -45,7 +45,7 @@ import type { OrgPerson } from "@/types/org";
 import type { ViewMode } from "@/components/org/people/PeopleViewToggle";
 
 type PeoplePageClientProps = {
-  orgId: string;
+  workspaceId: string;
   initialPeople: OrgPerson[];
   initialTotal?: number;
   initialPage?: number;
@@ -53,9 +53,11 @@ type PeoplePageClientProps = {
   initialTotalPages?: number;
 };
 
-export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps) {
+export function PeoplePageClient({ workspaceId: propWorkspaceId, initialPeople }: PeoplePageClientProps) {
   const { role } = useCurrentOrgRole();
   const { workspaceId } = useUserStatusContext();
+  // Use prop workspaceId if provided, otherwise fall back to context
+  const effectiveWorkspaceId = propWorkspaceId || workspaceId;
   const canManagePeople = canRole(role, "managePeople");
   const isOwner = role === "OWNER";
   const perms = useOrgPermissions();
@@ -961,7 +963,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
           onClose={handleCloseDrawer}
           onPersonClick={handleRowClick}
           onFiltersChange={handleFiltersChange}
-          orgId={orgId}
+          workspaceId={effectiveWorkspaceId || undefined}
         />
 
         {/* Insights Drawer (Mobile) */}

@@ -7,7 +7,7 @@
  */
 
 import { prisma } from '@/lib/db'
-import { callLoopbrainLLM } from '@/lib/loopbrain/orchestrator'
+import { callLoopbrainLLM } from '@/lib/loopbrain/llm-caller'
 import { logger } from '@/lib/logger'
 
 // ---------------------------------------------------------------------------

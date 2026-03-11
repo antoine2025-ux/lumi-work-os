@@ -12,7 +12,7 @@ type ProfileHeaderProps = {
   onClose: () => void;
   onTeamClick?: () => void;
   onDepartmentClick?: () => void;
-  orgId?: string;
+  workspaceId?: string;
 };
 
 function getInitials(name: string | null): string {
@@ -29,7 +29,7 @@ export function ProfileHeader({
   onClose,
   onTeamClick,
   onDepartmentClick,
-  orgId: _orgId,
+  workspaceId: _workspaceId,
 }: ProfileHeaderProps) {
   const initials = getInitials(person.name);
 

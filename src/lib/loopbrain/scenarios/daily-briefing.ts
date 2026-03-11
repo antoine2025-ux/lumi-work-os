@@ -15,7 +15,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { callLoopbrainLLM } from "@/lib/loopbrain/orchestrator";
+import { callLoopbrainLLM } from "@/lib/loopbrain/llm-caller";
 import { gatherBriefingData, type BriefingData } from "./briefing-data";
 
 // =============================================================================

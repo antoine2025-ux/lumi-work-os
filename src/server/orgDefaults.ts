@@ -16,9 +16,9 @@ export async function ensureDefaultLandingViews(workspaceId: string) {
   }
 }
 
-export async function getDefaultViewForRole(orgId: string, role: string) {
+export async function getDefaultViewForRole(workspaceId: string, role: string) {
   return prisma.orgDefaultView.findUnique({
-    where: { workspaceId_role: { workspaceId: orgId, role } },
+    where: { workspaceId_role: { workspaceId, role } },
   });
 }
 

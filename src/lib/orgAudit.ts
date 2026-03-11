@@ -26,7 +26,7 @@ type AuditMeta = Prisma.JsonValue;
  * mutation doesn't break.
  * 
  * Adapts to existing OrgAuditLog schema:
- * - workspaceId (orgId)
+ * - workspaceId
  * - userId (required, uses actorUserId if available)
  * - actorUserId (optional, the actual actor)
  * - entityType (targetType)

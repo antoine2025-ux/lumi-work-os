@@ -81,7 +81,8 @@ function createPrismaClient() {
 // Feature flag for workspace scoping (defense-in-depth layer)
 // When enabled, all workspace-scoped queries automatically require workspace context
 // This is a safety layer - routes must still use assertAccess() + explicit where: { workspaceId }
-const WORKSPACE_SCOPING_ENABLED = process.env.PRISMA_WORKSPACE_SCOPING_ENABLED === 'true'
+// Default: ON (opt-out with PRISMA_WORKSPACE_SCOPING_ENABLED=false)
+const WORKSPACE_SCOPING_ENABLED = process.env.PRISMA_WORKSPACE_SCOPING_ENABLED !== 'false'
 
 // Base Prisma client (always unscoped) - for scripts/background jobs
 // Scripts should import this directly: import { prismaUnscoped } from '@/lib/db'
@@ -163,11 +164,10 @@ if (WORKSPACE_SCOPING_ENABLED) {
   console.log('   Use setWorkspaceContext(workspaceId) before querying workspace-scoped models')
   console.log('   For scripts/background jobs, use prismaUnscoped instead')
 } else {
-  // Unscoped Prisma client - workspace scoping disabled
-  // Current behavior: routes must manually filter by workspaceId
+  // Unscoped Prisma client - workspace scoping disabled (opt-out)
   prisma = prismaUnscoped
-  console.log('✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)')
-  console.log('   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true')
+  console.log('✅ Workspace scoping DISABLED - Using unscoped Prisma client')
+  console.log('   To enable: unset PRISMA_WORKSPACE_SCOPING_ENABLED or set it to true')
 }
 
 // Verify ProjectDocumentation model is available (for documentation attachments feature)
