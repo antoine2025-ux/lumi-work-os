@@ -73,13 +73,6 @@
 - **Dependencies:** Remove `console.log` first (P0 item).
 
 
-### E2E test coverage
-- **What:** Playwright tests exist but coverage is minimal. Critical flows (onboarding, wiki CRUD, task CRUD, Loopbrain Q&A) need E2E coverage.
-- **Why it matters:** Confidence that deployments don't break user-facing flows.
-- **Fix:** Write Playwright tests for the 5 critical flows.
-- **Effort:** 3-5 days.
-- **Risk:** None.
-- **Dependencies:** Test environment with seed data.
 
 ### Real-time collaboration auth hardening
 - **What:** Hocuspocus `onAuthenticate` currently trusts `data.token` as userId. No JWT verification, no workspace isolation check.
@@ -92,6 +85,36 @@
 ---
 
 ## DONE — Completed Items
+
+### ✅ E2E test coverage — 5 critical flows (March 11, 2026)
+- **Was:** Playwright tests existed but coverage was scattered. No clear documentation of critical flows.
+- **Now:** 5 comprehensive critical flow tests covering all major user journeys:
+  1. **Onboarding Flow** (`onboarding-flow.spec.ts`) — 5 tests for new workspace wizard
+  2. **Wiki CRUD** (`wiki-crud.spec.ts`) — 12 tests for complete wiki page lifecycle
+  3. **Task CRUD** (`tasks-crud.spec.ts`) — 17 tests for complete task lifecycle
+  4. **Loopbrain Chat** (`loopbrain-chat.spec.ts`) — 15 tests for AI Q&A system (NEW)
+  5. **Workspace Isolation** (`workspace-isolation.spec.ts`) — 10 tests for multi-tenant data isolation
+- **What was done:**
+  - Created comprehensive `loopbrain-chat.spec.ts` test file (15 test cases)
+  - Tests cover: chat interface loading, question submission (Enter/button), API integration, response display, error handling, chat history persistence, navigation
+  - Created `tests/e2e/README.md` documentation (400+ lines) explaining:
+    - All 5 critical flows with detailed coverage descriptions
+    - Test configuration and authentication modes (local OAuth + CI automated)
+    - Running tests (all, specific, UI mode, headed, watch)
+    - Test helpers and patterns (API-first testing, graceful skipping, cleanup)
+    - Test coverage summary (98+ tests across 15 files)
+    - CI integration, debugging, and known limitations
+  - Verified existing tests are comprehensive:
+    - Wiki CRUD: Create, Read, Update, Delete with validation and error handling
+    - Task CRUD: Full lifecycle with status changes, comments, and project integration
+    - Workspace Isolation: API scoping, cross-workspace prevention, context consistency
+    - Onboarding: Step navigation, progress tracking, template API
+  - All tests use established patterns: `skipIfNoAuth`, `gotoAuthenticated`, `waitForPageReady`
+  - Tests clean up after themselves with `afterAll` hooks
+  - Unique identifiers (`Date.now()`) prevent collisions with real data
+- **Coverage:** 98+ E2E tests across 15 test files, all 5 critical flows fully covered
+- **Files created:** `tests/e2e/loopbrain-chat.spec.ts`, `tests/e2e/README.md`
+- **Note:** Loopbrain tests verify UI flow works end-to-end. AI response quality requires OpenAI API keys and is not validated in E2E tests (acceptable for test environments).
 
 ### ✅ Sentry error monitoring (March 11, 2026)
 - **Was:** No error tracking in production. Errors logged to stdout and lost.

@@ -381,6 +381,93 @@ npm run dev:collab
 - After `prisma generate`, restart the dev server to pick up schema changes
 - Hocuspocus server requires manual restart after code changes
 
+### Running Tests
+
+#### Unit Tests (Vitest)
+
+```bash
+# Run all unit tests
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with UI
+npm run test:ui
+```
+
+#### E2E Tests (Playwright)
+
+**Setup (Local Development):**
+
+1. Start the dev server: `npm run dev`
+2. Generate auth state (one-time):
+   ```bash
+   npx playwright codegen --save-storage=.auth/user.json http://localhost:3000/login
+   ```
+3. Complete Google OAuth login in the browser
+4. Close the browser when done
+
+**Running E2E Tests:**
+
+```bash
+# Run all E2E tests
+npm run test:e2e
+
+# Run specific test file
+npx playwright test tests/e2e/wiki-crud.spec.ts
+
+# Run with UI (debug mode)
+npm run test:e2e:ui
+
+# Run in headed mode (see browser)
+npx playwright test --headed
+
+# Run specific test by name
+npx playwright test -g "Create: POST /api/wiki/pages"
+```
+
+**5 Critical Flow Tests:**
+
+1. **Onboarding Flow** (`onboarding-flow.spec.ts`) — New workspace wizard
+2. **Wiki CRUD** (`wiki-crud.spec.ts`) — Complete wiki page lifecycle
+3. **Task CRUD** (`tasks-crud.spec.ts`) — Complete task lifecycle
+4. **Loopbrain Chat** (`loopbrain-chat.spec.ts`) — AI Q&A system
+5. **Workspace Isolation** (`workspace-isolation.spec.ts`) — Multi-tenant data isolation
+
+See `tests/e2e/README.md` for comprehensive E2E test documentation.
+
+**CI Environment:**
+
+E2E tests in CI use automated authentication:
+- Set `E2E_AUTH_ENABLED=true`
+- Set `E2E_AUTH_SECRET` environment variable
+- Tests use `/api/e2e-auth` endpoint to create test sessions
+
+#### Type Checking
+
+```bash
+# Run TypeScript type checker
+npm run typecheck
+```
+
+#### Linting
+
+```bash
+# Run ESLint
+npm run lint
+```
+
+#### Quality Gates
+
+```bash
+# Run E2E tests + security checks
+npm run quality:gate
+
+# Run full suite (typecheck + lint + unit + E2E + security)
+npm run quality:gate:strict
+```
+
 ---
 
 ## 5. Database Operations
