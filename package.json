@@ -6,7 +6,7 @@
     "dev": "PORT=3000 next dev",
     "dev:turbo": "next dev --turbo",
     "dev:realtime": "tsx server.js",
-    "dev:collab": "./scripts/free-port-auto.sh 1234 && tsx scripts/start-collab-server.ts",
+    "dev:collab": "./scripts/free-port-auto.sh 1234 && tsx -r ./scripts/load-env.cjs scripts/start-collab-server.ts",
     "dev:clear-cache": "rm -rf .next && echo '✅ Cleared .next build cache'",
     "dev:free-port": "./scripts/free-port-auto.sh 3000",
     "dev:free-port:all": "./scripts/free-port-auto.sh 3000 && ./scripts/free-port-auto.sh 3001 && ./scripts/free-port-auto.sh 3002",

@@ -19,6 +19,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
 import type { LoopbrainTool, AgentContext, ToolResult } from './types'
 import { getDefaultSpaceForUser } from '@/lib/spaces/get-default-space'
+import { getOrCreatePersonalSpace } from '@/lib/spaces/canonical-space-helpers'
 import { executeAction } from '@/lib/loopbrain/actions/executor'
 import { searchDriveFilesTool } from './tools/drive/search-drive-files'
 import { readDriveDocumentTool } from './tools/drive/read-drive-document'
@@ -651,14 +652,41 @@ const draftWikiPageTool: LoopbrainTool = {
     const p = DraftWikiPageSchema.parse(params)
     scope(context)
     try {
-      // Resolve a space for the page (prefer explicit, then company wiki, then null)
+      // Resolve a space for the page (prefer explicit, then "personal", then company wiki, then null)
       let spaceId: string | null = p.spaceId ?? null
-      if (!spaceId) {
+      let pageType: 'TEAM_DOC' | 'COMPANY_WIKI' | 'PERSONAL_NOTE' | 'PROJECT_DOC' = 'TEAM_DOC'
+      let permissionLevel = 'team'
+
+      if (spaceId === 'personal' || spaceId === 'personal-space' || spaceId?.startsWith('personal-space-')) {
+        // User asked for personal space — resolve to actual Space ID
+        spaceId = await getOrCreatePersonalSpace(context.workspaceId, context.userId)
+        pageType = 'PERSONAL_NOTE'
+        permissionLevel = 'personal'
+      } else if (!spaceId) {
         const companyWiki = await prisma.space.findFirst({
           where: { workspaceId: context.workspaceId, type: 'WIKI' },
           select: { id: true },
         })
         spaceId = companyWiki?.id ?? null
+        if (spaceId) pageType = 'COMPANY_WIKI'
+      } else {
+        // Validate spaceId is a real Space (e.g. company wiki) — avoid FK errors from LLM hallucinations
+        const space = await prisma.space.findFirst({
+          where: { id: spaceId, workspaceId: context.workspaceId },
+          select: { id: true, isPersonal: true },
+        })
+        if (!space) {
+          logger.warn('draftWikiPage: invalid spaceId, falling back to company wiki', { spaceId })
+          const companyWiki = await prisma.space.findFirst({
+            where: { workspaceId: context.workspaceId, type: 'WIKI' },
+            select: { id: true },
+          })
+          spaceId = companyWiki?.id ?? null
+          if (spaceId) pageType = 'COMPANY_WIKI'
+        } else if (space.isPersonal) {
+          pageType = 'PERSONAL_NOTE'
+          permissionLevel = 'personal'
+        }
       }
 
       // Create a blank page (no content — content will stream via Hocuspocus)
@@ -672,6 +700,8 @@ const draftWikiPageTool: LoopbrainTool = {
           contentFormat: 'JSON',
           contentJson: { type: 'doc', content: [{ type: 'paragraph' }] },
           createdById: context.userId,
+          type: pageType,
+          permissionLevel,
           ...(spaceId ? { spaceId } : {}),
         },
       })

@@ -72,11 +72,10 @@ export function createCollabServer(): InstanceType<typeof Server> {
       }
 
       // Service token bypass for server-to-server connections (Loopbrain document writer)
-      // Check this FIRST before trying JWT decode
+      // MUST be first — if JWT decode runs first and throws, service token never gets checked
       const serviceSecret = process.env.COLLAB_SERVICE_SECRET
       if (serviceSecret && token === serviceSecret) {
         console.log('[Hocuspocus] Service token authenticated for document:', data.documentName)
-        // Service connections bypass workspace checks - they can access any document
         return {
           user: {
             id: 'loopbrain-service',
@@ -86,7 +85,7 @@ export function createCollabServer(): InstanceType<typeof Server> {
         }
       }
 
-      // Verify the JWT using NextAuth's secret
+      // JWT verification for browser clients
       const secret = process.env.NEXTAUTH_SECRET
       if (!secret) {
         console.error('[Hocuspocus] NEXTAUTH_SECRET not configured')
@@ -103,7 +102,6 @@ export function createCollabServer(): InstanceType<typeof Server> {
           throw new Error('Invalid authentication token')
         }
 
-        // Extract user info from JWT
         const userId = decoded.sub
         const workspaceId = decoded.workspaceId as string | undefined
         const userName = decoded.name as string | undefined
@@ -112,7 +110,6 @@ export function createCollabServer(): InstanceType<typeof Server> {
           throw new Error('No workspace context in token')
         }
 
-        // Extract page ID from document name (e.g., "wiki-cmmjn6ybu000u8oku1k6v0eqx")
         const documentName = data.documentName
         if (!documentName || !documentName.startsWith('wiki-')) {
           throw new Error('Invalid document name')
@@ -120,7 +117,6 @@ export function createCollabServer(): InstanceType<typeof Server> {
 
         const pageId = documentName.replace('wiki-', '')
 
-        // Verify the user has access to this page's workspace
         const page = await prismaUnscoped.wikiPage.findFirst({
           where: {
             id: pageId,
@@ -133,13 +129,8 @@ export function createCollabServer(): InstanceType<typeof Server> {
           throw new Error('Document not found or access denied')
         }
 
-        console.log('[Hocuspocus] User authenticated:', {
-          userId,
-          workspaceId,
-          pageId,
-        })
+        console.log('[Hocuspocus] User authenticated:', { userId, workspaceId, pageId })
 
-        // Return user context for presence indicators
         return {
           user: {
             id: userId,
@@ -149,6 +140,30 @@ export function createCollabServer(): InstanceType<typeof Server> {
         }
       } catch (error) {
         console.error('[Hocuspocus] Authentication failed:', error)
+
+        // Development fallback: JWT decode failed (e.g. secret mismatch). Accept token as userId.
+        // Production stays secure — JWT required.
+        if (process.env.NODE_ENV === 'development') {
+          const documentName = data.documentName
+          if (documentName?.startsWith('wiki-')) {
+            const pageId = documentName.replace('wiki-', '')
+            const page = await prismaUnscoped.wikiPage.findUnique({
+              where: { id: pageId },
+              select: { workspaceId: true },
+            })
+            if (page) {
+              console.warn('[Hocuspocus] JWT decode failed, using dev fallback (token as userId)')
+              return {
+                user: {
+                  id: token,
+                  name: 'Dev User',
+                  workspaceId: page.workspaceId,
+                },
+              }
+            }
+          }
+        }
+
         throw new Error('Authentication failed')
       }
     },

@@ -2,13 +2,14 @@
  * Draft Page Service — generates LLM content and writes it to a wiki page.
  *
  * Primary path: Hocuspocus streaming (real-time Yjs updates via WebSocket).
- * Fallback path: DB-only write (direct Prisma update with generated markdown).
+ * Fallback path: DB-only write (direct Prisma update with contentJson).
  * Opt-out via DRAFT_USE_HOCUSPOCUS=false env var.
  *
  * Called as a fire-and-forget background task after the agent loop returns
  * a redirect response. The user navigates to the blank page and sees content
  * stream in live.
  */
+import type { JSONContent } from '@tiptap/core'
 import { LoopbrainDocumentWriter } from './document-writer'
 import { getProvider } from '@/lib/ai/providers'
 import { prisma } from '@/lib/db'
@@ -71,11 +72,12 @@ async function writeDirectlyToDB(params: StreamDraftParams): Promise<void> {
       return
     }
 
-    // 2. Persist to DB
+    // 2. Persist to DB (both content and contentJson — editor displays contentJson)
+    const contentJson = markdownToTipTapJson(content)
     setWorkspaceContext(workspaceId)
     await prisma.wikiPage.update({
       where: { id: pageId },
-      data: { content },
+      data: { content, contentJson: contentJson as object },
     })
 
     logger.info('[DraftPage][db] Draft page DB write complete', { pageId, topic, contentLength: content.length })
@@ -150,11 +152,12 @@ async function streamViaHocuspocus(params: StreamDraftParams): Promise<void> {
       await writer.insertBulletList(bulletBuffer)
     }
 
-    // 4. Persist markdown to DB as fallback (Hocuspocus onStoreDocument is primary)
+    // 4. Persist to DB (Hocuspocus onStoreDocument also saves on disconnect)
+    const contentJson = markdownToTipTapJson(content)
     setWorkspaceContext(workspaceId)
     await prisma.wikiPage.update({
       where: { id: pageId },
-      data: { content },
+      data: { content, contentJson: contentJson as object },
     })
 
     logger.info('[DraftPage][hocuspocus] Streaming complete', { pageId, topic, lineCount: lines.length })
@@ -172,10 +175,11 @@ async function streamViaHocuspocus(params: StreamDraftParams): Promise<void> {
       })
 
       if (response.content && !response.content.startsWith('AI features are disabled')) {
+        const contentJson = markdownToTipTapJson(response.content)
         setWorkspaceContext(workspaceId)
         await prisma.wikiPage.update({
           where: { id: pageId },
-          data: { content: response.content },
+          data: { content: response.content, contentJson: contentJson as object },
         })
         logger.info('[DraftPage][hocuspocus] DB fallback succeeded', { pageId, contentLength: response.content.length })
       } else {
@@ -216,4 +220,83 @@ function isBulletLine(line: string): boolean {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Convert markdown (same format as LLM output) to TipTap JSONContent.
+ * Mirrors the structure produced by DocumentWriter insert methods.
+ */
+function markdownToTipTapJson(markdown: string): JSONContent {
+  const content: JSONContent[] = []
+  const lines = markdown.split('\n')
+  let bulletBuffer: string[] = []
+
+  for (const line of lines) {
+    if (bulletBuffer.length > 0 && !isBulletLine(line)) {
+      content.push({
+        type: 'bulletList',
+        content: bulletBuffer.map((item) => ({
+          type: 'listItem',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: item }],
+            },
+          ],
+        })),
+      })
+      bulletBuffer = []
+    }
+
+    const trimmed = line.trimEnd()
+
+    if (trimmed.startsWith('### ')) {
+      content.push({
+        type: 'heading',
+        attrs: { level: 3 },
+        content: [{ type: 'text', text: trimmed.slice(4) }],
+      })
+    } else if (trimmed.startsWith('## ')) {
+      content.push({
+        type: 'heading',
+        attrs: { level: 2 },
+        content: [{ type: 'text', text: trimmed.slice(3) }],
+      })
+    } else if (trimmed.startsWith('# ')) {
+      content.push({
+        type: 'heading',
+        attrs: { level: 1 },
+        content: [{ type: 'text', text: trimmed.slice(2) }],
+      })
+    } else if (isBulletLine(trimmed)) {
+      bulletBuffer.push(trimmed.replace(/^[-*]\s+/, ''))
+    } else if (trimmed === '') {
+      content.push({ type: 'paragraph' })
+    } else {
+      content.push({
+        type: 'paragraph',
+        content: [{ type: 'text', text: trimmed }],
+      })
+    }
+  }
+
+  if (bulletBuffer.length > 0) {
+    content.push({
+      type: 'bulletList',
+      content: bulletBuffer.map((item) => ({
+        type: 'listItem',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: item }],
+          },
+        ],
+      })),
+    })
+  }
+
+  return {
+    type: 'doc',
+    content: content.length > 0 ? content : [{ type: 'paragraph' }],
+  }
 }

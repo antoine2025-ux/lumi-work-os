@@ -373,7 +373,11 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
           items: { type: 'string' },
           description: 'Optional list of section headings to include in the draft',
         },
-        spaceId: { type: 'string', description: 'Wiki space ID (optional — uses company wiki)' },
+        spaceId: {
+          type: 'string',
+          description:
+            'Optional. Pass "personal" for user\'s personal space; pass a Space ID for a specific space; omit for company wiki.',
+        },
       },
       required: ['title', 'topic'],
     },
