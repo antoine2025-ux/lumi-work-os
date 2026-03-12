@@ -1,10 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
-<<<<<<< HEAD
 import { prisma } from '@/lib/db'
-=======
 import { handleApiError } from '@/lib/api-errors'
->>>>>>> integration/merge-stabilized
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
@@ -16,15 +13,15 @@ import { IntegrationType } from '@prisma/client'
 // POST /api/migrations - Start a new migration
 export async function POST(request: NextRequest) {
   try {
-<<<<<<< HEAD
     console.log('=== MIGRATION API CALLED ===')
 
+    // Get authenticated user with development fallback
     const auth = await getUnifiedAuth(request)
     if (!auth.isAuthenticated) {
       return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
     }
 
-    const body = await request.json()
+    const body = StartMigrationSchema.parse(await request.json())
     const { platform, apiKey, workspaceId, additionalConfig } = body
 
     if (!platform || !apiKey || !workspaceId) {
@@ -43,13 +40,6 @@ export async function POST(request: NextRequest) {
 
     console.log('🔐 Authenticated user:', auth.user.email, auth.isDevelopment ? '(dev mode)' : '(production)')
 
-=======
-    // Get authenticated user with development fallback
-    const auth = await getUnifiedAuth(request)
-    const body = StartMigrationSchema.parse(await request.json())
-    const { platform, apiKey, workspaceId, additionalConfig } = body
-
->>>>>>> integration/merge-stabilized
     // Use authenticated user instead of creating default user
     const userId = auth.user.id
 
