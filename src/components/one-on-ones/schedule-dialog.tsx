@@ -79,7 +79,7 @@ export function ScheduleDialog({ directReports, workspaceSlug }: ScheduleDialogP
       setOpen(false)
       router.push(`/w/${workspaceSlug}/one-on-ones/${series.id}`)
       router.refresh()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setLoading(false)

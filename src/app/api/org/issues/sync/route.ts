@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from '@/lib/unified-auth';
 import { assertAccess } from '@/lib/auth/assertAccess';
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function POST(req: NextRequest) {
   try {
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
       missingTeamCount: missingTeam.length,
       missingRoleCount: missingRole.length,
     });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (error: unknown) {
+    return handleApiError(error, req);
   }
 }

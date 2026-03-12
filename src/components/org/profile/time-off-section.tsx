@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, Plus } from "lucide-react";
 import { format } from "date-fns";
@@ -49,54 +48,50 @@ export function TimeOffSection({
   const usedPct = totalPTO > 0 ? (usedPTO / totalPTO) * 100 : 0;
 
   return (
-    <Card className="border-[#1e293b] bg-[#0B1220]">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2 text-slate-50">
-            <Calendar className="h-5 w-5" />
-            Time Off & Availability
-          </CardTitle>
-          {onRequestTimeOff && (
-            <Button
-              size="sm"
-              onClick={onRequestTimeOff}
-              className="border-slate-600 text-slate-300"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Request Time Off
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="p-4 rounded-lg bg-[#020617] border border-[#1e293b]">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-slate-200">
+    <div className="rounded-lg border border-border/50 bg-card/80 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Time Off & Availability
+        </h3>
+        {onRequestTimeOff && (
+          <Button
+            size="sm"
+            onClick={onRequestTimeOff}
+            className="h-7 text-xs border-slate-600 text-foreground hover:text-foreground"
+          >
+            <Plus className="h-3 w-3 mr-1.5" />
+            Request
+          </Button>
+        )}
+      </div>
+      <div className="space-y-4">
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               PTO Balance
             </span>
-            <span className="text-2xl font-bold text-slate-50">
+            <span className="text-xl font-bold text-foreground">
               {remainingPTO} days
             </span>
           </div>
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>Used: {usedPTO} days</span>
-            <span>Total: {totalPTO} days/year</span>
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+            <span>Used: {usedPTO}</span>
+            <span>Total: {totalPTO}/year</span>
           </div>
-          <div className="mt-2 h-2 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-2 bg-slate-700/80 rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#243B7D] transition-all"
+              className="h-full bg-blue-500 transition-all"
               style={{ width: `${Math.min(usedPct, 100)}%` }}
             />
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {pendingRequests.length > 0 && (
             <>
-              <div className="text-sm font-medium flex items-center gap-2 text-slate-200">
-                <Clock className="h-4 w-4" />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Pending Requests
-              </div>
+              </p>
               <div className="space-y-2">
                 {pendingRequests.map((req) => (
                   <PendingRequestRow
@@ -113,44 +108,36 @@ export function TimeOffSection({
             </>
           )}
 
-          <div className="text-sm font-medium flex items-center gap-2 text-slate-200">
-            <Clock className="h-4 w-4" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Upcoming Absences
-          </div>
+          </p>
 
           {upcomingAbsences.length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {upcomingAbsences.map((absence) => (
-                <div
-                  key={absence.id}
-                  className="p-3 rounded-lg border border-[#1e293b] bg-[#020617]"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <div className="font-medium text-sm text-slate-200 mb-1">
-                        {getTypeDisplay(absence.type)}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {format(new Date(absence.startDate), "MMM d")} -{" "}
-                        {format(new Date(absence.endDate), "MMM d, yyyy")}
-                        <span className="ml-2">
-                          ({absence.daysCount}{" "}
-                          {absence.daysCount === 1 ? "day" : "days"})
-                        </span>
-                      </div>
-                    </div>
+                <div key={absence.id} className="py-1.5">
+                  <div className="font-medium text-sm text-foreground">
+                    {getTypeDisplay(absence.type)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {format(new Date(absence.startDate), "MMM d")} -{" "}
+                    {format(new Date(absence.endDate), "MMM d, yyyy")}
+                    <span className="ml-1.5">
+                      ({absence.daysCount}{" "}
+                      {absence.daysCount === 1 ? "day" : "days"})
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-6 text-sm text-slate-500">
-              <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>No upcoming time off scheduled</p>
+            <div className="text-center py-4 text-xs text-muted-foreground">
+              <Calendar className="h-6 w-6 mx-auto mb-1.5 opacity-50" />
+              <p>No upcoming time off</p>
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

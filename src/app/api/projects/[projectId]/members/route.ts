@@ -52,7 +52,7 @@ export async function GET(
     return NextResponse.json(
       members.map((m) => ({ user: m.user }))
     )
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

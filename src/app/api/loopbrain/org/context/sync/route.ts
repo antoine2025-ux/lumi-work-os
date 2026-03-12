@@ -74,7 +74,6 @@ export async function POST(request: NextRequest) {
 
     // Track sync performance
     const syncStartTime = Date.now();
-    console.log("🔄 Starting parallel context sync for all entity types...");
 
     /**
      * Steps 2-6: Run all context syncs in parallel
@@ -105,17 +104,8 @@ export async function POST(request: NextRequest) {
     const personItems = personResult.status === 'fulfilled' ? personResult.value : [];
     const roleItems = roleResult.status === 'fulfilled' ? roleResult.value : [];
 
-    // Log results and any failures
     const syncEndTime = Date.now();
     const syncDuration = syncEndTime - syncStartTime;
-    
-    console.log(`✅ Org context: ${orgItem ? 'synced' : 'FAILED'}`);
-    console.log(`✅ Department contexts synced: ${departmentItems.length}`);
-    console.log(`✅ Team contexts synced: ${teamItems.length}`);
-    console.log(`✅ Person contexts synced: ${personItems.length}`);
-    console.log(`✅ Role contexts synced: ${roleItems.length}`);
-
-    // Log any failures for debugging
     const failures: string[] = [];
     if (orgResult.status === 'rejected') failures.push(`Org: ${orgResult.reason}`);
     if (departmentResult.status === 'rejected') failures.push(`Departments: ${departmentResult.reason}`);
@@ -123,12 +113,6 @@ export async function POST(request: NextRequest) {
     if (personResult.status === 'rejected') failures.push(`Persons: ${personResult.reason}`);
     if (roleResult.status === 'rejected') failures.push(`Roles: ${roleResult.reason}`);
 
-    if (failures.length > 0) {
-      console.warn("⚠️ Some context syncs failed:", failures);
-    }
-
-    console.log(`🎉 Context sync completed in ${syncDuration}ms`);
-    
     // If org context failed, that's critical - throw error
     if (!orgItem) {
       throw new Error("Failed to sync org context (critical)");
@@ -203,7 +187,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

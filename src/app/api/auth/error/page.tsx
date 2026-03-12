@@ -69,12 +69,6 @@ function AuthErrorContent() {
               onClick={() => {
                 const errorCode = searchParams.get("error")
                 const errorDescription = searchParams.get("error_description")
-                console.log("Auth error details:", {
-                  error: errorCode,
-                  errorDescription: errorDescription,
-                  fullUrl: window.location.href,
-                  searchParams: Object.fromEntries(new URLSearchParams(window.location.search)),
-                })
                 alert(`Error Code: ${errorCode || "Unknown"}\n\nCheck the browser console (F12) for full details.`)
               }}
             >

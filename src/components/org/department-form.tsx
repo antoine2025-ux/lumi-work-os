@@ -98,7 +98,7 @@ export function DepartmentForm({
         onSuccess()
         onClose()
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsLoading(false)
@@ -132,7 +132,7 @@ export function DepartmentForm({
                 <span className="font-medium">{createdDepartmentName}</span>
               </p>
               {description && description.trim() && (
-                <p className="text-sm mt-2 text-gray-500">
+                <p className="text-sm mt-2 text-muted-foreground">
                   {description}
                 </p>
               )}

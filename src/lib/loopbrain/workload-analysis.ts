@@ -293,7 +293,7 @@ export async function buildWorkloadAnalysis(
     });
 
     return snapshot;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[WorkloadAnalysis] Failed to build snapshot", {
       workspaceId,
       personId,
@@ -1030,7 +1030,7 @@ export async function buildTeamWorkloadSnapshot(
         ) {
           membersOverloaded++;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn("[WorkloadAnalysis] Failed to build member snapshot", {
           teamId,
           personId: position.userId,
@@ -1073,7 +1073,7 @@ export async function buildTeamWorkloadSnapshot(
     });
 
     return snapshot;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[WorkloadAnalysis] Failed to build team snapshot", {
       workspaceId,
       teamId,

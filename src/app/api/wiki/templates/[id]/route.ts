@@ -78,7 +78,7 @@ export async function DELETE(
     })
 
     return new NextResponse(null, { status: 204 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

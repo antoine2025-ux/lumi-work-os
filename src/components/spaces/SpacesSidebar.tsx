@@ -14,6 +14,7 @@ import {
   CheckSquare,
   Star,
   MessageSquare,
+  FolderOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -51,13 +52,19 @@ export function SpacesSidebar({ currentSpaceId }: SpacesSidebarProps) {
   })
 
   const spaces = data?.spaces ?? []
-  const teamSpaces = spaces.filter((s) => !s.isPersonal)
+  const teamSpaces = spaces.filter(
+    (s) =>
+      !s.isPersonal &&
+      (s as { type?: string }).type !== 'WIKI' &&
+      (s as { slug?: string | null }).slug !== 'company-wiki'
+  )
 
   const isPersonalActive = pathname?.endsWith("/spaces/home") ?? false
 
   const baseHref = workspaceSlug ? `/w/${workspaceSlug}` : ""
 
   const isMyTasksActive = pathname?.includes("/my-tasks") ?? false
+  const isProjectsActive = pathname?.includes("/projects") ?? false
   const isAskActive = pathname?.includes("/ask") ?? false
 
   return (
@@ -118,7 +125,7 @@ export function SpacesSidebar({ currentSpaceId }: SpacesSidebarProps) {
                       className={cn(
                         "flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm text-left transition-colors",
                         isActive
-                          ? "bg-muted border-l-2 border-amber-500 font-medium -ml-0.5 pl-2.5"
+                          ? "bg-muted border-l-2 border-primary font-medium -ml-0.5 pl-2.5"
                           : "hover:bg-muted/50"
                       )}
                     >
@@ -146,7 +153,7 @@ export function SpacesSidebar({ currentSpaceId }: SpacesSidebarProps) {
               </h3>
               <div className="space-y-1">
                 <Link
-                  href="/wiki/team-workspace"
+                  href="/wiki/home"
                   className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm hover:bg-muted/50 transition-colors"
                 >
                   <Globe className="w-4 h-4" />
@@ -177,6 +184,16 @@ export function SpacesSidebar({ currentSpaceId }: SpacesSidebarProps) {
                 >
                   <CheckSquare className="w-4 h-4" />
                   To-do List
+                </Link>
+                <Link
+                  href={`${baseHref}/projects`}
+                  className={cn(
+                    "flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm transition-colors",
+                    isProjectsActive ? "bg-muted font-medium" : "hover:bg-muted/50"
+                  )}
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  Projects
                 </Link>
                 <Link
                   href="#"

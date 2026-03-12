@@ -14,12 +14,12 @@ export async function getActiveOrgContext(request?: NextRequest) {
     const userId = (session?.user as { id?: string } | null | undefined)?.id;
     const activeOrgId = (session as { activeOrgId?: string } | null | undefined)?.activeOrgId;
 
-    if (!userId) return { userId: null, workspaceId: null, orgName: null, role: "VIEWER" as const };
+    if (!userId) return { userId: null, workspaceId: null, workspaceName: null, role: "VIEWER" as const };
 
     // Ensure prisma is initialized
     if (!prisma) {
       console.error("[getActiveOrgContext] Prisma client is undefined");
-      return { userId, workspaceId: null, orgName: null, role: "VIEWER" as const };
+      return { userId, workspaceId: null, workspaceName: null, role: "VIEWER" as const };
     }
 
     // Try to get org from OrgMembership first (new system)
@@ -41,7 +41,7 @@ export async function getActiveOrgContext(request?: NextRequest) {
           return {
             userId,
             workspaceId: membership.org.id,
-            orgName: membership.org.name,
+            workspaceName: membership.org.name,
             role: membership.role as string,
           };
         }
@@ -73,8 +73,8 @@ export async function getActiveOrgContext(request?: NextRequest) {
         if (membership?.workspace) {
           return {
             userId,
-            orgId: membership.workspace.id,
-            orgName: membership.workspace.name || "Unnamed Organization",
+            workspaceId: membership.workspace.id,
+            workspaceName: membership.workspace.name || "Unnamed Organization",
             role: "VIEWER" as const, // Default role for workspace-based access
           };
         }
@@ -92,8 +92,8 @@ export async function getActiveOrgContext(request?: NextRequest) {
         if (workspace) {
           return {
             userId,
-            orgId: workspace.id,
-            orgName: workspace.name || "Unnamed Organization",
+            workspaceId: workspace.id,
+            workspaceName: workspace.name || "Unnamed Organization",
             role: "VIEWER" as const, // Default role for workspace-based access
           };
         }
@@ -104,10 +104,10 @@ export async function getActiveOrgContext(request?: NextRequest) {
     }
 
     // No org found in either system
-    return { userId, orgId: null, orgName: null, role: "VIEWER" as const };
-  } catch (error) {
+    return { userId, workspaceId: null, workspaceName: null, role: "VIEWER" as const };
+  } catch (error: unknown) {
     console.error("[getActiveOrgContext] Error:", error);
-    return { userId: null, orgId: null, orgName: null, role: "VIEWER" as const };
+    return { userId: null, workspaceId: null, workspaceName: null, role: "VIEWER" as const };
   }
 }
 

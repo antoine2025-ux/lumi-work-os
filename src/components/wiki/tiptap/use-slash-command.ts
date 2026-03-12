@@ -52,7 +52,7 @@ export function useSlashCommand(editor: Editor | null) {
         top: coords.bottom + window.scrollY + 4, // Small offset below cursor
         left: coords.left + window.scrollX,
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Failed to get cursor position:', error)
       return null
     }

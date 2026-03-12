@@ -98,7 +98,7 @@ export async function GET(
       utilizationPct,
       projects,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

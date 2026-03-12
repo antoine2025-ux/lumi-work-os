@@ -160,7 +160,7 @@ export async function POST(
       reviewsCreated: reviewRecords.length,
       participantCount: participantIds.length,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

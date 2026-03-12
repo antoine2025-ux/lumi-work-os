@@ -58,7 +58,7 @@ export function TaskTodosSection({ taskId, className }: TaskTodosSectionProps) {
       if (!response.ok) throw new Error('Failed to update todo')
       
       queryClient.invalidateQueries({ queryKey: ['todos', 'task', taskId] })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error toggling todo:', error)
     }
   }, [queryClient, taskId])

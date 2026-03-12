@@ -88,7 +88,7 @@ export async function GET(request: Request) {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(
       "[dev/org-loopbrain/relations-debug] Failed to load Org relations debug",
       error

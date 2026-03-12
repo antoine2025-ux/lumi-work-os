@@ -6,6 +6,8 @@ import { selectEngineForOrg } from "@/server/loopbrain/selectEngine";
 import { getUnifiedAuth } from '@/lib/unified-auth';
 import { assertAccess } from '@/lib/auth/assertAccess';
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
+import { handleApiError } from '@/lib/api-errors';
+import { PreviewIssuesSchema } from '@/lib/validations/org';
 
 function hash(input: unknown) {
   return crypto.createHash("sha256").update(JSON.stringify(input)).digest("hex");
@@ -20,9 +22,8 @@ export async function POST(req: NextRequest) {
 
     const workspaceId = auth.workspaceId;
 
-    const body = (await req.json()) as { personIds: string[] };
-    const ids = (body.personIds || []).filter(Boolean);
-    if (!ids.length) return NextResponse.json({ ok: false, error: "personIds required" }, { status: 400 });
+    const body = PreviewIssuesSchema.parse(await req.json());
+    const ids = body.personIds;
 
     const positionQuery = {
       isActive: true,
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, preview, suggestionRunId: suggestionRun.id, engineId });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (error: unknown) {
+    return handleApiError(error, req);
   }
 }

@@ -61,6 +61,26 @@ export const READ_TOOLS: LoopbrainToolDef[] = [
     requiredRole: 'VIEWER',
   },
   {
+    name: 'readWikiPage',
+    description:
+      'Read the full content of a wiki page by ID or slug. Returns title, plaintext content, tags, author, and last-updated date. Use after searchWiki when you need the actual page content (e.g., "what does the handbook say about PTO?").',
+    parameters: {
+      type: 'object',
+      properties: {
+        pageId: {
+          type: 'string',
+          description: 'Wiki page ID (from searchWiki results) — use this OR slug',
+        },
+        slug: {
+          type: 'string',
+          description: 'Wiki page slug (e.g., "company-handbook") — use this OR pageId',
+        },
+      },
+    },
+    category: 'read',
+    requiredRole: 'VIEWER',
+  },
+  {
     name: 'queryOrg',
     description:
       'Query organizational data — people, teams, departments, reporting chains, roles. Use when the user asks about who works on what, team structure, or organizational questions.',
@@ -176,6 +196,69 @@ export const READ_TOOLS: LoopbrainToolDef[] = [
     category: 'read',
     requiredRole: 'MEMBER',
   },
+  {
+    name: 'searchDriveFiles',
+    description:
+      'Search Google Drive for files by name or content. Use when the user asks to search Drive, find meeting notes, docs, or files in Google Drive. Returns file IDs, names, links, types, and modification dates.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search query (e.g., "meeting notes gemini" or "budget Q4")',
+        },
+        mimeType: { type: 'string', description: 'Filter by MIME type (optional)' },
+        folderId: { type: 'string', description: 'Search within folder (optional)' },
+        maxResults: { type: 'number', description: 'Max results 1-50 (default 10)' },
+      },
+      required: ['query'],
+    },
+    category: 'read',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'readDriveDocument',
+    description:
+      'Read the text content of a Google Drive file (Docs, Sheets, meeting notes). Use after searchDriveFiles when you have a file ID.',
+    parameters: {
+      type: 'object',
+      properties: {
+        fileId: {
+          type: 'string',
+          description: 'Google Drive file ID from searchDriveFiles',
+        },
+        format: {
+          type: 'string',
+          enum: ['text', 'markdown'],
+          description: 'Output format (default text)',
+        },
+      },
+      required: ['fileId'],
+    },
+    category: 'read',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'listTasksByAssignee',
+    description:
+      'List tasks assigned to a specific person, optionally filtered by project and status. Returns task IDs, titles, statuses, priorities, due dates, and project info.',
+    parameters: {
+      type: 'object',
+      properties: {
+        personId: { type: 'string', description: 'The person/user ID whose tasks to list' },
+        projectId: { type: 'string', description: 'Optional project ID to scope the query' },
+        status: {
+          type: 'string',
+          enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'],
+          description: 'Optional status filter',
+        },
+        limit: { type: 'number', description: 'Max results (default 50)' },
+      },
+      required: ['personId'],
+    },
+    category: 'read',
+    requiredRole: 'VIEWER',
+  },
 ]
 
 // WRITE TOOLS — confirmation gate intercepts these
@@ -273,6 +356,35 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
     requiredRole: 'MEMBER',
   },
   {
+    name: 'draftWikiPage',
+    description:
+      'Create a new wiki page and draft its content using AI. The page is created immediately and the user is redirected to it. Content streams into the editor in real-time via the collaboration server. Use this when the user asks you to write, draft, or create a page about a topic — it produces a much richer result than createWikiPage because the AI generates full structured content.',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Page title' },
+        topic: {
+          type: 'string',
+          description:
+            'What the page should be about — this becomes the AI drafting prompt. Be specific and include context from the conversation.',
+        },
+        outline: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional list of section headings to include in the draft',
+        },
+        spaceId: {
+          type: 'string',
+          description:
+            'Optional. Pass "personal" for user\'s personal space; pass a Space ID for a specific space; omit for company wiki.',
+        },
+      },
+      required: ['title', 'topic'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
     name: 'createTimeOff',
     description: 'Create a time-off / leave request for the current user.',
     parameters: {
@@ -338,6 +450,45 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
     category: 'write',
     requiredRole: 'ADMIN',
   },
+  {
+    name: 'bulkReassignTasks',
+    description:
+      'Reassign multiple tasks to a new assignee. Accepts either an array of task IDs or an array of task objects (from listTasksByAssignee). Use after listTasksByAssignee to get the tasks.',
+    parameters: {
+      type: 'object',
+      properties: {
+        taskIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of task IDs to reassign',
+        },
+        tasks: {
+          type: 'array',
+          items: { type: 'object', properties: { id: { type: 'string' } } },
+          description: 'Array of task objects from listTasksByAssignee (IDs extracted automatically)',
+        },
+        newAssigneeId: { type: 'string', description: 'The person/user ID to reassign tasks to' },
+      },
+      required: ['newAssigneeId'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'removeProjectMember',
+    description:
+      'Remove a person from a project. Does not delete their tasks — reassign tasks first using bulkReassignTasks.',
+    parameters: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'The project ID' },
+        personId: { type: 'string', description: 'The person/user ID to remove' },
+      },
+      required: ['projectId', 'personId'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
 ]
 
 // All tools combined
@@ -382,6 +533,17 @@ export function getOpenAIToolsForRole(role: 'VIEWER' | 'MEMBER' | 'ADMIN' | 'OWN
       description: tool.description,
       parameters: tool.parameters,
     },
+  }))
+}
+
+// Get provider-agnostic tool definitions filtered by role
+export function getToolDefinitionsForRole(
+  role: 'VIEWER' | 'MEMBER' | 'ADMIN' | 'OWNER'
+): import('@/lib/ai/providers').ToolDefinition[] {
+  return getToolsForRole(role).map((t) => ({
+    name: t.name,
+    description: t.description,
+    parameters: t.parameters,
   }))
 }
 

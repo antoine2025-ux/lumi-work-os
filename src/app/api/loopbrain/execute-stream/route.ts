@@ -14,6 +14,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { loadSession } from '@/lib/loopbrain/session-store'
 import { executePlanWithProgress, type ExecutionProgressEvent } from '@/lib/loopbrain/agent-loop'
+import { LoopbrainExecuteStreamSchema } from '@/lib/validations/loopbrain'
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,23 +30,8 @@ export async function POST(request: NextRequest) {
     const workspaceId = auth.workspaceId
     const userId = auth.user.userId
 
-    let body: { conversationId?: string }
-    try {
-      body = await request.json()
-    } catch {
-      return new Response(
-        JSON.stringify({ error: 'Invalid JSON in request body' }),
-        { status: 400 }
-      )
-    }
-
+    const body = LoopbrainExecuteStreamSchema.parse(await request.json())
     const conversationId = body.conversationId
-    if (!conversationId || typeof conversationId !== 'string') {
-      return new Response(
-        JSON.stringify({ error: 'conversationId is required' }),
-        { status: 400 }
-      )
-    }
 
     const session = await loadSession(workspaceId, userId, conversationId)
     const pendingPlan = session.pendingPlan
@@ -101,7 +87,7 @@ export async function POST(request: NextRequest) {
             },
             send
           )
-        } catch (err) {
+        } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : 'Execution failed'
           send({ type: 'error', error: msg })
         } finally {
@@ -117,7 +103,7 @@ export async function POST(request: NextRequest) {
         Connection: 'keep-alive',
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[execute-stream] Error:', error)
     return new Response(
       JSON.stringify({

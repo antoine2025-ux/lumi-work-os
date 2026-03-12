@@ -65,11 +65,6 @@ export function DragDropProvider({
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event
     const task = active.data.current?.task
-    console.log('[DND] start', {
-      taskId: active.id,
-      fromStatus: task?.status,
-      taskData: task
-    })
     if (task) {
       // Ensure dependsOn is always an array
       const normalizedTask = {
@@ -82,17 +77,9 @@ export function DragDropProvider({
     }
   }, [])
 
-  const handleDragOver = useCallback((event: DragOverEvent) => {
+  const handleDragOver = useCallback((_event: DragOverEvent) => {
     // Handle drag over events for visual feedback
     // This could be used to show drop zones or highlight areas
-    const { active, over } = event
-    const task = active.data.current?.task
-    console.log('[DND] over', {
-      taskId: active.id,
-      fromStatus: task?.status,
-      overId: over?.id,
-      overData: over?.data.current
-    })
   }, [])
 
   // Helper function to map column ID to status
@@ -109,19 +96,10 @@ export function DragDropProvider({
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event
-    
-    console.log('[DND] end', {
-      taskId: active.id,
-      fromStatus: active.data.current?.task?.status,
-      overId: over?.id,
-      activeData: active.data.current,
-      overData: over?.data.current
-    })
-    
+
     setActiveTask(null)
 
     if (!over) {
-      console.log('[DND] No drop target')
       return
     }
 
@@ -130,33 +108,26 @@ export function DragDropProvider({
     const overType = over.data.current?.type
 
     if (!activeTask) {
-      console.log('[DND] No active task data')
       return
     }
 
     // Try to get status from column data first, then fall back to column ID mapping
     let newStatus: string | null = null
-    
+
     if (overColumn && overType === 'column') {
       // Column data has status directly
       newStatus = overColumn.status
-      console.log('[DND] Got status from column data', { newStatus })
     } else {
       // Try to extract status from column ID
       newStatus = statusFromColumnId(String(over.id))
-      console.log('[DND] Computed nextStatus from column ID', { columnId: over.id, nextStatus: newStatus })
     }
 
     if (!newStatus) {
-      console.log('[DND] Could not determine new status', { overId: over.id, overData: over.data.current })
       return
     }
 
     if (activeTask.status !== newStatus) {
-      console.log('[DND] Moving task', { from: activeTask.status, to: newStatus })
       await onTaskMove(activeTask.id, newStatus)
-    } else {
-      console.log('[DND] Task already in target status, skipping move')
     }
   }, [onTaskMove])
 

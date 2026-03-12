@@ -120,7 +120,7 @@ export async function backfillWorkspaceEmbeddings(
               failed
             })
           }
-        } catch (error) {
+        } catch (error: unknown) {
           failed++
           processed++
           const errorMessage = error instanceof Error ? error.message : 'Unknown error'

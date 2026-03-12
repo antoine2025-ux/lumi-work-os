@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     const results = await dedupAllImportTables(workspaceId)
     return NextResponse.json({ ok: true, results })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

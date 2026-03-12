@@ -2,10 +2,10 @@
  * GET /api/org/people/[personId]/role-card
  *
  * Aggregated role card view for a person:
- * - Role card template (attached to their OrgPosition)
+ * - Role card template (attached to their OrgPosition) — incl. roleInOrg, focusArea, managerNotes
+ * - Shared JobDescription template (linked via OrgPosition.jobDescriptionId)
  * - Self-declared skills (PersonSkill → Skill)
- * - Current project allocations (active)
- * - Open task counts by status
+ * - Current project allocations + open task counts (self / manager / admin only)
  *
  * personId may be a User.id or OrgPosition.id — both are resolved.
  *
@@ -48,6 +48,19 @@ export async function GET(
       include: {
         user: { select: { id: true, name: true, email: true, image: true } },
         team: { select: { id: true, name: true } },
+        jobDescription: {
+          select: {
+            id: true,
+            title: true,
+            summary: true,
+            level: true,
+            jobFamily: true,
+            responsibilities: true,
+            requiredSkills: true,
+            preferredSkills: true,
+            keyMetrics: true,
+          },
+        },
         roleCard: {
           include: {
             skillRefs: {
@@ -66,7 +79,36 @@ export async function GET(
 
     const resolvedUserId = position.userId;
 
-    // Fetch skills and work in parallel
+    // ── currentWork visibility gate ─────────────────────────────────────────
+    const isSelf = userId === resolvedUserId;
+    const isAdmin = auth.user.roles.some((r) => ["ADMIN", "OWNER"].includes(r));
+
+    let canSeeCurrentWork = isSelf || isAdmin;
+
+    if (!canSeeCurrentWork) {
+      // Check PersonManagerLink (canonical)
+      const managerLink = await prisma.personManagerLink.findFirst({
+        where: {
+          workspaceId,
+          personId: resolvedUserId,
+          managerId: userId,
+          OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
+        },
+      });
+
+      if (managerLink) {
+        canSeeCurrentWork = true;
+      } else if (position.parentId) {
+        // Fallback: OrgPosition.parentId hierarchy — position already loaded
+        const parentPosition = await prisma.orgPosition.findFirst({
+          where: { id: position.parentId, userId, workspaceId },
+        });
+        if (parentPosition) canSeeCurrentWork = true;
+      }
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
+    // Fetch skills always; fetch work data only when permitted
     const [skills, allocations, taskGroups] = await Promise.all([
       prisma.personSkill.findMany({
         where: { workspaceId, personId: resolvedUserId },
@@ -75,27 +117,31 @@ export async function GET(
         },
         orderBy: [{ proficiency: "desc" }, { skill: { name: "asc" } }],
       }),
-      prisma.projectAllocation.findMany({
-        where: {
-          workspaceId,
-          personId: resolvedUserId,
-          OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
-        },
-        include: {
-          project: { select: { id: true, name: true } },
-        },
-        take: 10,
-        orderBy: { startDate: "desc" },
-      }),
-      prisma.task.groupBy({
-        by: ["status"],
-        where: {
-          workspaceId,
-          assigneeId: resolvedUserId,
-          status: { in: ["TODO", "IN_PROGRESS"] },
-        },
-        _count: { _all: true },
-      }),
+      canSeeCurrentWork
+        ? prisma.projectAllocation.findMany({
+            where: {
+              workspaceId,
+              personId: resolvedUserId,
+              OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
+            },
+            include: {
+              project: { select: { id: true, name: true } },
+            },
+            take: 10,
+            orderBy: { startDate: "desc" },
+          })
+        : Promise.resolve([]),
+      canSeeCurrentWork
+        ? prisma.task.groupBy({
+            by: ["status"],
+            where: {
+              workspaceId,
+              assigneeId: resolvedUserId,
+              status: { in: ["TODO", "IN_PROGRESS"] },
+            },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
     ]);
 
     const taskCounts: Record<string, number> = {};
@@ -118,6 +164,7 @@ export async function GET(
         requiredSkills: position.requiredSkills,
         preferredSkills: position.preferredSkills,
       },
+      jobDescription: position.jobDescription ?? null,
       roleCard: position.roleCard
         ? {
             id: position.roleCard.id,
@@ -129,6 +176,9 @@ export async function GET(
             requiredSkills: position.roleCard.requiredSkills,
             preferredSkills: position.roleCard.preferredSkills,
             keyMetrics: position.roleCard.keyMetrics,
+            roleInOrg: position.roleCard.roleInOrg,
+            focusArea: position.roleCard.focusArea,
+            managerNotes: position.roleCard.managerNotes,
             skillRefs: position.roleCard.skillRefs.map((sr) => ({
               id: sr.id,
               type: sr.type,
@@ -146,22 +196,24 @@ export async function GET(
         source: ps.source,
         verifiedAt: ps.verifiedAt?.toISOString() ?? null,
       })),
-      currentWork: {
-        projects: allocations.map((a) => ({
-          allocationId: a.id,
-          projectId: a.project.id,
-          projectName: a.project.name,
-          fraction: a.fraction,
-          startDate: a.startDate.toISOString(),
-          endDate: a.endDate?.toISOString() ?? null,
-        })),
-        taskCounts: {
-          todo: taskCounts["TODO"] ?? 0,
-          inProgress: taskCounts["IN_PROGRESS"] ?? 0,
-        },
-      },
+      currentWork: canSeeCurrentWork
+        ? {
+            projects: allocations.map((a) => ({
+              allocationId: a.id,
+              projectId: a.project.id,
+              projectName: a.project.name,
+              fraction: a.fraction,
+              startDate: a.startDate.toISOString(),
+              endDate: a.endDate?.toISOString() ?? null,
+            })),
+            taskCounts: {
+              todo: taskCounts["TODO"] ?? 0,
+              inProgress: taskCounts["IN_PROGRESS"] ?? 0,
+            },
+          }
+        : null,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

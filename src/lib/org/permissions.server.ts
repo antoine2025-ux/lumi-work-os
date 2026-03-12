@@ -25,7 +25,7 @@ export type OrgPermissionContext = {
  *
  * IMPORTANT:
  * - This uses your auth helper + Prisma membership.
- * - Uses `Workspace` and `WorkspaceMember` models (workspaceId = orgId).
+ * - Uses `Workspace` and `WorkspaceMember` models.
  * - Gets current workspace from `getCurrentWorkspaceId()` (from unified auth).
  * 
  * PERFORMANCE NOTE:
@@ -43,7 +43,7 @@ export const getOrgPermissionContext = cache(async (
     let userId: string | null = null;
     try {
       userId = await getCurrentUserId(request);
-    } catch (error) {
+    } catch (error: unknown) {
       // Silently handle NoWorkspaceError - it's expected when user has no workspace
       if (error instanceof NoWorkspaceError) {
         return null;
@@ -82,7 +82,7 @@ export const getOrgPermissionContext = cache(async (
       role: normalizedRole,
       customRole,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     // Gracefully handle database errors or other failures
     // Log the error but don't crash - return null to show no-access UI
     console.error("[getOrgPermissionContext] Error resolving permission context:", error);

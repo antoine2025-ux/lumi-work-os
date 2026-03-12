@@ -2,29 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const CreateWorkflowSchema = z.object({
-  name: z.string().min(1).max(200),
-  trigger: z.enum([
-    'GOAL_PROGRESS_STALLED',
-    'GOAL_AT_RISK',
-    'PROJECT_COMPLETION',
-    'DEADLINE_APPROACHING',
-    'STAKEHOLDER_UPDATE_REQUIRED',
-  ]),
-  conditions: z.record(z.string(), z.unknown()).default({}),
-  actions: z.array(z.object({
-    type: z.enum(['notify_stakeholders', 'escalate_goal', 'adjust_timeline', 'reallocate_resources', 'update_status']),
-    params: z.record(z.string(), z.unknown()),
-  })).min(1),
-})
+import { CreateWorkflowSchema } from '@/lib/validations/goals'
 
 // ============================================================================
 // GET /api/goals/workflows - List workflow rules
@@ -49,7 +29,7 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json(rules)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -86,7 +66,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(rule, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

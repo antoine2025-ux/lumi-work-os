@@ -94,7 +94,7 @@ export default async function AdminSettingsPage({ params }: PageProps) {
       />
       <div className="px-10 pb-10">
         <OrgSettingsClient
-          orgId={context.workspaceId}
+          workspaceId={context.workspaceId}
           role={context.role}
           canSeeMembers={canSeeMembers}
           canManageInvites={canManageInvites}

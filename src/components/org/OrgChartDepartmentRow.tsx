@@ -85,9 +85,9 @@ export function OrgChartDepartmentRow({
     <Link
       href={structureHref}
       className={cn(
-        "group block rounded-3xl bg-slate-900/65 shadow-[0_20px_60px_rgba(0,0,0,0.60)]",
+        "group block rounded-3xl bg-card/65 shadow-[0_20px_60px_rgba(0,0,0,0.60)]",
         "border border-white/5 hover:border-white/12 transition-colors",
-        "hover:bg-slate-900/68 hover:-translate-y-0.5",
+        "hover:bg-card/68 hover:-translate-y-0.5",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 focus-visible:ring-offset-0"
       )}
     >
@@ -103,7 +103,7 @@ export function OrgChartDepartmentRow({
               "--dept-to": gradientVars.to,
             } as React.CSSProperties}
           >
-            <Building2 className="h-8 w-8 text-white" />
+            <Building2 className="h-8 w-8 text-foreground" />
           </div>
 
           {/* Header block: name + lead info */}
@@ -115,7 +115,7 @@ export function OrgChartDepartmentRow({
             {lead ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Avatar className="h-7 w-7 text-xs">
-                  <AvatarFallback className="bg-slate-700/80 text-slate-300/80">
+                  <AvatarFallback className="bg-slate-700/80 text-muted-foreground/80">
                     {lead.initials}
                   </AvatarFallback>
                   {lead.avatarUrl && (

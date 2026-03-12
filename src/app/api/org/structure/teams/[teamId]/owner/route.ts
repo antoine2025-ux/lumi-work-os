@@ -11,7 +11,6 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
-import { optionalString } from "@/server/org/validate";
 import { setTeamOwner } from "@/server/org/structure/write";
 import { logOrgAudit } from "@/lib/audit/org-audit";
 import { computeChanges } from "@/lib/audit/diff";
@@ -24,6 +23,7 @@ import {
 } from "@/lib/org/mutations/types";
 import { computeIssueResolution } from "@/lib/org/mutations/utils";
 import { handleApiError } from "@/lib/api-errors"
+import { UpdateTeamOwnerSchema } from "@/lib/validations/org"
 
 export async function PUT(request: NextRequest, ctx: { params: Promise<{ teamId: string }> }) {
   try {
@@ -59,8 +59,8 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ teamId:
 
     // Step 4: Parse request
     const { teamId } = await ctx.params;
-    const body = await request.json();
-    const ownerPersonId = optionalString(body.ownerPersonId);
+    const body = UpdateTeamOwnerSchema.parse(await request.json());
+    const ownerPersonId = body.ownerPersonId;
 
     // Step 5: Compute issues BEFORE mutation + fetch before for audit
     const [issuesBefore, beforeTeam] = await Promise.all([
@@ -137,7 +137,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ teamId:
     };
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -67,7 +67,7 @@ export function useCapacityPeople() {
         overloadedCount: overloaded,
         underutilizedCount: underutilized,
       });
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setData(null);
     } finally {

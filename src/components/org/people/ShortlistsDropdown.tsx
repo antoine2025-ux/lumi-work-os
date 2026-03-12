@@ -44,12 +44,12 @@ export function ShortlistsDropdown({
           "rounded-full",
           "px-4 py-1.5",
           "text-sm",
-          "bg-slate-900/40",
+          "bg-card/40",
           "text-foreground/60",
-          "hover:bg-slate-900/60",
+          "hover:bg-card/60",
           "hover:text-foreground/80",
           "transition-colors",
-          "border border-slate-800/70",
+          "border border-border/70",
           activeShortlist && "border-primary/30 bg-primary/10 text-primary"
         )}
       >
@@ -64,17 +64,17 @@ export function ShortlistsDropdown({
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute left-0 top-full mt-2 z-50 w-64 rounded-lg border border-slate-800/70 bg-slate-900 shadow-lg overflow-hidden">
+          <div className="absolute left-0 top-full mt-2 z-50 w-64 rounded-lg border border-border/70 bg-card shadow-lg overflow-hidden">
             <div className="max-h-96 overflow-y-auto">
               {activeShortlist && (
-                <div className="p-2 border-b border-slate-800/70">
+                <div className="p-2 border-b border-border/70">
                   <button
                     type="button"
                     onClick={() => {
                       onClearShortlist();
                       setIsOpen(false);
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50 rounded-lg transition-colors"
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-lg transition-colors"
                   >
                     <span>Clear filter</span>
                     <X className="h-4 w-4" />
@@ -85,8 +85,8 @@ export function ShortlistsDropdown({
                 <div
                   key={shortlist.id}
                   className={cn(
-                    "flex items-center justify-between px-4 py-2 hover:bg-slate-800/50 transition-colors",
-                    activeShortlistId === shortlist.id && "bg-slate-800/30"
+                    "flex items-center justify-between px-4 py-2 hover:bg-muted/50 transition-colors",
+                    activeShortlistId === shortlist.id && "bg-muted/30"
                   )}
                 >
                   <button
@@ -95,7 +95,7 @@ export function ShortlistsDropdown({
                       onSelectShortlist(shortlist.id);
                       setIsOpen(false);
                     }}
-                    className="flex-1 text-left text-sm text-slate-200"
+                    className="flex-1 text-left text-sm text-foreground"
                   >
                     {shortlist.name}
                   </button>
@@ -105,7 +105,7 @@ export function ShortlistsDropdown({
                       e.stopPropagation();
                       onDeleteShortlist(shortlist.id);
                     }}
-                    className="p-1 text-slate-400 hover:text-red-400 transition-colors"
+                    className="p-1 text-muted-foreground hover:text-red-400 transition-colors"
                     aria-label="Delete shortlist"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

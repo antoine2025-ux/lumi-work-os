@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       timezone: updatedUser.timezone,
       updated: true
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       timezone: user?.timezone || null 
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

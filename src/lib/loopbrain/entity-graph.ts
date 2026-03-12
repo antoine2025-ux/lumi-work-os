@@ -355,7 +355,7 @@ export async function buildEntityGraphSnapshot(
     });
 
     return snapshot;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[EntityGraph] Failed to build snapshot", {
       workspaceId,
       error,

@@ -7,6 +7,7 @@ import OpenAI from 'openai'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import { searchWikiKnowledge, formatWikiKnowledgeForAI } from '@/lib/wiki-knowledge'
 import { handleApiError } from '@/lib/api-errors'
+import { AssistantGenerateDraftSchema } from '@/lib/validations/assistant'
 
 // Lazy initialization - only create client when needed
 function getOpenAIClient(): OpenAI | null {
@@ -148,11 +149,8 @@ export async function POST(request: NextRequest) {
     })
     setWorkspaceContext(auth.workspaceId)
 
-    const { sessionId } = await request.json()
-
-    if (!sessionId) {
-      return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
-    }
+    const body = AssistantGenerateDraftSchema.parse(await request.json())
+    const { sessionId, prompt } = body
 
     // Get the session with messages
     const session = await prisma.chatSession.findUnique({
@@ -181,7 +179,7 @@ export async function POST(request: NextRequest) {
       const conversationText = conversationHistory.map(msg => msg.content).join(' ')
       const wikiResults = await searchWikiKnowledge(conversationText, session.workspaceId, 5)
       wikiContext = formatWikiKnowledgeForAI(wikiResults)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error retrieving wiki knowledge for draft:', error)
     }
 
@@ -227,7 +225,6 @@ The document should be production-ready and comprehensive.${wikiContext}`
     
     const openai = getOpenAIClient()
     if (!openai) {
-      console.log('OpenAI API key not set, using mock draft content')
       draftContent = getMockDraftContent()
     } else {
       try {
@@ -246,9 +243,7 @@ The document should be production-ready and comprehensive.${wikiContext}`
       })
 
         draftContent = completion.choices[0]?.message?.content || "Failed to generate draft."
-      } catch (error) {
-        console.error('OpenAI API error:', error)
-        console.log('Falling back to mock draft content due to API error')
+      } catch (_error: unknown) {
         // Fall back to mock content when API fails
         draftContent = getMockDraftContent()
       }
@@ -279,7 +274,7 @@ The document should be production-ready and comprehensive.${wikiContext}`
       phase: 'draft_ready'
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

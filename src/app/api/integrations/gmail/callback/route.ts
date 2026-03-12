@@ -5,10 +5,12 @@
 
 import { NextRequest } from 'next/server'
 import { getGmailOAuth2Client } from '@/lib/gmail'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { logger } from '@/lib/logger'
 import { IntegrationType } from '@prisma/client'
+import { setupGmailWatch } from '@/lib/integrations/gmail/watch'
 
 interface GmailConfigUsers {
   users?: Record<string, { accessToken: string; refreshToken?: string | null }>
@@ -93,11 +95,19 @@ export async function GET(request: NextRequest) {
       logger.info('Gmail callback: integration created', { integrationId: created.id })
     }
 
+    // Set up Gmail push notification watch (non-blocking)
+    try {
+      await setupGmailWatch(userId, workspaceId)
+      logger.info('Gmail callback: watch setup successful', { userId, workspaceId })
+    } catch (watchErr) {
+      logger.warn('Gmail callback: watch setup failed (non-blocking)', {
+        userId,
+        error: watchErr instanceof Error ? watchErr.message : String(watchErr),
+      })
+    }
+
     return Response.redirect(new URL('/home?gmail=connected', request.url))
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return Response.redirect(
-      new URL(`/home?gmail=error&message=${encodeURIComponent(message)}`, request.url)
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

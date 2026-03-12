@@ -62,7 +62,7 @@ export {
   type BackfillParams
 } from './embedding-backfill'
 
-// Orchestrator Types
+// Orchestrator Types (kept for backward compatibility with UI components)
 export {
   type LoopbrainMode,
   type LoopbrainRequest,
@@ -71,11 +71,6 @@ export {
   type LoopbrainSuggestion,
   type RetrievedItem
 } from './orchestrator-types'
-
-// Orchestrator
-export {
-  runLoopbrainQuery
-} from './orchestrator'
 
 // Client (frontend)
 export {

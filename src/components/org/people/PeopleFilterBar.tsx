@@ -63,8 +63,8 @@ export function PeopleFilterBar({
   }
 
   return (
-    <div className="mb-3 mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
-      <span className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+    <div className="mb-3 mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+      <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
         Filters
       </span>
 
@@ -75,17 +75,17 @@ export function PeopleFilterBar({
             type="button"
             onClick={() => handleRemoveFilter(item.key)}
             className={cn(
-              "inline-flex items-center gap-1 rounded-full border border-slate-700/70 px-2.5 py-1",
-              "bg-[#020617] text-[11px] text-slate-200",
-              "hover:border-slate-500 hover:text-slate-50",
+              "inline-flex items-center gap-1 rounded-full border border-border/70 px-2.5 py-1",
+              "bg-background text-[11px] text-foreground",
+              "hover:border-slate-500 hover:text-foreground",
               "transition-colors duration-150"
             )}
           >
             <span className="font-medium">{item.label}</span>
-            <span className="max-w-[12rem] truncate text-slate-400">
+            <span className="max-w-[12rem] truncate text-muted-foreground">
               {item.displayValue}
             </span>
-            <X className="h-3 w-3 text-slate-500" />
+            <X className="h-3 w-3 text-muted-foreground" />
           </button>
         ))}
       </div>
@@ -93,7 +93,7 @@ export function PeopleFilterBar({
       <button
         type="button"
         onClick={handleClearAll}
-        className="ml-1 inline-flex items-center text-[11px] text-slate-400 hover:text-slate-100 transition-colors duration-150"
+        className="ml-1 inline-flex items-center text-[11px] text-muted-foreground hover:text-foreground transition-colors duration-150"
       >
         Clear filters
       </button>

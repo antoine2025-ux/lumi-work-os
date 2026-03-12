@@ -58,7 +58,7 @@ export function OrgStructureDepartmentCard({
       onKeyDown={handleKeyDown}
       className={cn(
         "flex w-full items-center justify-between gap-3 transition-all duration-150",
-        onToggle && "text-left hover:bg-slate-900/30 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70",
+        onToggle && "text-left hover:bg-card/30 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70",
         isTree && "px-0",
         !isTree && "px-6 py-4",
         className
@@ -81,14 +81,14 @@ export function OrgStructureDepartmentCard({
             isTree ? "h-12 w-12" : "h-10 w-10"
           )}
         >
-          <Building className={cn("h-5 w-5", isTree ? "text-slate-100" : "text-blue-100")} />
+          <Building className={cn("h-5 w-5", isTree ? "text-foreground" : "text-blue-100")} />
         </div>
 
         {/* Title - larger and heavier in tree view, with proper truncation */}
         <div className="flex-1 min-w-0">
           <span
             className={cn(
-              "font-semibold text-slate-50 truncate tracking-tight block",
+              "font-semibold text-foreground truncate tracking-tight block",
               isTree ? "text-lg" : "text-lg"
             )}
             title={department.name}
@@ -104,16 +104,16 @@ export function OrgStructureDepartmentCard({
           {/* Metric chips - smaller and more understated */}
           <span
             className={cn(
-              "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-medium text-slate-300/80",
-              accent?.chipBg || "bg-slate-900/60"
+              "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground/80",
+              accent?.chipBg || "bg-card/60"
             )}
           >
             {department.teamsCount} {department.teamsCount === 1 ? "team" : "teams"}
           </span>
           <span
             className={cn(
-              "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-medium text-slate-300/80",
-              accent?.chipBg || "bg-slate-900/60"
+              "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground/80",
+              accent?.chipBg || "bg-card/60"
             )}
           >
             {department.peopleCount} {department.peopleCount === 1 ? "person" : "people"}
@@ -123,7 +123,7 @@ export function OrgStructureDepartmentCard({
           {showChevron && (
             <span
               className={cn(
-                "ml-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/60 border border-slate-700/50 text-slate-300 transition-all duration-200",
+                "ml-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-card/60 border border-border/50 text-muted-foreground transition-all duration-200",
                 isExpanded && "rotate-180"
               )}
             >

@@ -52,6 +52,12 @@ export const WikiWorkspaceCreateSchema = z.object({
   memberIds: z.array(z.string()).optional(),
 })
 
+/** POST /api/wiki/workspaces/[id]/members */
+export const WikiWorkspaceMemberAddSchema = z.object({
+  userId: nonEmptyString,
+  role: z.enum(['OWNER', 'EDITOR', 'VIEWER']).optional().default('VIEWER'),
+})
+
 /** POST /api/wiki/upload - file validation constants */
 export const WIKI_UPLOAD_ALLOWED_MIME = [
   'image/jpeg',

@@ -87,7 +87,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     const resolvedParams = await params
     slug = resolvedParams.slug
     console.log("[Blog Post Page] Resolved slug:", slug)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Blog Post Page] Error resolving params:", error)
     notFound()
   }
@@ -112,7 +112,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       },
     })
     console.log("[Blog Post Page] Published post found:", post ? { id: post.id, title: post.title } : "null")
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Blog Post Page] Database error:", error)
     console.error("[Blog Post Page] Error details:", {
       message: error instanceof Error ? error.message : String(error),

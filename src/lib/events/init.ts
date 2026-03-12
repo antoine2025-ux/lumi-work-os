@@ -7,6 +7,7 @@
 
 import { initializeOrgContextListeners } from "@/lib/loopbrain/listeners/orgContextListeners";
 import { initializeActivityListeners } from "@/lib/org/listeners";
+import { initializePolicyListeners } from "@/lib/loopbrain/policies/listeners";
 
 let initialized = false;
 
@@ -24,6 +25,9 @@ export function initializeEventListeners(): void {
 
   // Initialize activity listeners for PersonActivityMetric and PersonRelationship
   initializeActivityListeners();
+
+  // Initialize Loopbrain policy event listeners (email triggers, etc.)
+  initializePolicyListeners();
 
   initialized = true;
 }

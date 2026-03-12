@@ -4,6 +4,7 @@ import { assertAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
 import { blogPrisma } from "@/lib/blog-db"
+import { BlogPostUpdateSchema } from "@/lib/validations/blog"
 
 // GET /api/blog/admin/posts/[id] - Get single post
 export async function GET(
@@ -33,7 +34,7 @@ export async function GET(
     }
 
     return NextResponse.json({ post })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }
@@ -57,7 +58,7 @@ export async function PUT(
     setWorkspaceContext(auth.workspaceId)
 
     const { id } = await params
-    const body = await request.json()
+    const body = BlogPostUpdateSchema.parse(await request.json())
     const { title, slug, excerpt, content, category, status } = body
 
     // Sanitize slug: trim whitespace and ensure it's URL-safe
@@ -111,7 +112,7 @@ export async function PUT(
     })
 
     return NextResponse.json({ post })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }
@@ -141,7 +142,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

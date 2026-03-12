@@ -5,8 +5,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
-
-type Action = "resolve" | "dismiss"
+import { UpdateHealthSignalSchema } from "@/lib/validations/org"
 
 export async function PATCH(
   req: NextRequest,
@@ -21,12 +20,8 @@ export async function PATCH(
     setWorkspaceContext(workspaceId)
 
     const { id } = await ctx.params
-    const body = (await req.json().catch(() => ({}))) as { action?: Action }
-
+    const body = UpdateHealthSignalSchema.parse(await req.json())
     const action = body.action
-    if (action !== "resolve" && action !== "dismiss") {
-      return NextResponse.json({ error: "Invalid action" }, { status: 400 })
-    }
 
     // Ensure org scoping: only update signals belonging to active org
     const existing = await prisma.orgHealthSignal.findFirst({
@@ -49,7 +44,7 @@ export async function PATCH(
     })
 
     return NextResponse.json({ ok: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

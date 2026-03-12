@@ -62,7 +62,7 @@ export function ObjectivesManager({ goalId, objectives }: Props) {
       if (response.ok) {
         router.refresh()
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to delete objective:', error)
     } finally {
       setDeletingObjective(null)

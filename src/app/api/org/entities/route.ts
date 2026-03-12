@@ -3,7 +3,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
-import { listEntitiesForOrg } from "@/server/org/entities/list"
+import { listEntitiesForOrg, type EntityType } from "@/server/org/entities/list"
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,10 +21,10 @@ export async function GET(req: NextRequest) {
     }
 
     const q = (url.searchParams.get("q") ?? "").trim().toLowerCase()
-    const all = await listEntitiesForOrg(workspaceId, type as any)
+    const all = await listEntitiesForOrg(workspaceId, type as EntityType)
     const filtered = q ? all.filter((e) => e.label.toLowerCase().includes(q)) : all
     return NextResponse.json({ entities: filtered.slice(0, 80) })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

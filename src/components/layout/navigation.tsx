@@ -18,7 +18,8 @@ import {
   Clock,
   Workflow,
   CheckSquare,
-  Users2
+  Users2,
+  FolderOpen
 } from "lucide-react"
 
 // Core navigation items (always visible)
@@ -36,6 +37,13 @@ const coreNavigationItems = [
     icon: CheckSquare,
     description: "Personal and team to-dos",
     roles: ['OWNER', 'ADMIN', 'MEMBER']
+  },
+  {
+    name: "Projects",
+    href: "/projects",
+    icon: FolderOpen,
+    description: "Browse workspace projects",
+    roles: ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']
   },
   {
     name: "Spaces",

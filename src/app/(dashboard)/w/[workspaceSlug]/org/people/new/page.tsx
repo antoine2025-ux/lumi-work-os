@@ -4,8 +4,11 @@
 
 import { AddPersonForm } from "@/components/org/AddPersonForm";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
+import { getOrgPermissionContext } from "@/lib/org/permissions.server";
 
-export default function WorkspaceOrgNewPersonPage() {
+export default async function WorkspaceOrgNewPersonPage() {
+  const context = await getOrgPermissionContext();
+
   return (
     <>
       <OrgPageHeader
@@ -14,7 +17,7 @@ export default function WorkspaceOrgNewPersonPage() {
         description="Add someone to your org. You can fill missing details later."
       />
       <div className="px-10 pb-10">
-        <AddPersonForm />
+        <AddPersonForm workspaceId={context?.workspaceId ?? undefined} />
       </div>
     </>
   );

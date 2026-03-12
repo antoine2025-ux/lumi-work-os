@@ -5,11 +5,8 @@ import { assertAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
 import { logOrgAuditBatch } from "@/lib/audit/org-audit"
-
-type Body = {
-  personId: string
-  keepManagerId: string
-}
+import { ResolveManagerConflictSchema } from '@/lib/validations/org'
+import { OrgHealthSignalType } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,20 +17,18 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" })
     setWorkspaceContext(workspaceId)
 
-    const body = (await req.json()) as Body
-    const personId = String(body.personId ?? "")
-    const keepManagerId = String(body.keepManagerId ?? "")
-    if (!personId || !keepManagerId) return NextResponse.json({ error: "Missing fields" }, { status: 400 })
+    const body = ResolveManagerConflictSchema.parse(await req.json())
+    const { personId, keepManagerId, removeManagerId } = body;
 
     // Fetch links to delete for audit logging
     const linksToDelete = await prisma.personManagerLink.findMany({
-      where: { orgId: workspaceId, personId, managerId: { not: keepManagerId } } as any,
+      where: { workspaceId, personId, managerId: { not: keepManagerId } },
       select: { id: true, personId: true, managerId: true },
     })
 
     // Remove all other manager links for this person (v0)
     await prisma.personManagerLink.deleteMany({
-      where: { orgId: workspaceId, personId, managerId: { not: keepManagerId } } as any, // orgId is a Prisma field
+      where: { workspaceId, personId, managerId: { not: keepManagerId } },
     })
 
     // Log audit entries (fire-and-forget batch)
@@ -54,19 +49,19 @@ export async function POST(req: NextRequest) {
     // Resolve only the conflict signal for this person
     await prisma.orgHealthSignal.updateMany({
       where: {
-        orgId: workspaceId, // orgId is a Prisma field
-        type: "DATA_QUALITY" as any,
+        workspaceId,
+        type: "DATA_QUALITY" as OrgHealthSignalType,
         resolvedAt: null,
         dismissedAt: null,
         title: "Manager link conflict",
         contextType: "PERSON",
         contextId: personId,
-      } as any,
+      },
       data: { resolvedAt: new Date() },
     })
 
     return NextResponse.json({ ok: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

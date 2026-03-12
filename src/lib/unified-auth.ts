@@ -116,7 +116,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
       // For server components, use getServerSession directly
       session = await getServerSession(authOptions)
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error getting session:', error)
     session = null
   }

@@ -20,7 +20,7 @@ export function InfoTooltip({ content, className }: InfoTooltipProps) {
         className={cn(
           "inline-flex items-center justify-center",
           "h-3.5 w-3.5 rounded-full",
-          "text-slate-400 hover:text-slate-300",
+          "text-muted-foreground hover:text-muted-foreground",
           "transition-colors duration-150",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
           className

@@ -13,11 +13,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import {
   getRoleCoverages,
   getRoleCoverageForPerson,
   createRoleCoverage,
 } from "@/lib/org/coverage";
+import { CreateRoleCoverageSchema } from "@/lib/validations/org";
 
 export async function GET(request: NextRequest) {
   try {
@@ -71,8 +73,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/coverage] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -99,24 +100,8 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     // Step 4: Parse and validate request body
-    const body = await request.json();
-
-    if (!body.roleType) {
-      return NextResponse.json({ error: "roleType is required" }, { status: 400 });
-    }
-
-    if (!body.primaryPersonId) {
-      return NextResponse.json({ error: "primaryPersonId is required" }, { status: 400 });
-    }
-
-    // Validate secondaryPersonIds if provided
-    const secondaryPersonIds = body.secondaryPersonIds ?? [];
-    if (!Array.isArray(secondaryPersonIds)) {
-      return NextResponse.json(
-        { error: "secondaryPersonIds must be an array" },
-        { status: 400 }
-      );
-    }
+    const body = CreateRoleCoverageSchema.parse(await request.json());
+    const secondaryPersonIds = body.secondaryPersonIds;
 
     // Step 5: Create the coverage
     const coverage = await createRoleCoverage({
@@ -140,16 +125,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    console.error("[POST /api/org/coverage] Error:", error);
-    
-    // Handle unique constraint violation
-    if (error instanceof Error && error.message.includes("Unique constraint")) {
-      return NextResponse.json(
-        { error: "Coverage already exists for this roleType and primaryPersonId" },
-        { status: 409 }
-      );
-    }
-    
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
+import { EmbedUrlSchema } from '@/lib/validations/embeds'
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json()
-    
-    if (!url) {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 })
-    }
+    const auth = await getUnifiedAuth(request)
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+
+    const body = EmbedUrlSchema.parse(await request.json())
+    const { url } = body
 
     // Extract diagram ID from Draw.io URL
     const drawioMatch = url.match(/diagrams\.net\/([^\/]+)/)
@@ -16,8 +20,6 @@ export async function POST(request: NextRequest) {
 
     const [, diagramId] = drawioMatch
 
-    // For now, we'll return basic metadata
-    // In a real implementation, you'd call Draw.io's API to get diagram details
     const embedData = {
       title: 'Draw.io Diagram',
       description: 'Interactive diagram or flowchart',
@@ -28,8 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(embedData)
-  } catch (error) {
-    console.error('Draw.io embed error:', error)
-    return NextResponse.json({ error: 'Failed to process Draw.io embed' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error)
   }
 }

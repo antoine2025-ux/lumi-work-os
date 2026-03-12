@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import {
   getOrCreateWorkspaceEffortDefaults,
   updateWorkspaceEffortDefaults,
@@ -17,6 +18,7 @@ import {
   DEFAULT_EFFORT_HOURS,
 } from "@/lib/org/work/effortDefaults";
 import { getWorkRequestResponseMeta } from "@/lib/org/work/types";
+import { UpdateEffortDefaultsSchema } from "@/lib/validations/org";
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,8 +58,7 @@ export async function GET(request: NextRequest) {
       responseMeta: getWorkRequestResponseMeta(),
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/work/effort-defaults] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -84,11 +85,9 @@ export async function PUT(request: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     // Step 4: Parse and validate request body
-    const body = await request.json();
+    const body = UpdateEffortDefaultsSchema.parse(await request.json());
 
-    // Validate all values are positive numbers if provided
     const updates: Record<string, number> = {};
-    const _fields = ["xsHours", "sHours", "mHours", "lHours", "xlHours"] as const;
     const fieldMap: Record<string, string> = {
       XS: "xsHours",
       S: "sHours",
@@ -98,23 +97,9 @@ export async function PUT(request: NextRequest) {
     };
 
     for (const [key, field] of Object.entries(fieldMap)) {
-      if (body[key] !== undefined) {
-        const value = body[key];
-        if (typeof value !== "number" || value <= 0) {
-          return NextResponse.json(
-            { error: `${key} must be a positive number` },
-            { status: 400 }
-          );
-        }
-        updates[field] = value;
+      if (body[key as keyof typeof body] !== undefined) {
+        updates[field] = body[key as keyof typeof body]!;
       }
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return NextResponse.json(
-        { error: "No valid fields to update. Provide XS, S, M, L, or XL." },
-        { status: 400 }
-      );
     }
 
     // Step 5: Update defaults
@@ -126,7 +111,6 @@ export async function PUT(request: NextRequest) {
       responseMeta: getWorkRequestResponseMeta(),
     });
   } catch (error: unknown) {
-    console.error("[PUT /api/org/work/effort-defaults] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

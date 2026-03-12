@@ -26,8 +26,6 @@ class MockSocketImpl implements MockSocket {
   }
 
   emit(event: string, data?: unknown) {
-    console.log(`[Mock Socket] Emitting ${event}:`, data)
-    
     // Simulate server responses for certain events
     if (event === 'authenticate' && data) {
       this.data = data as Record<string, unknown>

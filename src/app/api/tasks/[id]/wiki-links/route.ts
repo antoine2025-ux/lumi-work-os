@@ -105,7 +105,7 @@ export async function GET(
     }))
 
     return NextResponse.json(links)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -291,7 +291,7 @@ export async function POST(
     }
 
     return NextResponse.json(link, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -356,7 +356,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

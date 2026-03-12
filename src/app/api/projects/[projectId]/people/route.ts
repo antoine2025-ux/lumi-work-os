@@ -66,7 +66,7 @@ export async function GET(
     }))
 
     return NextResponse.json({ people })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -141,7 +141,7 @@ export async function POST(
     // Auto-create WorkAllocation for the added person (best-effort, never blocks response)
     try {
       await upsertIntegrationAllocation(auth.workspaceId, userId, projectId, auth.user.userId)
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to create integration allocation for project member', {
         projectId,
         userId,
@@ -150,7 +150,7 @@ export async function POST(
     }
 
     return NextResponse.json(link, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

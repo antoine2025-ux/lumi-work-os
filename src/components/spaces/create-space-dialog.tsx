@@ -19,6 +19,8 @@ interface CreateSpaceDialogProps {
   open: boolean
   onClose: () => void
   onCreated?: () => void
+  /** If provided, all active members of this OrgTeam are auto-added as SpaceMembers on creation. */
+  teamId?: string
 }
 
 const COLOR_OPTIONS = [
@@ -32,7 +34,7 @@ const COLOR_OPTIONS = [
   { label: "Slate", value: "#64748b" },
 ]
 
-export function CreateSpaceDialog({ open, onClose, onCreated }: CreateSpaceDialogProps) {
+export function CreateSpaceDialog({ open, onClose, onCreated, teamId }: CreateSpaceDialogProps) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC")
@@ -66,7 +68,7 @@ export function CreateSpaceDialog({ open, onClose, onCreated }: CreateSpaceDialo
       const res = await fetch("/api/spaces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), description: description.trim() || undefined, visibility, color }),
+        body: JSON.stringify({ name: name.trim(), description: description.trim() || undefined, visibility, color, teamId }),
       })
 
       if (!res.ok) {
@@ -81,7 +83,7 @@ export function CreateSpaceDialog({ open, onClose, onCreated }: CreateSpaceDialo
       reset()
       onCreated?.()
       onClose()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setIsSubmitting(false)

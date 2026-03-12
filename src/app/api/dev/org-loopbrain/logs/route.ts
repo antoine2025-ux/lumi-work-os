@@ -46,7 +46,7 @@ export async function GET() {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[dev/org-loopbrain/logs] Failed to fetch logs", error);
 
     return NextResponse.json(

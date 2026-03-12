@@ -5,6 +5,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { canAccessWikiWorkspace } from '@/lib/wiki/permissions'
+import { WikiWorkspaceMemberAddSchema } from '@/lib/validations/wiki'
 
 // GET /api/wiki/workspaces/[id]/members - List wiki workspace members
 export async function GET(
@@ -59,7 +60,7 @@ export async function GET(
     })
 
     return NextResponse.json(members)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching wiki workspace members:', error)
     return handleApiError(error, request)
   }
@@ -87,12 +88,8 @@ export async function POST(
 
     setWorkspaceContext(auth.workspaceId)
 
-    const body = await request.json()
-    const { userId: targetUserId, role = 'VIEWER' } = body
-
-    if (!targetUserId || typeof targetUserId !== 'string') {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 })
-    }
+    const body = WikiWorkspaceMemberAddSchema.parse(await request.json())
+    const { userId: targetUserId, role } = body
 
     const wikiWorkspace = await prisma.wiki_workspaces.findUnique({
       where: { id: wikiWorkspaceId },
@@ -141,7 +138,7 @@ export async function POST(
     })
 
     return NextResponse.json(member, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error adding wiki workspace member:', error)
     return handleApiError(error, request)
   }

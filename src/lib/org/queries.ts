@@ -307,12 +307,12 @@ export type DepartmentDetail = {
  * Get a single department by ID with teams and owners.
  * Fetches data for the current workspace from getOrgPermissionContext.
  */
-export async function getDepartmentById(departmentId: string) {
+export async function getDepartmentById(departmentId: string, workspaceId: string) {
   if (!prisma) {
     return null;
   }
   const department = await prisma.orgDepartment.findUnique({
-    where: { id: departmentId },
+    where: { id: departmentId, workspaceId },
     include: {
       teams: {
         orderBy: { name: "asc" },
@@ -385,12 +385,12 @@ export function getDepartmentOwnerPerson(dept: DepartmentDetail | null) {
 /**
  * Get a single team by ID with owner information.
  */
-export async function getTeamById(teamId: string) {
+export async function getTeamById(teamId: string, workspaceId: string) {
   if (!prisma) {
     return null;
   }
   const team = await prisma.orgTeam.findUnique({
-    where: { id: teamId },
+    where: { id: teamId, workspaceId },
     include: {
       department: true,
     },

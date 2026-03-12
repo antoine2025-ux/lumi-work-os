@@ -6,7 +6,7 @@ import { ActivityExportButtons } from "@/components/org/activity-export-buttons"
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 
 type ActivitySectionProps = {
-  orgId?: string;
+  workspaceId?: string;
   initialOrgActivity: {
     items: {
       id: string;
@@ -31,26 +31,26 @@ type ActivitySectionProps = {
  * Renders org activity using data loaded server-side to avoid Server Component issues.
  * Memoized to prevent unnecessary re-renders.
  */
-export const ActivitySection = memo(function ActivitySection({ orgId, initialOrgActivity }: ActivitySectionProps) {
-  if (!orgId) {
+export const ActivitySection = memo(function ActivitySection({ workspaceId, initialOrgActivity }: ActivitySectionProps) {
+  if (!workspaceId) {
     return (
-      <section className="rounded-2xl border border-[#111827] bg-[#020617] p-4 text-xs text-slate-400">
+      <section className="rounded-2xl border border-border bg-background p-4 text-xs text-muted-foreground">
         No organization selected.
       </section>
     );
   }
 
   return (
-    <section className="space-y-3 rounded-2xl border border-[#111827] bg-[#020617] p-2 shadow-sm">
+    <section className="space-y-3 rounded-2xl border border-border bg-background p-2 shadow-sm">
       {initialOrgActivity ? (
         <>
           <ActivityExportButtons
-            workspaceId={orgId}
+            workspaceId={workspaceId}
             eventFilter="all"
             timeframe="30d"
           />
           <OrgActivityPanel
-            workspaceId={orgId}
+            workspaceId={workspaceId}
             initialItems={initialOrgActivity.items}
             initialNextCursor={initialOrgActivity.nextCursor}
             initialEventFilter="all"

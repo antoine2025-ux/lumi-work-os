@@ -7,6 +7,7 @@ import { handleApiError } from "@/lib/api-errors";
 import type { OrgCapability } from "@/lib/org/capabilities";
 import { logOrgAudit } from "@/lib/audit/org-audit";
 import { computeChanges } from "@/lib/audit/diff";
+import { UpdateCustomRoleSchema } from "@/lib/validations/org";
 
 type Params = {
   params: Promise<{ roleId: string }>;
@@ -22,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     setWorkspaceContext(workspaceId);
 
     const { roleId } = await params;
-    const body = await req.json();
+    const body = UpdateCustomRoleSchema.parse(await req.json());
 
     const existing = await prisma.orgCustomRole.findUnique({
       where: { id: roleId },
@@ -37,16 +38,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     const updates: any = {};
 
-    if (typeof body.name === "string") {
-      updates.name = body.name.trim();
+    if (body.name !== undefined) {
+      updates.name = body.name;
     }
-    if (typeof body.description === "string") {
-      updates.description = body.description.trim() || null;
+    if (body.description !== undefined) {
+      updates.description = body.description;
     }
-    if (typeof body.key === "string") {
-      updates.key = body.key.trim();
+    if (body.key !== undefined) {
+      updates.key = body.key;
     }
-    if (Array.isArray(body.capabilities)) {
+    if (body.capabilities !== undefined) {
       updates.capabilities = body.capabilities.filter(
         (c: unknown): c is OrgCapability => typeof c === "string"
       );
@@ -76,7 +77,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
 
     return NextResponse.json({ role: updated }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }
@@ -133,7 +134,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     }).catch((e) => console.error("[DELETE /api/org/custom-roles/[roleId]] Audit error:", e));
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

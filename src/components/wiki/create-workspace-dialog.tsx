@@ -86,7 +86,7 @@ export function CreateWorkspaceDialog({
       } else {
         router.push(`/wiki/workspace/${newWorkspace.id}`)
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error creating workspace:", err)
       setError(err instanceof Error ? err.message : "Failed to create workspace")
     } finally {

@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       companySize: progress.orgSize,
       orgName: progress.orgName,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -143,7 +143,13 @@ export async function POST(request: NextRequest) {
               departmentId: defaultDepartment.id,
               name: 'Executive Team',
               isActive: true,
+              leaderId: session.user.id,
             },
+          })
+        } else if (!defaultTeam.leaderId) {
+          defaultTeam = await prisma.orgTeam.update({
+            where: { id: defaultTeam.id },
+            data: { leaderId: session.user.id },
           })
         }
 
@@ -213,6 +219,7 @@ export async function POST(request: NextRequest) {
             departmentId: defaultDepartment.id,
             name: 'Executive Team',
             isActive: true,
+            leaderId: session.user.id,
           },
         })
 
@@ -406,20 +413,34 @@ export async function POST(request: NextRequest) {
                 createdTeams.push({ id: defaultTeam.id, name: defaultTeam.name })
               }
 
+              // Check if the lead name matches the current admin (case-insensitive).
+              // Other names aren't in the system yet — keep them as placeholders.
+              const adminName = auth.user.name?.trim().toLowerCase() ?? ''
+              const leadName = dept.leadName.trim().toLowerCase()
+              const isAdminLead = adminName && leadName === adminName
+
               // Create the lead position
               const position = await prisma.orgPosition.create({
                 data: {
                   workspaceId,
                   title: `Head of ${createdDept.name}`,
-                  userId: null, // Placeholder — to be assigned later
+                  userId: isAdminLead ? auth.user.userId : null,
                   teamId,
                   level: 5, // High level to ensure recognition as department lead
-                  roleDescription: dept.leadName, // Store lead name for future matching
+                  roleDescription: isAdminLead ? null : dept.leadName, // Store name only for unmatched leads
                 },
               })
 
+              // If the admin is the lead, also set leaderId on the team.
+              if (isAdminLead && teamId) {
+                await prisma.orgTeam.update({
+                  where: { id: teamId },
+                  data: { leaderId: auth.user.userId },
+                })
+              }
+
               createdPositions.push({ id: position.id, title: position.title ?? '' })
-            } catch (error) {
+            } catch (error: unknown) {
               // Log but don't fail the entire onboarding step
               logger.warn('[onboarding] Failed to create lead position', {
                 workspaceId,
@@ -526,7 +547,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Invalid step' }, { status: 400 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

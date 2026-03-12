@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { handleApiError } from "@/lib/api-errors";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
@@ -89,14 +90,7 @@ export async function GET(request: NextRequest) {
       { headers }
     );
   } catch (error: unknown) {
-    console.error("[GET /api/org/loopbrain/answer-dryrun] Error:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Failed to load answer dry-run",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }
 

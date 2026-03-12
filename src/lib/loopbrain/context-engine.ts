@@ -225,12 +225,12 @@ export class PrismaContextEngine implements ContextEngine {
       // Save to Context Store (log errors but don't fail)
       try {
         await saveContextItem(context)
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to save workspace context to store', { workspaceId, error })
       }
 
       return context
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching workspace context', { workspaceId, error })
       return null
     }
@@ -316,12 +316,12 @@ export class PrismaContextEngine implements ContextEngine {
       // Save to Context Store (log errors but don't fail)
       try {
         await saveContextItem(context)
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to save page context to store', { pageId, workspaceId, error })
       }
 
       return context
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching page context', { pageId, workspaceId, error })
       return null
     }
@@ -464,12 +464,12 @@ export class PrismaContextEngine implements ContextEngine {
       // Save to Context Store (log errors but don't fail)
       try {
         await saveContextItem(context)
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to save project context to store', { projectId, workspaceId, error })
       }
 
       return context
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching project context', { projectId, workspaceId, error })
       return null
     }
@@ -583,12 +583,12 @@ export class PrismaContextEngine implements ContextEngine {
       // Save to Context Store (log errors but don't fail)
       try {
         await saveContextItem(context)
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to save task context to store', { taskId, workspaceId, error })
       }
 
       return context
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching task context', { taskId, workspaceId, error })
       return null
     }
@@ -655,7 +655,7 @@ export class PrismaContextEngine implements ContextEngine {
 
         try {
           await saveContextItem(context)
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Failed to save org context to store', { workspaceId, error })
         }
 
@@ -733,12 +733,12 @@ export class PrismaContextEngine implements ContextEngine {
       // Save to Context Store (log errors but don't fail)
       try {
         await saveContextItem(context)
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to save org context to store', { workspaceId, error })
       }
 
       return context
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching org context', { workspaceId, error })
       return null
     }
@@ -806,12 +806,12 @@ export class PrismaContextEngine implements ContextEngine {
       // Save to Context Store (log errors but don't fail)
       try {
         await saveContextItem(context)
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to save activity context to store', { workspaceId, error })
       }
 
       return context
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching activity context', { workspaceId, error })
       return null
     }
@@ -875,12 +875,12 @@ export class PrismaContextEngine implements ContextEngine {
       // Save to Context Store (log errors but don't fail)
       try {
         await saveContextItem(context)
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to save unified context to store', { workspaceId, error })
       }
 
       return context
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error fetching unified context', { params, error })
       return null
     }
@@ -1142,11 +1142,11 @@ owner: true,
     try {
       await saveContextItem(projectContext)
       logger.debug('Project context upserted successfully', { projectId, workspaceId: project.workspaceId })
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to save project context to store', { projectId, workspaceId: project.workspaceId, error })
       // Don't throw - context updates should not break project operations
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error upserting project context', { projectId, error })
     // Don't throw - context updates should not break project operations
   }
@@ -1218,11 +1218,11 @@ export async function upsertEpicContext(epicId: string): Promise<void> {
     try {
       await saveContextItem(epicContext)
       logger.debug('Epic context upserted successfully', { epicId, workspaceId: epic.workspaceId })
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to save epic context to store', { epicId, workspaceId: epic.workspaceId, error })
       // Don't throw - context updates should not break epic operations
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error upserting epic context', { epicId, error })
     // Don't throw - context updates should not break epic operations
   }
@@ -1321,13 +1321,13 @@ export async function upsertTaskContext(taskId: string): Promise<void> {
     try {
       await saveContextItem(taskContext)
       logger.debug('Task context upserted successfully', { taskId })
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to save task context to store', { taskId, error })
       // Don't throw - context updates should not break task operations
     }
 
     // Don't throw - context updates should not break task operations
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error upserting task context', { taskId, error })
     // Don't throw - context updates should not break task operations
   }
@@ -1391,7 +1391,7 @@ export async function getEpicContextObject(
     }
 
     return buildEpicContext(epic as EpicWithRelations)
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error getting epic context object', { epicId, workspaceId, error })
     return null
   }
@@ -1463,7 +1463,7 @@ export async function getProjectEpicsContext(
     }
 
     return epicContexts
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error getting project epics context', { projectId, workspaceId, error })
     return []
   }
@@ -1519,7 +1519,7 @@ export async function getProjectTasksContext(
 
     // Build context objects for each task
     return tasks.map(task => buildTaskContext(task as TaskWithRelations))
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error getting project tasks context', { projectId, workspaceId, error })
     return []
   }
@@ -1572,7 +1572,7 @@ owner: true,
     }
 
     return buildProjectContext(project as unknown as ProjectWithRelations)
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error getting project context object', { projectId, workspaceId, error })
     return null
   }
@@ -1654,7 +1654,7 @@ export async function getWorkspaceContextObjects(params: {
     }
 
     return projectContextObjects
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching workspace ContextObjects', {
       workspaceId: params.workspaceId,
       error
@@ -1733,7 +1733,7 @@ export async function getPersonalSpaceDocs(params: {
     })
 
     return pageContextObjects
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching personal space docs', {
       workspaceId: params.workspaceId,
       userId: params.userId,
@@ -1820,7 +1820,7 @@ export async function getOrgPeopleContext(params: {
     })
 
     return peopleContextObjects
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching org people context', {
       workspaceId: params.workspaceId,
       error
@@ -1880,7 +1880,7 @@ export async function getPersonWorkloadContext(
         hours: l.allocatedHours,
       })),
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching person workload context', { userId, workspaceId, error })
     return { totalAllocated: 0, totalCapacity: 40, utilizationPct: 0, projects: [] }
   }
@@ -1950,14 +1950,14 @@ export async function upsertOneOnOneContext(meetingId: string): Promise<void> {
         meetingId,
         workspaceId: meeting.workspaceId,
       })
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to save 1:1 meeting context to store', {
         meetingId,
         workspaceId: meeting.workspaceId,
         error,
       })
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error upserting 1:1 meeting context', { meetingId, error })
   }
 }

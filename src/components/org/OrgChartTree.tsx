@@ -28,19 +28,19 @@ export function OrgChartTree({ orgName, data }: OrgChartTreeProps) {
         description="This org does not have any departments or teams set up. Once you create departments and teams, the hierarchy will appear here as an Org chart."
         primaryActionLabel="Go to Org structure"
         primaryActionHref="/org/structure"
-        className="border border-[#111827]"
+        className="border border-border"
       />
     );
   }
 
   return (
-    <div className="rounded-2xl border border-[#111827] bg-[#020617] p-4 text-sm text-slate-300">
+    <div className="rounded-2xl border border-border bg-background p-4 text-sm text-muted-foreground">
       {/* Org root node */}
       <div className="flex flex-col items-center gap-2">
-        <div className="rounded-full border border-[#1e293b] bg-[#020617] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-300">
+        <div className="rounded-full border border-border bg-background px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
           Organization
         </div>
-        <div className="rounded-2xl border border-[#1e293b] bg-[#020617] px-4 py-2 text-sm font-semibold text-slate-100 shadow-sm">
+        <div className="rounded-2xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm">
           {orgName}
         </div>
       </div>
@@ -68,7 +68,7 @@ function OrgChartDepartmentNode({ department }: OrgChartDepartmentNodeProps) {
   return (
     <div className="flex flex-col items-center">
       {/* Department node */}
-      <div className="rounded-xl border border-[#1e293b] bg-[#020617] px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] text-slate-200">
+      <div className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] text-foreground">
         {department.name}
       </div>
 
@@ -95,21 +95,21 @@ type OrgChartTeamNodeProps = {
 
 function OrgChartTeamNode({ team }: OrgChartTeamNodeProps) {
   return (
-    <div className="w-56 rounded-xl border border-[#111827] bg-[#020617] p-3 text-xs text-slate-200 shadow-sm">
-      <div className="text-[13px] font-medium text-slate-100">
+    <div className="w-56 rounded-xl border border-border bg-background p-3 text-xs text-foreground shadow-sm">
+      <div className="text-[13px] font-medium text-foreground">
         {team.name}
       </div>
-      <div className="mt-1 text-[11px] text-slate-400">
+      <div className="mt-1 text-[11px] text-muted-foreground">
         {team.leadName ? (
           <>
-            Lead: <span className="text-slate-200">{team.leadName}</span>
+            Lead: <span className="text-foreground">{team.leadName}</span>
           </>
         ) : (
-          <span className="italic text-slate-500">No lead assigned</span>
+          <span className="italic text-muted-foreground">No lead assigned</span>
         )}
       </div>
-      <div className="mt-1 text-[11px] text-slate-400">
-        Headcount: <span className="text-slate-200">{team.headcount}</span>
+      <div className="mt-1 text-[11px] text-muted-foreground">
+        Headcount: <span className="text-foreground">{team.headcount}</span>
       </div>
     </div>
   );

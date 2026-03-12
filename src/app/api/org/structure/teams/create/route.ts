@@ -9,11 +9,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
-import { requireNonEmptyString, optionalString } from "@/server/org/validate";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { createTeam } from "@/server/org/structure/write";
 import { logOrgAudit } from "@/lib/audit/org-audit";
-import { handleApiError } from "@/lib/api-errors"
+import { handleApiError } from "@/lib/api-errors";
+import { CreateTeamSchema } from "@/lib/validations/org";
 
 export async function POST(request: NextRequest) {
   let userId: string | undefined;
@@ -37,9 +37,9 @@ export async function POST(request: NextRequest) {
     await assertAccess({ userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
     await setWorkspaceContext(workspaceId);
 
-    const body = await request.json();
-    const name = requireNonEmptyString(body.name, "name");
-    const departmentId = optionalString(body.departmentId);
+    const body = CreateTeamSchema.parse(await request.json());
+    const name = body.name;
+    const departmentId = body.departmentId ?? null;
 
     // Note: Schema requires departmentId, but we allow null in input for flexibility
     // The write service will handle validation
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     }).catch((e) => console.error("[POST /api/org/structure/teams/create] Audit log error (non-fatal):", e));
 
     return NextResponse.json(team, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -78,7 +78,7 @@ export default function TimelineView({ projectId, workspaceId }: TimelineViewPro
         const data = await response.json()
         setTasks(data)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading tasks:', error)
     } finally {
       setIsLoading(false)

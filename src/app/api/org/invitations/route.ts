@@ -29,13 +29,13 @@ export async function GET(req: NextRequest) {
     setWorkspaceContext(auth.workspaceId);
 
     const invites = await prisma.orgInvitation.findMany({
-      where: { orgId: auth.workspaceId }, // orgId is a Prisma field
+      where: { workspaceId: auth.workspaceId },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
 
     return NextResponse.json({ ok: true, invites });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     const created = await prisma.orgInvitation.create({
       data: {
-        orgId: auth.workspaceId, // orgId is a Prisma field
+        workspaceId: auth.workspaceId,
         email: body.email.toLowerCase().trim(),
         role: body.role,
         token: token(),
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     }).catch((e) => console.error("[POST /api/org/invitations] Audit error:", e));
 
     return NextResponse.json({ ok: true, invite: created, inviteLink: link, orgName });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

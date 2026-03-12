@@ -61,7 +61,6 @@ export function useKeyboardShortcuts() {
       key: ".",
       action: () => {
         // Open quick actions menu
-        console.log("Quick actions")
       },
       description: "Quick actions",
       category: "action"
@@ -72,12 +71,6 @@ export function useKeyboardShortcuts() {
       key: "n",
       action: () => {
         // Create new task (context-aware)
-        const currentPath = window.location.pathname
-        if (currentPath.includes("/projects/")) {
-          console.log("Create new task in current project")
-        } else {
-          console.log("Create new task")
-        }
       },
       description: "New task",
       category: "creation"
@@ -87,7 +80,6 @@ export function useKeyboardShortcuts() {
       shiftKey: true,
       action: () => {
         // Create new project
-        console.log("Create new project")
       },
       description: "New project",
       category: "creation"
@@ -97,7 +89,6 @@ export function useKeyboardShortcuts() {
       altKey: true,
       action: () => {
         // Create new wiki page
-        console.log("Create new wiki page")
       },
       description: "New wiki page",
       category: "creation"
@@ -108,10 +99,6 @@ export function useKeyboardShortcuts() {
       key: "a",
       action: () => {
         // Assign (context-aware)
-        const selectedElement = document.querySelector("[data-selected='true']")
-        if (selectedElement) {
-          console.log("Assign selected item")
-        }
       },
       description: "Assign",
       category: "action"
@@ -120,10 +107,6 @@ export function useKeyboardShortcuts() {
       key: "s",
       action: () => {
         // Status (context-aware)
-        const selectedElement = document.querySelector("[data-selected='true']")
-        if (selectedElement) {
-          console.log("Change status of selected item")
-        }
       },
       description: "Change status",
       category: "action"
@@ -132,10 +115,6 @@ export function useKeyboardShortcuts() {
       key: "p",
       action: () => {
         // Priority (context-aware)
-        const selectedElement = document.querySelector("[data-selected='true']")
-        if (selectedElement) {
-          console.log("Set priority of selected item")
-        }
       },
       description: "Set priority",
       category: "action"

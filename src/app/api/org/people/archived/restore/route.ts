@@ -6,6 +6,7 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import { logOrgAudit } from "@/lib/audit/org-audit";
+import { RestoreArchivedPersonSchema } from "@/lib/validations/org";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     });
     setWorkspaceContext(auth.workspaceId);
 
-    const body = (await req.json()) as { id: string };
+    const body = RestoreArchivedPersonSchema.parse(await req.json());
 
     // Get person name for audit log
     const position = await prisma.orgPosition.findUnique({
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
     }).catch((e) => console.error("[POST /api/org/people/archived/restore] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ ok: true, person: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

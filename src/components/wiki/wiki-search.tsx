@@ -70,7 +70,7 @@ export function WikiSearch({ placeholder = "Search wiki...", onResultClick, clas
 
       setResults(transformedResults)
       setShowResults(true)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Search error:', error)
       setResults([])
       setShowResults(false)

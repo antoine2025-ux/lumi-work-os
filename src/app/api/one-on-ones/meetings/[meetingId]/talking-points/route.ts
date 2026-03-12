@@ -64,7 +64,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     })
 
     return NextResponse.json(points)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     })
 
     return NextResponse.json(point, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -169,7 +169,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     })
 
     return NextResponse.json(updated)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -219,7 +219,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     await prisma.oneOnOneTalkingPoint.delete({ where: { id: pointId } })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

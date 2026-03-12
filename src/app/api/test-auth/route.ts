@@ -14,7 +14,7 @@ export async function GET(_request: NextRequest) {
       } : null,
       timestamp: new Date().toISOString()
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Auth test error:', error)
     return NextResponse.json({
       error: error instanceof Error ? error.message : 'Unknown error',

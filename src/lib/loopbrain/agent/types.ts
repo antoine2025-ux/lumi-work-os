@@ -20,6 +20,16 @@ export type ToolCategory =
   | 'calendar'
   | 'todo'
   | 'email'
+  | 'drive'
+  | 'slack'
+
+export interface ToolPermissions {
+  minimumRole: AgentRole
+  /** Resource-level checks to run before execution */
+  resourceChecks?: ('projectMembership' | 'spaceMembership')[]
+  /** If true, requires manager/admin access to the target person */
+  hierarchyCheck?: boolean
+}
 
 export interface LoopbrainTool {
   name: string
@@ -27,13 +37,19 @@ export interface LoopbrainTool {
   category: ToolCategory
   parameters: z.ZodSchema
   requiresConfirmation: boolean
+  permissions: ToolPermissions
   execute: (params: unknown, context: AgentContext) => Promise<ToolResult>
 }
+
+export type AgentRole = 'VIEWER' | 'MEMBER' | 'ADMIN' | 'OWNER'
 
 export interface AgentContext {
   workspaceId: string
   userId: string
   workspaceSlug: string
+  userRole: AgentRole
+  /** Org person ID resolved from OrgPosition — undefined if user has no org position */
+  personId?: string
 }
 
 export interface ToolResult {

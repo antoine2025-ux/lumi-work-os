@@ -2,9 +2,7 @@
  * Embedding Repository
  * 
  * Data access layer for ContextEmbedding storage and retrieval.
- * Handles vector storage for semantic search capabilities.
- * 
- * Note: Vector search is a placeholder until pgvector is enabled in Step 4.
+ * Handles vector storage for semantic search capabilities using pgvector.
  * 
  * Rules:
  * - No business logic
@@ -15,6 +13,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { ContextItemRecord } from './context-repository'
 import { logger } from '@/lib/logger'
 
@@ -124,18 +123,16 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 /**
- * Search for similar context items using vector similarity
+ * Search for similar context items using pgvector similarity search
  * 
- * MVP Implementation: Application-side cosine similarity search
+ * Implementation: Database-side cosine similarity using pgvector extension
  * 
  * Algorithm:
- * 1. Fetch candidate embeddings filtered by workspaceId (and optionally type)
- * 2. Limit candidates to MAX_CANDIDATES_FOR_SEARCH to avoid CPU/memory issues
- * 3. Compute cosine similarity for each candidate
- * 4. Sort by similarity score (descending)
- * 5. Return top N results with ContextItem data
- * 
- * Future: Replace with pgvector DB-side similarity search when available
+ * 1. Use pgvector's <=> operator for cosine distance
+ * 2. Filter by workspaceId (multi-tenant safety)
+ * 3. Optionally filter by ContextItem type
+ * 4. Apply similarity threshold to filter out low-quality matches
+ * 5. Return top N results sorted by similarity (descending)
  * 
  * @param params - Search parameters
  * @returns Array of ContextItem records with similarity scores, sorted by score (descending)
@@ -145,12 +142,107 @@ export async function searchEmbeddings(
 ): Promise<(ContextItemRecord & { similarityScore: number })[]> {
   const { workspaceId, vector, type, limit = 10 } = params
 
+  // Default similarity threshold (0-1 scale, where 1 is identical)
+  // 0.3 filters out very dissimilar results while keeping moderately relevant ones
+  const threshold = 0.3
+
+  try {
+    // Build the SQL query with pgvector cosine distance operator (<=>)
+    // Note: <=> returns distance (0 = identical, 2 = opposite), so we convert to similarity: 1 - distance/2
+    // For cosine distance, the range is [0, 2], so similarity = 1 - (distance / 2)
+    // However, for practical purposes, we use: similarity = 1 - distance (since distance is typically [0, 1])
+    
+    // Serialize vector as string for pgvector
+    const vectorString = `[${vector.join(',')}]`
+    
+    // Build type filter clause
+    const typeFilter = type 
+      ? Prisma.sql`AND ci.type = ${type}`
+      : Prisma.empty
+
+    // Execute raw SQL query with pgvector operator
+    const results = await prisma.$queryRaw<Array<{
+      id: string
+      contextId: string
+      workspaceId: string
+      type: string
+      title: string
+      summary: string | null
+      data: unknown
+      updatedAt: Date
+      createdAt: Date
+      similarity: number
+    }>>`
+      SELECT 
+        ci.id,
+        ci."contextId",
+        ci."workspaceId",
+        ci.type,
+        ci.title,
+        ci.summary,
+        ci.data,
+        ci."updatedAt",
+        ci."createdAt",
+        1 - (ce.embedding <=> ${vectorString}::vector) as similarity
+      FROM context_embeddings ce
+      INNER JOIN context_items ci ON ce."contextItemId" = ci.id
+      WHERE ce."workspaceId" = ${workspaceId}
+        ${typeFilter}
+        AND 1 - (ce.embedding <=> ${vectorString}::vector) > ${threshold}
+      ORDER BY ce.embedding <=> ${vectorString}::vector
+      LIMIT ${limit}
+    `
+
+    // Map results to ContextItemRecord format with similarity score
+    return results.map(row => ({
+      id: row.id,
+      contextId: row.contextId,
+      workspaceId: row.workspaceId,
+      type: row.type,
+      title: row.title,
+      summary: row.summary,
+      data: row.data,
+      updatedAt: row.updatedAt,
+      createdAt: row.createdAt,
+      similarityScore: row.similarity
+    }))
+  } catch (error: unknown) {
+    logger.error('pgvector similarity search failed', {
+      workspaceId,
+      vectorDim: vector.length,
+      type,
+      limit,
+      error: error instanceof Error ? error.message : String(error)
+    })
+    
+    // If pgvector is not available, fall back to application-side search
+    if (error instanceof Error && error.message.includes('operator does not exist')) {
+      logger.warn('pgvector extension not available, falling back to application-side search')
+      return fallbackApplicationSideSearch(params)
+    }
+    
+    throw error
+  }
+}
+
+/**
+ * Fallback to application-side cosine similarity search
+ * Used when pgvector extension is not available
+ * 
+ * @param params - Search parameters
+ * @returns Array of ContextItem records with similarity scores
+ */
+async function fallbackApplicationSideSearch(
+  params: SearchEmbeddingsParams
+): Promise<(ContextItemRecord & { similarityScore: number })[]> {
+  const { workspaceId, vector, type, limit = 10 } = params
+
   // Multi-tenant safety: Always filter by workspaceId first
   const whereClause: Record<string, unknown> = {
-    workspaceId // CRITICAL: Always scope by workspaceId
+    workspaceId
   }
 
-  // Optional type filter - filter by ContextItem type
+  // Optional type filter
   if (type) {
     whereClause.contextItem = {
       type
@@ -163,9 +255,9 @@ export async function searchEmbeddings(
     include: {
       contextItem: true
     },
-    take: MAX_CANDIDATES_FOR_SEARCH, // Limit candidates
+    take: MAX_CANDIDATES_FOR_SEARCH,
     orderBy: {
-      updatedAt: 'desc' // Most recently updated first (heuristic)
+      updatedAt: 'desc'
     }
   })
 
@@ -180,7 +272,6 @@ export async function searchEmbeddings(
     try {
       const candidateVector = candidate.embedding as number[]
       
-      // Verify vector dimensions match
       if (candidateVector.length !== vector.length) {
         logger.warn('Vector dimension mismatch in similarity search', {
           queryDim: vector.length,
@@ -192,19 +283,17 @@ export async function searchEmbeddings(
 
       const score = cosineSimilarity(vector, candidateVector)
       
-      // Only include results with positive similarity
       if (score > 0) {
         results.push({
           ...candidate.contextItem,
           similarityScore: score
         })
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error computing similarity for candidate', {
         contextItemId: candidate.contextItemId,
         error
       })
-      // Continue with next candidate
     }
   }
 

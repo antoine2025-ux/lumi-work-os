@@ -3,6 +3,7 @@ import OpenAI from 'openai'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { AssistantStreamSchema } from '@/lib/validations/assistant'
 
 // Lazy initialization - only create client when needed
 function getOpenAIClient(): OpenAI | null {
@@ -27,7 +28,8 @@ export async function POST(request: NextRequest) {
     })
     setWorkspaceContext(auth.workspaceId)
 
-    const { message, sessionId } = await request.json()
+    const body = AssistantStreamSchema.parse(await request.json())
+    const { message, sessionId } = body
 
     if (!message || !sessionId) {
       return NextResponse.json({ error: 'Message and session ID required' }, { status: 400 })
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
           }
           
           controller.close()
-        } catch (error) {
+        } catch (error: unknown) {
           controller.error(error)
         }
       }
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
         'Connection': 'keep-alive',
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Streaming error:', error)
     return NextResponse.json({ error: 'Streaming failed' }, { status: 500 })
   }

@@ -7,10 +7,11 @@ import { handleApiError } from "@/lib/api-errors";
 import { logOrgAudit } from "@/lib/audit/org-audit";
 import { computeChanges } from "@/lib/audit/diff";
 import { acceptOrgInvitationByToken } from "@/server/data/acceptOrgInvitation";
+import { OrgInvitationRespondSchema } from "@/lib/validations/admin";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as { token: string; decision: "ACCEPT" | "DECLINE" };
+    const body = OrgInvitationRespondSchema.parse(await req.json());
     const { user, isAuthenticated, workspaceId } = await getUnifiedAuth(req);
     if (!isAuthenticated) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -55,7 +56,10 @@ export async function POST(req: NextRequest) {
 
     // ACCEPT: use correct acceptance function
     try {
-      const result = await acceptOrgInvitationByToken(body.token, user.userId);
+      const result = await acceptOrgInvitationByToken(body.token, user.userId, {
+        sessionEmail: user.email,
+        sessionName: user.name,
+      });
       
       // Ensure the created position has a teamId
       const position = await prisma.orgPosition.findFirst({
@@ -89,7 +93,7 @@ export async function POST(req: NextRequest) {
         orgName: result.workspace.name || "Organization",
         role: "MEMBER",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         return NextResponse.json({ 
           ok: false, 
@@ -98,7 +102,7 @@ export async function POST(req: NextRequest) {
       }
       throw error;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

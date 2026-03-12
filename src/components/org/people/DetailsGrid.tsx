@@ -49,7 +49,7 @@ function DetailItem({ icon, label, value, showCopy, copyValue }: DetailItemProps
         <span>{label}</span>
       </div>
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[13px] text-slate-200 min-w-0 flex-1">
+        <div className="text-[13px] text-foreground min-w-0 flex-1">
           {typeof value === "string" ? (
             <span className="truncate block">{value}</span>
           ) : (
@@ -61,7 +61,7 @@ function DetailItem({ icon, label, value, showCopy, copyValue }: DetailItemProps
             variant="ghost"
             size="sm"
             onClick={() => copyToClipboard(copyValue)}
-            className="h-6 px-2 text-[11px] text-slate-400 hover:text-slate-200 hover:bg-slate-800 shrink-0 transition-colors duration-150"
+            className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 transition-colors duration-150"
           >
             <Copy className="h-3 w-3" />
           </Button>
@@ -79,7 +79,7 @@ export function DetailsGrid({ person }: DetailsGridProps) {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Details
       </h3>
       <div className="grid grid-cols-2 gap-4">
@@ -106,8 +106,8 @@ export function DetailsGrid({ person }: DetailsGridProps) {
             icon={<MapPin className="h-3.5 w-3.5" />}
             label="Location"
             value={
-              <span className="text-slate-400">
-                — <span className="text-[10px] text-slate-500">Not set</span>
+              <span className="text-muted-foreground">
+                — <span className="text-[10px] text-muted-foreground">Not set</span>
               </span>
             }
           />
@@ -125,8 +125,8 @@ export function DetailsGrid({ person }: DetailsGridProps) {
             icon={<Calendar className="h-3.5 w-3.5" />}
             label="Tenure"
             value={
-              <span className="text-slate-400">
-                — <span className="text-[10px] text-slate-500">Unable to calculate</span>
+              <span className="text-muted-foreground">
+                — <span className="text-[10px] text-muted-foreground">Unable to calculate</span>
               </span>
             }
           />
@@ -135,8 +135,8 @@ export function DetailsGrid({ person }: DetailsGridProps) {
             icon={<Calendar className="h-3.5 w-3.5" />}
             label="Tenure"
             value={
-              <span className="text-slate-400">
-                — <span className="text-[10px] text-slate-500">Start date not set</span>
+              <span className="text-muted-foreground">
+                — <span className="text-[10px] text-muted-foreground">Start date not set</span>
               </span>
             }
           />
@@ -154,8 +154,8 @@ export function DetailsGrid({ person }: DetailsGridProps) {
             icon={<Briefcase className="h-3.5 w-3.5" />}
             label="Role"
             value={
-              <span className="text-slate-400">
-                — <span className="text-[10px] text-slate-500">Not set</span>
+              <span className="text-muted-foreground">
+                — <span className="text-[10px] text-muted-foreground">Not set</span>
               </span>
             }
           />
@@ -173,8 +173,8 @@ export function DetailsGrid({ person }: DetailsGridProps) {
             icon={<Building2 className="h-3.5 w-3.5" />}
             label="Department"
             value={
-              <span className="text-slate-400">
-                — <span className="text-[10px] text-slate-500">Not assigned</span>
+              <span className="text-muted-foreground">
+                — <span className="text-[10px] text-muted-foreground">Not assigned</span>
               </span>
             }
           />
@@ -192,8 +192,8 @@ export function DetailsGrid({ person }: DetailsGridProps) {
             icon={<Users className="h-3.5 w-3.5" />}
             label="Team"
             value={
-              <span className="text-slate-400">
-                — <span className="text-[10px] text-slate-500">Not assigned</span>
+              <span className="text-muted-foreground">
+                — <span className="text-[10px] text-muted-foreground">Not assigned</span>
               </span>
             }
           />
@@ -211,8 +211,8 @@ export function DetailsGrid({ person }: DetailsGridProps) {
             icon={<UserCheck className="h-3.5 w-3.5" />}
             label="Reports to"
             value={
-              <span className="text-slate-400">
-                — <span className="text-[10px] text-slate-500">Not set</span>
+              <span className="text-muted-foreground">
+                — <span className="text-[10px] text-muted-foreground">Not set</span>
               </span>
             }
           />

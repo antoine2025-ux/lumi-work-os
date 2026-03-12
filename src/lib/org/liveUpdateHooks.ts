@@ -21,6 +21,11 @@ async function loadRoleContextForPosition(
       id: positionId,
       workspaceId,
     },
+    include: {
+      jobDescription: {
+        select: { title: true, summary: true, level: true },
+      },
+    },
   });
   if (!position) return null;
 
@@ -56,6 +61,7 @@ async function loadRoleContextForPosition(
     team,
     department,
     parentPosition,
+    jobDescription: position.jobDescription ?? null,
   });
 
   return rc;
@@ -82,6 +88,11 @@ async function loadRoleContextForRoleCard(
   if (roleCard.positionId) {
     position = await prisma.orgPosition.findFirst({
       where: { id: roleCard.positionId, workspaceId },
+      include: {
+        jobDescription: {
+          select: { title: true, summary: true, level: true },
+        },
+      },
     });
 
     if (position?.teamId) {
@@ -110,6 +121,7 @@ async function loadRoleContextForRoleCard(
     team,
     department,
     parentPosition,
+    jobDescription: position?.jobDescription ?? null,
   });
 
   return rc;
@@ -143,7 +155,7 @@ export async function onOrgPositionChanged(params: {
         `[OrgLiveUpdate] Updated role ContextItem for position ${positionId}`
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Fail-safe: log but don't crash the mutation
     console.error(
       `[OrgLiveUpdate] Failed to update role ContextItem for position ${positionId}:`,
@@ -179,7 +191,7 @@ export async function onRoleCardChanged(params: {
         `[OrgLiveUpdate] Updated role ContextItem for roleCard ${roleCardId}`
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Fail-safe: log but don't crash the mutation
     console.error(
       `[OrgLiveUpdate] Failed to update role ContextItem for roleCard ${roleCardId}:`,
@@ -211,7 +223,7 @@ export async function onOrgPositionDeleted(params: {
         `[OrgLiveUpdate] Archived role ContextItem for position ${positionId}`
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Fail-safe: log but don't crash the mutation
     console.error(
       `[OrgLiveUpdate] Failed to archive role ContextItem for position ${positionId}:`,
@@ -243,7 +255,7 @@ export async function onRoleCardDeleted(params: {
         `[OrgLiveUpdate] Archived role ContextItem for roleCard ${roleCardId}`
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Fail-safe: log but don't crash the mutation
     console.error(
       `[OrgLiveUpdate] Failed to archive role ContextItem for roleCard ${roleCardId}:`,

@@ -234,7 +234,7 @@ export async function refreshProjectHealthInBackground(
       projectId,
       overallHealth: snapshot.summary.overallHealth,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warn("[ProjectHealthListener] Background refresh failed", {
       workspaceId,
       projectId,

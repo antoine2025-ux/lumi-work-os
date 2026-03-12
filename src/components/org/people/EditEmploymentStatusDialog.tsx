@@ -97,7 +97,7 @@ export function EditEmploymentStatusDialog({
 
       onOpenChange(false);
       onSaved?.();
-    } catch (e) {
+    } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setIsSaving(false);
@@ -106,10 +106,10 @@ export function EditEmploymentStatusDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#0a0f1a] border-slate-800 sm:max-w-[400px]">
+      <DialogContent className="bg-[#0a0f1a] border-border sm:max-w-[400px]">
         <DialogHeader>
-          <DialogTitle className="text-slate-100">Edit Employment Status</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogTitle className="text-foreground">Edit Employment Status</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Update employment status and dates.
           </DialogDescription>
         </DialogHeader>
@@ -117,9 +117,9 @@ export function EditEmploymentStatusDialog({
         <div className="space-y-4 py-4">
           {/* Employment Status */}
           <div className="space-y-2">
-            <Label className="text-xs text-slate-300">Employment Status</Label>
+            <Label className="text-xs text-muted-foreground">Employment Status</Label>
             <Select value={status} onValueChange={(v) => setStatus(v as EmploymentStatus)}>
-              <SelectTrigger className="bg-slate-900 border-slate-700">
+              <SelectTrigger className="bg-card border-border">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -134,23 +134,23 @@ export function EditEmploymentStatusDialog({
 
           {/* Start Date */}
           <div className="space-y-2">
-            <Label className="text-xs text-slate-300">Start Date (optional)</Label>
+            <Label className="text-xs text-muted-foreground">Start Date (optional)</Label>
             <Input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="bg-slate-900 border-slate-700 text-slate-200"
+              className="bg-card border-border text-foreground"
             />
           </div>
 
           {/* End Date */}
           <div className="space-y-2">
-            <Label className="text-xs text-slate-300">End Date (optional)</Label>
+            <Label className="text-xs text-muted-foreground">End Date (optional)</Label>
             <Input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="bg-slate-900 border-slate-700 text-slate-200"
+              className="bg-card border-border text-foreground"
             />
           </div>
 
@@ -162,7 +162,7 @@ export function EditEmploymentStatusDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isSaving}
-            className="border-slate-700 text-slate-300"
+            className="border-border text-muted-foreground"
           >
             Cancel
           </Button>

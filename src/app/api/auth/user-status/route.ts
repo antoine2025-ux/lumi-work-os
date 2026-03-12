@@ -6,6 +6,7 @@ import { cache, CACHE_KEYS } from '@/lib/cache'
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
 import { prisma } from '@/lib/db'
+import type { Session } from 'next-auth'
 
 // Helper to hash workspaceId for logging (privacy/correlation protection)
 function hashWorkspaceId(workspaceId: string | null): string | undefined {
@@ -49,8 +50,9 @@ export async function GET(request: NextRequest) {
     let authUser
     try {
       authUser = await getAuthUser()
-    } catch (authError: any) {
-      console.error('[user-status] getAuthUser threw error:', authError?.message || authError)
+    } catch (authError: unknown) {
+      const authErrorMessage = authError instanceof Error ? authError.message : String(authError)
+      console.error('[user-status] getAuthUser threw error:', authErrorMessage)
       // Even if getAuthUser fails, check if we have a session
       const session = await getServerSession(authOptions)
       if (session?.user?.email) {
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
           isAuthenticated: true, // Still authenticated via session
           isFirstTime: true,
           workspaceId: null,
-          error: `Auth check failed: ${authError?.message || 'Unknown error'}`,
+          error: `Auth check failed: ${authErrorMessage}`,
           user: {
             id: (session.user as any).id || session.user.email,
             name: session.user.name || '',
@@ -88,9 +90,9 @@ export async function GET(request: NextRequest) {
           workspaceId: null,
           error: 'Workspace lookup failed',
           user: {
-            id: (session.user as any).id || session.user.email,
+            id: session.user.id || session.user.email || '',
             name: session.user.name || '',
-            email: session.user.email
+            email: session.user.email || ''
           }
         })
       }
@@ -190,7 +192,7 @@ export async function GET(request: NextRequest) {
     response.headers.set('X-Cache', 'MISS')
     return response
 
-  } catch (error) {
+  } catch (error: unknown) {
     const totalDurationMs = performance.now() - startTime
 
     // Always check for session as fallback - don't assume user is not authenticated
@@ -271,9 +273,9 @@ export async function GET(request: NextRequest) {
       role: 'MEMBER' as const, // Default role for backward compatibility
       error: session?.user?.email ? `Failed to check user status: ${error instanceof Error ? error.message : 'Unknown error'}` : 'Not authenticated',
       user: session?.user ? {
-        id: (session.user as any).id,
-        name: session.user.name,
-        email: session.user.email
+        id: (session.user as Session['user'] & { id?: string }).id || '',
+        name: session.user.name || '',
+        email: session.user.email || ''
       } : null
     }, { status: 500 })
   }

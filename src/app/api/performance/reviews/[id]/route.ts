@@ -52,7 +52,7 @@ export async function GET(
     }
 
     return NextResponse.json(review)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -179,7 +179,7 @@ export async function PATCH(
     })
 
     return NextResponse.json(updated)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

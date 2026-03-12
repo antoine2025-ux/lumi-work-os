@@ -98,7 +98,7 @@ export function InlineWikiViewer({
         } else {
           setCurrentWikiPage(null)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading wiki data:', error)
       } finally {
         setIsLoadingPages(false)

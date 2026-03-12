@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
+import { TaskTemplateApplySchema } from '@/lib/validations/tasks'
 
 // POST /api/task-templates/[id]/apply - Apply a template to create tasks
 export async function POST(
@@ -25,17 +27,11 @@ export async function POST(
 
     const resolvedParams = await params
     const templateId = resolvedParams.id
-    const body = await request.json()
+    const body = TaskTemplateApplySchema.parse(await request.json())
     const { 
       projectId,
-      taskCount = 1,
+      taskCount,
     } = body
-
-    if (!projectId) {
-      return NextResponse.json({ 
-        error: 'Project ID is required' 
-      }, { status: 400 })
-    }
 
     // Verify project exists and user has access
     const project = await prisma.project.findUnique({
@@ -102,8 +98,8 @@ export async function POST(
         })
         
         createdTasks.push(task)
-      } catch (error) {
-        console.error('Error creating task from template:', error)
+      } catch (_error: unknown) {
+        // non-blocking: skip failed task
       }
     }
 
@@ -119,10 +115,7 @@ export async function POST(
       }))
     })
 
-  } catch (error) {
-    console.error('Error applying task template:', error)
-    return NextResponse.json({ 
-      error: 'Failed to apply task template' 
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

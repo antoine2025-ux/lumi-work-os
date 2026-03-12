@@ -60,7 +60,7 @@ export async function GET(
     }
 
     return NextResponse.json(analytics[0])
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

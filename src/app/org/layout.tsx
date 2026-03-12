@@ -58,7 +58,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
       );
     }
 
-    // Fetch server-side permission context (userId, orgId, role)
+    // Fetch server-side permission context (userId, workspaceId, role)
     // This already handles auto-selection via getOrgAndMembershipForUser
     // PERFORMANCE: This is cached per-request via React.cache(), so child pages
     // that also call getOrgPermissionContext() will get the cached result.
@@ -144,7 +144,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
             </div>
           </div>
         );
-      } catch (error) {
+      } catch (error: unknown) {
         // Catch any unexpected errors (shouldn't happen since getCurrentUserId handles errors)
         console.error("[OrgLayout] Unexpected error checking user:", error);
         // Fallback if we can't determine auth state
@@ -219,7 +219,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
               provisionalCount = await prisma.workRequest.count({
                 where: { workspaceId: context.workspaceId, isProvisional: true, status: "OPEN" },
               });
-            } catch (error: any) {
+            } catch (error: unknown) {
               // Handle missing table (P2021) - table may not exist yet
               if (error?.code === "P2021" || error?.message?.includes("does not exist")) {
                 provisionalCount = 0;
@@ -235,7 +235,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
             // If provisional exists, let through — user is mid-onboarding
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         // Re-throw redirect errors
         if (error && typeof error === "object" && "digest" in error) {
           const err = error as { digest?: string };
@@ -257,7 +257,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
         </OrgLayoutClient>
       </OrgPermissionsProvider>
     );
-  } catch (error) {
+  } catch (error: unknown) {
     // Re-throw Next.js redirect errors - they should propagate
     if (error && typeof error === 'object' && ('digest' in error || 'message' in error)) {
       const err = error as { digest?: string; message?: string };

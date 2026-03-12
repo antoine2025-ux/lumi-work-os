@@ -164,7 +164,7 @@ export function ProjectHealthCard({
         const data = await response.json();
         setSnapshot(data);
         onHealthLoaded?.(data);
-      } catch (err) {
+      } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
         setLoading(false);
@@ -416,7 +416,7 @@ export function useProjectHealth(projectId: string) {
 
         const data = await response.json();
         setSnapshot(data);
-      } catch (err) {
+      } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
         setLoading(false);

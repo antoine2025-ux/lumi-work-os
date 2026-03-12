@@ -92,7 +92,7 @@ export async function resolveOrgPermissionForCurrentUser(
       permissionLevel,
       memberId: member.id,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[resolveOrgPermissionForCurrentUser]", error);
     return null;
   }

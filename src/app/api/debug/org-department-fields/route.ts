@@ -23,8 +23,8 @@ export async function GET() {
     });
 
     return NextResponse.json({ ok: true, note: "Unexpectedly did not throw." });
-  } catch (e: any) {
-    const raw = String(e?.message ?? e);
+  } catch (e: unknown) {
+    const raw = e instanceof Error ? e.message : String(e);
     const msg = stripAnsi(raw);
 
     // Heuristic: Prisma prints lines like:

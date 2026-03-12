@@ -174,18 +174,18 @@ export function PeopleDirectory() {
               >
                 <div className="flex items-center gap-4">
                   {/* Avatar */}
-                  <div className="h-12 w-12 shrink-0 rounded-full border border-white/10 bg-white/[0.05] flex items-center justify-center text-base font-semibold text-white">
+                  <div className="h-12 w-12 shrink-0 rounded-full border border-white/10 bg-white/[0.05] flex items-center justify-center text-base font-semibold text-foreground">
                     {initials(p.name)}
                   </div>
 
                   {/* Identity Block */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-base font-semibold text-white truncate">{p.name ?? "Unnamed"}</div>
+                    <div className="text-base font-semibold text-foreground truncate">{p.name ?? "Unnamed"}</div>
                     {p.role && (
-                      <div className="mt-0.5 text-sm text-white/60 truncate">{p.role}</div>
+                      <div className="mt-0.5 text-sm text-foreground/60 truncate">{p.role}</div>
                     )}
                     {orgLine && (
-                      <div className="mt-0.5 text-xs text-white/50 truncate">{orgLine}</div>
+                      <div className="mt-0.5 text-xs text-foreground/50 truncate">{orgLine}</div>
                     )}
                   </div>
 
@@ -194,7 +194,7 @@ export function PeopleDirectory() {
                     {/* Availability Badge */}
                     <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs">
                       <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
-                      <span className="text-white/70">{availabilityText}</span>
+                      <span className="text-foreground/70">{availabilityText}</span>
                     </div>
 
                     {/* Optional Warning Badges */}
@@ -221,12 +221,12 @@ export function PeopleDirectory() {
       )}
 
       {loading && (
-        <div className="py-8 text-center text-sm text-white/60">Loading…</div>
+        <div className="py-8 text-center text-sm text-foreground/60">Loading…</div>
       )}
 
       {error && (
         <div className="py-8 text-center">
-          <div className="text-sm text-white/60">{error}</div>
+          <div className="text-sm text-foreground/60">{error}</div>
         </div>
       )}
     </div>

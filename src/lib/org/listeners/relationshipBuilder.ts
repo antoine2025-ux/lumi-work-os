@@ -121,7 +121,7 @@ export async function recordCollaboration(
       signal,
       strength,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[RelationshipBuilder] Failed to record collaboration", {
       workspaceId,
       personAId,
@@ -169,7 +169,7 @@ export async function recordMeetingCollaboration(
       attendeeCount: attendeeIds.length,
       pairsCreated: (attendeeIds.length * (attendeeIds.length - 1)) / 2,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[RelationshipBuilder] Failed to record meeting collaboration", {
       workspaceId,
       attendeeIds,
@@ -228,7 +228,7 @@ export async function recordProjectCollaboration(
       memberCount: memberIds.length,
       pairsCreated: (memberIds.length * (memberIds.length - 1)) / 2,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[RelationshipBuilder] Failed to record project collaboration", {
       workspaceId,
       projectId,
@@ -283,7 +283,7 @@ export async function recordTaskCollaboration(
       creatorId: task.createdById,
       assigneeId: task.assigneeId,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[RelationshipBuilder] Failed to record task collaboration", {
       workspaceId,
       taskId,

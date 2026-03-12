@@ -100,7 +100,7 @@ export function PositionForm({
         const data = await response.json()
         setDepartments(data || [])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading departments:', error)
     }
   }
@@ -147,7 +147,7 @@ export function PositionForm({
         setTitle("")
         setLevel(1)
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsLoading(false)
@@ -190,7 +190,7 @@ export function PositionForm({
               </SelectContent>
             </Select>
             {departments.length === 0 && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Please create a department first
               </p>
             )}
@@ -215,12 +215,12 @@ export function PositionForm({
               </SelectContent>
             </Select>
             {!departmentId && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Please select a department first
               </p>
             )}
             {departmentId && filteredTeams.length === 0 && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 No teams found for this department. Please create a team first.
               </p>
             )}

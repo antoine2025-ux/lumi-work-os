@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -67,7 +66,7 @@ export function TodaysTodosCard({ className }: TodaysTodosCardProps) {
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['todos'] })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error toggling todo:', error)
     }
   }, [queryClient])
@@ -96,15 +95,15 @@ export function TodaysTodosCard({ className }: TodaysTodosCardProps) {
 
   return (
     <>
-      <Card className={cn("widget-card", className)}>
-        <div className="widget-header">
-          <div className="widget-header-start">
-            <List className="h-4 w-4 flex-shrink-0" aria-hidden />
+      <div className={cn("bg-card rounded-md border border-border flex flex-col h-full min-h-0", className)}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <List className="h-4 w-4 text-muted-foreground" aria-hidden />
             <Link href="/todos" className="hover:opacity-80 transition-opacity">
-              <span className="widget-title cursor-pointer">TO-DO</span>
+              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground cursor-pointer">To-do</h3>
             </Link>
           </div>
-          <div className="widget-actions">
+          <div className="flex items-center gap-2">
             {openCount > 0 && (
               <Badge variant="outline" className="text-xs">{openCount}</Badge>
             )}
@@ -128,7 +127,7 @@ export function TodaysTodosCard({ className }: TodaysTodosCardProps) {
             </Button>
           </div>
         </div>
-        <div className="widget-content space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
+        <div className="p-3 flex-1 space-y-2 max-h-[340px] overflow-y-auto dashboard-card-scroll">
           {!isLoading && openCount === 0 ? (
             <div className="text-center py-6">
               <p className="text-sm text-muted-foreground">
@@ -174,7 +173,7 @@ export function TodaysTodosCard({ className }: TodaysTodosCardProps) {
             </Link>
           )}
         </div>
-      </Card>
+      </div>
 
       <CreateTodoDialog
         open={isDialogOpen}

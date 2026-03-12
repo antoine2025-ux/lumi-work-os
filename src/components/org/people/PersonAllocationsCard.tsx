@@ -123,7 +123,7 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
     try {
       const data = await fetchAllocations(personId);
       setAllocations(data);
-    } catch (err) {
+    } catch (err: unknown) {
       setError("Failed to load allocations");
       console.error("[PersonAllocationsCard] Error:", err);
     } finally {
@@ -212,12 +212,12 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
 
   if (loading) {
     return (
-      <Card className="border-slate-800 bg-slate-900/50">
+      <Card className="border-border bg-card/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-slate-200">Commitments</CardTitle>
+          <CardTitle className="text-sm font-medium text-foreground">Commitments</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-xs text-slate-500">Loading...</div>
+          <div className="text-xs text-muted-foreground">Loading...</div>
         </CardContent>
       </Card>
     );
@@ -225,16 +225,16 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
 
   return (
     <>
-      <Card className="border-slate-800 bg-slate-900/50">
+      <Card className="border-border bg-card/50">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-slate-200">Commitments</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">Commitments</CardTitle>
             {canEdit && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setDialogOpen(true)}
-                className="h-7 px-2 text-slate-400 hover:text-slate-200"
+                className="h-7 px-2 text-muted-foreground hover:text-foreground"
               >
                 <Plus className="h-3 w-3" />
               </Button>
@@ -244,11 +244,11 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
         <CardContent className="space-y-4">
           {/* Total Allocation */}
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
               Total Allocation
             </div>
             <div className="flex items-center gap-2">
-              <span className={`text-lg font-semibold ${isOverallocated ? "text-red-400" : "text-slate-200"}`}>
+              <span className={`text-lg font-semibold ${isOverallocated ? "text-red-400" : "text-foreground"}`}>
                 {Math.round(totalPercent * 100)}%
               </span>
               {isOverallocated && (
@@ -262,23 +262,23 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
 
           {/* Active Allocations */}
           {activeAllocations.length > 0 ? (
-            <div className="pt-2 border-t border-slate-800">
-              <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-2">
+            <div className="pt-2 border-t border-border">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">
                 Active ({activeAllocations.length})
               </div>
               <div className="space-y-2">
                 {activeAllocations.map((a) => (
                   <div
                     key={a.id}
-                    className="flex items-start justify-between gap-2 text-xs p-2 rounded bg-slate-800/50"
+                    className="flex items-start justify-between gap-2 text-xs p-2 rounded bg-muted/50"
                   >
                     <div className="flex items-start gap-2">
-                      <Briefcase className="h-3 w-3 text-slate-500 mt-0.5 shrink-0" />
+                      <Briefcase className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
                       <div>
-                        <div className="text-slate-300">
+                        <div className="text-muted-foreground">
                           {a.contextLabel || getContextTypeLabel(a.contextType)}
                         </div>
-                        <div className="text-slate-500">
+                        <div className="text-muted-foreground">
                           {Math.round(a.allocationPercent * 100)}% •{" "}
                           {getContextTypeLabel(a.contextType)}
                           {a.endDate && ` • Until ${formatDate(a.endDate)}`}
@@ -290,7 +290,7 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(a.id)}
-                        className="h-5 w-5 p-0 text-slate-500 hover:text-red-400"
+                        className="h-5 w-5 p-0 text-muted-foreground hover:text-red-400"
                       >
                         <X className="h-3 w-3" />
                       </Button>
@@ -300,7 +300,7 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
               </div>
             </div>
           ) : (
-            <div className="text-xs text-slate-500 italic">No active allocations</div>
+            <div className="text-xs text-muted-foreground italic">No active allocations</div>
           )}
 
           {error && (
@@ -327,7 +327,7 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
                 onChange={(e) => setFormPercent(e.target.value)}
                 placeholder="50"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Percentage of capacity allocated to this work
               </p>
             </div>

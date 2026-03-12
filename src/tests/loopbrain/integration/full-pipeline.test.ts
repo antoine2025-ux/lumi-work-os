@@ -235,33 +235,45 @@ beforeAll(async () => {
     ].map((name) => ({ workspaceId, name })),
   });
 
-  // ── 9. Projects (orgId = workspaceId for Q3's OR[{ orgId }, { workspaceId }]) ─
+  // ── 8.5. Create default space for projects ────────────────────────────────
+  const testSpace = await prisma.space.create({
+    data: {
+      workspaceId,
+      name: "General",
+      description: "Default space for test projects",
+      icon: "🏢",
+      color: "#6B7280",
+      ownerId: users.owner.id,
+    },
+  });
+
+  // ── 9. Projects ─────────────────────────────────────────────────────────────
   const [projA, projB, projC] = await Promise.all([
     prisma.project.create({
       data: {
         workspaceId,
-        orgId: workspaceId,
         name: "Platform Redesign",
         description: "Redesign core platform services for scalability and reliability",
         createdById: users.owner.id,
+        spaceId: testSpace.id,
       },
     }),
     prisma.project.create({
       data: {
         workspaceId,
-        orgId: workspaceId,
         name: "API Gateway",
         description: "Build a unified API gateway for all internal services",
         createdById: users.owner.id,
+        spaceId: testSpace.id,
       },
     }),
     prisma.project.create({
       data: {
         workspaceId,
-        orgId: workspaceId,
         name: "Brand Refresh",
         description: "Refresh the company visual identity and brand guidelines",
         createdById: users.owner.id,
+        spaceId: testSpace.id,
       },
     }),
   ]);

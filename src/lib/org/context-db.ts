@@ -231,7 +231,7 @@ export async function getOrgAndMembershipForUser(
         customRole: null, // customRole relation may not exist in database
       },
     };
-  } catch (error) {
+  } catch (error: unknown) {
     // Gracefully handle database errors
     console.error("[getOrgAndMembershipForUser] Error fetching org membership:", error);
     return null;

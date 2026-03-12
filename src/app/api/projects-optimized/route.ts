@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
@@ -75,19 +76,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(projects)
   } catch (error: unknown) {
-    console.error('Error fetching projects:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    
-    if (errorMessage.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (errorMessage.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to fetch projects' 
-    }, { status: 500 })
+    return handleApiError(error, request);
   }
 }

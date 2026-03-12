@@ -36,7 +36,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const collaborations = await getTeamCollaborations(spaceId, auth.workspaceId)
     return NextResponse.json(collaborations)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

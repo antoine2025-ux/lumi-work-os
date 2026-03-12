@@ -4,6 +4,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
+import { CreateChatSessionSchema } from '@/lib/validations/assistant'
 
 // GET /api/ai/chat-sessions - Get chat sessions
 export async function GET(request: NextRequest) {
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
       sessions: formattedSessions,
       total: formattedSessions.length
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -95,14 +96,8 @@ export async function POST(request: NextRequest) {
     })
     setWorkspaceContext(auth.workspaceId)
 
-    const { model, title } = await request.json()
-
-    if (!model) {
-      return NextResponse.json({
-        success: false,
-        error: 'Model is required'
-      }, { status: 400 })
-    }
+    const body = CreateChatSessionSchema.parse(await request.json())
+    const { model = 'gpt-4-turbo', title } = body
 
     const session = await prisma.chatSession.create({
       data: {
@@ -125,7 +120,7 @@ export async function POST(request: NextRequest) {
         messageCount: 0
       }
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

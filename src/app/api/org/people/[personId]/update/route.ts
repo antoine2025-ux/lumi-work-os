@@ -107,7 +107,7 @@ export async function PUT(
     }).catch((e) => console.error("[PUT /api/org/people/[personId]/update] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ id: updated.id }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

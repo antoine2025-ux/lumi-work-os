@@ -22,12 +22,7 @@ export async function GET(request: NextRequest) {
     const workspaceId = auth.workspaceId;
 
     const projects = await prisma.project.findMany({
-      where: {
-        OR: [
-          { orgId: workspaceId },
-          { workspaceId }, // Fallback for projects without orgId
-        ],
-      },
+      where: { workspaceId },
       include: {
         accountability: {
           select: {
@@ -76,7 +71,7 @@ export async function GET(request: NextRequest) {
             id: project.id,
             name: project.name,
             description: project.description,
-            workspaceId: project.orgId || project.workspaceId,
+            workspaceId: project.workspaceId,
             accountability: null,
           };
         }
@@ -145,7 +140,7 @@ export async function GET(request: NextRequest) {
           id: project.id,
           name: project.name,
           description: project.description,
-          workspaceId: project.orgId || project.workspaceId,
+          workspaceId: project.workspaceId,
           accountability: {
             ownerPersonId,
             ownerPerson,
@@ -179,7 +174,7 @@ export async function GET(request: NextRequest) {
       ok: true,
       projects: projectsWithNames,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -1,21 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
-
-// Schema for updating a todo
-const TodoUpdateSchema = z.object({
-  title: z.string().min(1).max(500).optional(),
-  note: z.string().max(5000).optional().nullable(),
-  status: z.enum(['OPEN', 'DONE']).optional(),
-  dueAt: z.string().datetime().optional().nullable(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional().nullable(),
-  assignedToId: z.string().optional(),
-  anchorType: z.enum(['NONE', 'PROJECT', 'TASK', 'PAGE']).optional(),
-  anchorId: z.string().optional().nullable(),
-})
+import { TodoUpdateSchema } from '@/lib/validations/todos'
 
 // Helper to check if user can modify the todo
 interface TodoWithRelations {
@@ -137,19 +126,8 @@ export async function GET(
     }
 
     return NextResponse.json(todo)
-  } catch (error) {
-    console.error('Error fetching todo:', error)
-    
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-    
-    return NextResponse.json({ error: 'Failed to fetch todo' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -299,26 +277,8 @@ export async function PATCH(
     })
 
     return NextResponse.json(updatedTodo)
-  } catch (error) {
-    console.error('Error updating todo:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({
-        error: 'Validation error',
-        details: error.issues
-      }, { status: 400 })
-    }
-    
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-    
-    return NextResponse.json({ error: 'Failed to update todo' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -360,19 +320,8 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Error deleting todo:', error)
-    
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-    
-    return NextResponse.json({ error: 'Failed to delete todo' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

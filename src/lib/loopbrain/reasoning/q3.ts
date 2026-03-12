@@ -667,7 +667,7 @@ async function fetchProjectWithAccountability(
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
-      OR: [{ orgId: workspaceId }, { workspaceId }],
+      workspaceId,
     },
     include: {
       accountability: {
@@ -780,12 +780,9 @@ async function fetchPeopleWithCapacity(
 async function fetchRolesWithResponsibilities(
   workspaceId: string
 ): Promise<RoleWithResponsibilities[]> {
-  // For v1, orgId = workspaceId
-  const orgId = workspaceId;
-
   const roles = await prisma.role.findMany({
     where: {
-      workspaceId: orgId,
+      workspaceId,
     },
     include: {
       responsibilities: {

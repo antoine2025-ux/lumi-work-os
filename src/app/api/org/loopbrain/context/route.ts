@@ -48,13 +48,13 @@ export async function GET(request: NextRequest) {
         const context = await buildLoopbrainOrgContext();
         return NextResponse.json({ context }, { status: 200 });
       }
-    } catch (buildError: any) {
+    } catch (buildError: unknown) {
       // Validation errors from buildLoopbrainOrgContext should surface as 500
       // (validation failure means the payload is malformed, which is an internal error)
       console.error("[GET /api/org/loopbrain/context] Context build/validation error:", buildError);
       return NextResponse.json({ error: "Loopbrain context invalid" }, { status: 500 });
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -37,7 +37,7 @@ export async function logTaskHistory({
         workspaceId: wsId
       }
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error logging task history:', error)
     // Don't throw - history logging should not break the main operation
   }
@@ -67,7 +67,7 @@ export async function logTaskHistoryBatch(entries: TaskHistoryEntry[]): Promise<
         })
       )
     )
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error logging task history batch:', error)
     // Don't throw - history logging should not break the main operation
   }
@@ -92,7 +92,7 @@ export async function getTaskHistory(taskId: string, limit: number = 50) {
       orderBy: { at: 'desc' },
       take: limit
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching task history:', error)
     return []
   }

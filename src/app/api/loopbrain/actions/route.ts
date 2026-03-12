@@ -11,9 +11,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { executeAction } from '@/lib/loopbrain/actions/executor'
 import { LoopbrainActionSchema } from '@/lib/loopbrain/actions/action-types'
-import { toLoopbrainError } from '@/lib/loopbrain/errors'
 import { getRequestId } from '@/lib/loopbrain/request-id'
 import { logger } from '@/lib/logger'
 
@@ -116,30 +116,8 @@ export async function POST(request: NextRequest) {
     } else {
       return NextResponse.json(result, { status: result.error?.code === 'ACCESS_DENIED' ? 403 : 400 })
     }
-  } catch (error) {
-    const lbError = toLoopbrainError(error)
-    const duration = Date.now() - startTime
-
-    logger.error('Action execution failed', {
-      requestId,
-      errorCode: lbError.code,
-      errorMessage: lbError.message,
-      errorStatus: lbError.status,
-      durationMs: duration,
-      cause: lbError.cause instanceof Error ? lbError.cause.message : String(lbError.cause),
-    })
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error: {
-          code: lbError.code,
-          message: lbError.message,
-        },
-        requestId,
-      },
-      { status: lbError.status }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

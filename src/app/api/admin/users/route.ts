@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { handleApiError } from '@/lib/api-errors'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
 import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
+import { AdminCreateUserSchema } from '@/lib/validations/admin'
 
 // Helper to hash workspaceId for logging (privacy/correlation protection)
 function hashWorkspaceId(workspaceId: string | null): string | undefined {
@@ -98,13 +100,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(users)
-  } catch (error) {
-    const totalDurationMs = performance.now() - startTime
-    logger.error('admin/users GET (error)', {
-      ...baseContext,
-      durationMs: Math.round(totalDurationMs * 100) / 100
-    }, error instanceof Error ? error : new Error(String(error)))
-    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -123,16 +120,17 @@ export async function POST(request: NextRequest) {
 
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
-    const body = await request.json()
+    
+    const body = AdminCreateUserSchema.parse(await request.json())
     const { 
       workspaceId = auth.workspaceId,
       email, 
       name, 
-      role = 'MEMBER',
+      role,
       bio,
-      skills = [],
-      currentGoals = [],
-      interests = [],
+      skills,
+      currentGoals,
+      interests,
       timezone,
       location,
       phone,
@@ -140,12 +138,6 @@ export async function POST(request: NextRequest) {
       githubUrl,
       personalWebsite
     } = body
-
-    if (!email || !name) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: email, name' 
-      }, { status: 400 })
-    }
 
     // Create the user
     const newUser = await prisma.user.create({
@@ -181,8 +173,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(newUser, { status: 201 })
-  } catch (error) {
-    console.error('Error creating user:', error)
-    return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

@@ -46,7 +46,6 @@ export interface PrefetchOptions {
 export async function prefetchAllData(options: PrefetchOptions) {
   const { workspaceId, queryClient } = options
   
-  console.log('[Prefetch] Starting metadata prefetching for workspace:', workspaceId)
   const startTime = Date.now()
 
   // Prefetch all critical METADATA in parallel - lightweight, fast
@@ -61,7 +60,7 @@ export async function prefetchAllData(options: PrefetchOptions) {
         return response.json()
       },
       staleTime: 5 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Workspaces metadata cached')),
+    }),
 
     // Recent pages METADATA ONLY - no full content
     queryClient.prefetchQuery({
@@ -72,7 +71,7 @@ export async function prefetchAllData(options: PrefetchOptions) {
         return response.json()
       },
       staleTime: 2 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Recent pages metadata cached')),
+    }),
 
     // Personal space pages METADATA ONLY
     queryClient.prefetchQuery({
@@ -83,7 +82,7 @@ export async function prefetchAllData(options: PrefetchOptions) {
         return response.json()
       },
       staleTime: 2 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Personal pages metadata cached')),
+    }),
 
     // Team workspace pages METADATA ONLY
     queryClient.prefetchQuery({
@@ -94,7 +93,7 @@ export async function prefetchAllData(options: PrefetchOptions) {
         return response.json()
       },
       staleTime: 2 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Team pages metadata cached')),
+    }),
 
     // Projects METADATA ONLY
     queryClient.prefetchQuery({
@@ -108,7 +107,7 @@ export async function prefetchAllData(options: PrefetchOptions) {
         return data.projects || []
       },
       staleTime: 2 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Projects metadata cached')),
+    }),
 
     // Drafts METADATA ONLY - no full content
     queryClient.prefetchQuery({
@@ -158,7 +157,7 @@ export async function prefetchAllData(options: PrefetchOptions) {
         ).slice(0, 6)
       },
       staleTime: 1 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Drafts metadata cached')),
+    }),
 
     // NOTE: User status is now provided by UserStatusContext from the session
     // No need to prefetch it separately - this eliminates a redundant API call
@@ -167,8 +166,6 @@ export async function prefetchAllData(options: PrefetchOptions) {
   // Wait for all prefetches to complete (or fail silently)
   await Promise.allSettled(prefetchPromises)
   
-  const duration = Date.now() - startTime
-  console.log(`[Prefetch] ✓ All metadata prefetched in ${duration}ms (no full content)`)
 }
 
 /**
@@ -217,7 +214,7 @@ export function prefetchRoute(route: string, queryClient: QueryClient, workspace
       },
       staleTime: 2 * 60 * 1000,
     })
-  } else if (route.startsWith('/wiki/team-workspace')) {
+  } else if (route.startsWith('/wiki/home')) {
     queryClient.prefetchQuery({
       queryKey: ['wiki-pages', 'recent', workspaceId, 20, 'team'],
       queryFn: async () => {

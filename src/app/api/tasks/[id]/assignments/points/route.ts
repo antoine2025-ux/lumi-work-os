@@ -98,7 +98,7 @@ export async function PATCH(
     )
 
     return NextResponse.json(updatedTask)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

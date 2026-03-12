@@ -31,13 +31,13 @@ export function PeopleFilterControls({ filters }: PeopleFilterControlsProps) {
     <div className="flex flex-wrap items-center gap-3 text-[11px]">
       {/* Team filter */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[11px] text-slate-400">Team</span>
+        <span className="text-[11px] text-muted-foreground">Team</span>
         <select
           value={filters.teamId ?? ""}
           onChange={(e) => updateFilter("teamId", e.target.value || undefined)}
           disabled={isLoading}
           className={cn(
-            "h-7 rounded-full border border-slate-700/70 bg-[#020617] px-3 text-[11px] text-slate-100",
+            "h-7 rounded-full border border-border/70 bg-background px-3 text-[11px] text-foreground",
             "outline-none transition-colors duration-150",
             "hover:border-slate-500 focus-visible:ring-2 focus-visible:ring-[#5CA9FF] focus-visible:ring-offset-0",
             "disabled:cursor-not-allowed disabled:opacity-50"
@@ -54,7 +54,7 @@ export function PeopleFilterControls({ filters }: PeopleFilterControlsProps) {
 
       {/* Department filter */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[11px] text-slate-400">Department</span>
+        <span className="text-[11px] text-muted-foreground">Department</span>
         <select
           value={filters.departmentId ?? ""}
           onChange={(e) =>
@@ -62,7 +62,7 @@ export function PeopleFilterControls({ filters }: PeopleFilterControlsProps) {
           }
           disabled={isLoading}
           className={cn(
-            "h-7 rounded-full border border-slate-700/70 bg-[#020617] px-3 text-[11px] text-slate-100",
+            "h-7 rounded-full border border-border/70 bg-background px-3 text-[11px] text-foreground",
             "outline-none transition-colors duration-150",
             "hover:border-slate-500 focus-visible:ring-2 focus-visible:ring-[#5CA9FF] focus-visible:ring-offset-0",
             "disabled:cursor-not-allowed disabled:opacity-50"
@@ -80,13 +80,13 @@ export function PeopleFilterControls({ filters }: PeopleFilterControlsProps) {
       {/* Role filter */}
       {/* Note: Currently uses role name (not ID) because API searches by role title */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[11px] text-slate-400">Role</span>
+        <span className="text-[11px] text-muted-foreground">Role</span>
         <select
           value={filters.roleId ?? ""}
           onChange={(e) => updateFilter("roleId", e.target.value || undefined)}
           disabled={isLoading}
           className={cn(
-            "h-7 rounded-full border border-slate-700/70 bg-[#020617] px-3 text-[11px] text-slate-100",
+            "h-7 rounded-full border border-border/70 bg-background px-3 text-[11px] text-foreground",
             "outline-none transition-colors duration-150",
             "hover:border-slate-500 focus-visible:ring-2 focus-visible:ring-[#5CA9FF] focus-visible:ring-offset-0",
             "disabled:cursor-not-allowed disabled:opacity-50"

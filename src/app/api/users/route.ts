@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json(users)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

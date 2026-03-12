@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const projects = await getMyProjects(auth.user.userId, auth.workspaceId)
     return NextResponse.json(projects)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

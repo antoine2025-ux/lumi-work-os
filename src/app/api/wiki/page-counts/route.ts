@@ -79,8 +79,6 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    console.log(`📊 Found ${workspaces.length} workspaces for workspaceId: ${auth.workspaceId}`)
-
     // Build counts for each workspace
     const counts: Record<string, number> = {}
     let dbQueryDurationMs = 0
@@ -89,7 +87,6 @@ export async function GET(request: NextRequest) {
     for (const workspace of workspaces) {
       const countStart = performance.now()
       if (!workspace.id) {
-        console.warn('⚠️ Skipping workspace with no ID:', workspace)
         continue
       }
 
@@ -194,7 +191,7 @@ export async function GET(request: NextRequest) {
     response.headers.set('Cache-Control', 'private, s-maxage=120, stale-while-revalidate=240')
     response.headers.set('X-Cache', 'MISS')
     return response
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Page counts error', {
       route,
       error: error instanceof Error ? error.message : String(error),

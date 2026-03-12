@@ -53,16 +53,16 @@ export async function GET(request: NextRequest) {
         orderBy,
         take: limit,
       });
-    } catch (error: any) {
-      // If table doesn't exist (P2021) or model not available, return empty array
-      if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+    } catch (error: unknown) {
+      const code = error && typeof error === 'object' && 'code' in error ? (error as { code: string }).code : undefined;
+      const message = error instanceof Error ? error.message : '';
+      if (code === 'P2021' || message.includes('does not exist')) {
         console.warn("[fix-events] Table org_fix_events does not exist yet, returning empty array");
         return NextResponse.json({
           ok: true,
           events: [],
         });
       }
-      // Re-throw other errors
       throw error;
     }
 
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       ok: true,
       events: enrichedEvents,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -168,9 +168,10 @@ export async function POST(request: NextRequest) {
           impactScore,
         },
       });
-    } catch (error: any) {
-      // If table doesn't exist (P2021) or model not available, return success but no-op
-      if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+    } catch (error: unknown) {
+      const code = error && typeof error === 'object' && 'code' in error ? (error as { code: string }).code : undefined;
+      const message = error instanceof Error ? error.message : '';
+      if (code === 'P2021' || message.includes('does not exist')) {
         console.warn("[fix-events] Table org_fix_events does not exist yet, skipping create");
         return NextResponse.json({
           ok: true,
@@ -178,7 +179,6 @@ export async function POST(request: NextRequest) {
           message: "Fix events table not available yet",
         });
       }
-      // Re-throw other errors
       throw error;
     }
 
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
         createdAt: event.createdAt.toISOString(),
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

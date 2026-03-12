@@ -17,7 +17,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { answerQ3 } from "@/lib/loopbrain/reasoning/q3";
-import { handleApiError } from "@/lib/api-errors"
+import { handleApiError } from "@/lib/api-errors";
+import { LoopbrainOrgQ3Schema } from "@/lib/validations/loopbrain";
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,18 +34,8 @@ export async function POST(request: NextRequest) {
     });
     setWorkspaceContext(workspaceId);
 
-    const body = await request.json();
+    const body = LoopbrainOrgQ3Schema.parse(await request.json());
     const { projectId } = body;
-
-    if (!projectId || typeof projectId !== "string") {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "projectId is required and must be a string",
-        },
-        { status: 400 }
-      );
-    }
 
     // Call Q3 reasoning function
     const result = await answerQ3(projectId, workspaceId);
@@ -53,7 +44,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       result,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

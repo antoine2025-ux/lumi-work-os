@@ -83,7 +83,7 @@ export function WelcomeScreen({ user, onCreateWorkspace, isLoading = false }: We
       try {
         const data = JSON.parse(saved)
         setWorkspaceData(prev => ({ ...prev, ...data }))
-      } catch (e) {
+      } catch (e: unknown) {
         console.error('Failed to parse saved form data', e)
       }
     }

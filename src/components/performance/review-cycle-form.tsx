@@ -95,7 +95,7 @@ export function ReviewCycleForm({ workspaceSlug, className }: ReviewCycleFormPro
 
       const cycle = await res.json()
       router.push(`/w/${workspaceSlug}/org/performance/cycles/${cycle.id}`)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsSubmitting(false)

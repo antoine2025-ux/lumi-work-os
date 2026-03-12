@@ -416,6 +416,21 @@ export async function seedLoopbrainFixtures() {
 
   console.log('✅ Created availability windows')
 
+  // Create default space for projects
+  const fixtureSpace = await prisma.space.upsert({
+    where: { id: 'fixture-space-general' },
+    update: {},
+    create: {
+      id: 'fixture-space-general',
+      workspaceId: workspace.id,
+      name: 'General',
+      description: 'Default space for fixture projects',
+      icon: '🏢',
+      color: '#6B7280',
+      ownerId: alex.id,
+    },
+  })
+
   // Create Projects
   // Project A: Payments Migration (Healthy-ish)
   const projectA = await prisma.project.upsert({
@@ -424,11 +439,11 @@ export async function seedLoopbrainFixtures() {
     create: {
       id: 'fixture-payments-migration',
       workspaceId: workspace.id,
-      orgId: orgId,
       name: 'Payments Migration',
       description: 'Migrate payment processing to new infrastructure',
       status: 'ACTIVE',
       createdById: alex.id,
+      spaceId: fixtureSpace.id,
     },
   })
 
@@ -451,11 +466,11 @@ export async function seedLoopbrainFixtures() {
     create: {
       id: 'fixture-incident-hardening',
       workspaceId: workspace.id,
-      orgId: orgId,
       name: 'Incident Hardening',
       description: 'Improve system reliability and incident response',
       status: 'ACTIVE',
       createdById: sam.id,
+      spaceId: fixtureSpace.id,
     },
   })
 
@@ -477,11 +492,11 @@ export async function seedLoopbrainFixtures() {
     create: {
       id: 'fixture-market-expansion',
       workspaceId: workspace.id,
-      orgId: orgId,
       name: 'New Market Expansion',
       description: 'Expand into new geographic markets',
       status: 'ACTIVE',
       createdById: alex.id,
+      spaceId: fixtureSpace.id,
     },
   })
 
@@ -503,10 +518,10 @@ export async function seedLoopbrainFixtures() {
     create: {
       id: 'fixture-legacy-cleanup',
       workspaceId: workspace.id,
-      orgId: orgId,
       name: 'Legacy Cleanup',
       description: 'Refactor and modernize legacy codebase',
       status: 'ACTIVE',
+      spaceId: fixtureSpace.id,
       createdById: sam.id,
     },
   })

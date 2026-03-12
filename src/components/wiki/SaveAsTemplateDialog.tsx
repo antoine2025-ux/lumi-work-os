@@ -83,7 +83,7 @@ export function SaveAsTemplateDialog({
     try {
       await onSave({ name: name.trim(), description: description.trim() || undefined, category })
       onOpenChange(false)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to save template")
     }
   }

@@ -2,22 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { recalculateGoalAnalytics } from '@/lib/goals/analytics-engine'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const CreateCheckInSchema = z.object({
-  period: z.string(), // "2026-W07"
-  progressUpdate: z.number().min(0).max(100).optional(),
-  blockers: z.string().optional(),
-  support: z.string().optional(),
-  confidence: z.number().min(0).max(1).optional(),
-})
+import { CreateCheckInSchema } from '@/lib/validations/goals'
 
 // ============================================================================
 // GET /api/goals/[goalId]/check-ins - List check-ins
@@ -72,7 +60,7 @@ export async function GET(
     })
 
     return NextResponse.json(checkIns)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -197,7 +185,7 @@ export async function POST(
     })
 
     return NextResponse.json(checkIn, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

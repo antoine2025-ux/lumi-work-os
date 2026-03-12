@@ -26,7 +26,7 @@ type AuditMeta = Prisma.JsonValue;
  * mutation doesn't break.
  * 
  * Adapts to existing OrgAuditLog schema:
- * - workspaceId (orgId)
+ * - workspaceId
  * - userId (required, uses actorUserId if available)
  * - actorUserId (optional, the actual actor)
  * - entityType (targetType)
@@ -67,7 +67,7 @@ export async function logOrgAudit(
         newValues: undefined,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[org-audit-log] Failed to write audit log", error);
     // Intentionally swallow error – audit log is non-critical.
   }

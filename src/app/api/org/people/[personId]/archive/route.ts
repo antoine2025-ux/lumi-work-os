@@ -179,7 +179,7 @@ export async function PATCH(
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

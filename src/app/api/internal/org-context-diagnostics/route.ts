@@ -1,52 +1,27 @@
 /**
  * Org Context Diagnostics API
- * 
+ *
  * Internal endpoint to inspect Org → ContextStore health.
- * Returns counts, samples, and health issues for a workspace.
+ * Returns counts, samples, and health issues for the authenticated workspace.
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { getOrgContextDiagnostics } from "@/lib/org/org-context-service";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { NextRequest, NextResponse } from 'next/server'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
+import { getOrgContextDiagnostics } from '@/lib/org/org-context-service'
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    // Get workspaceId from query params or current workspace
-    const { searchParams } = new URL(req.url);
-    const workspaceIdParam = searchParams.get("workspaceId");
+    const auth = await getUnifiedAuth(request)
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] })
+    setWorkspaceContext(auth.workspaceId)
 
-    let workspaceId: string;
+    const diagnostics = await getOrgContextDiagnostics(auth.workspaceId)
 
-    if (workspaceIdParam) {
-      workspaceId = workspaceIdParam;
-    } else {
-      // Fallback to current workspace if no param provided
-      try {
-        const currentWorkspaceId = await getCurrentWorkspaceId(req);
-        if (!currentWorkspaceId) {
-          return NextResponse.json(
-            { error: "workspaceId is required" },
-            { status: 400 }
-          );
-        }
-        workspaceId = currentWorkspaceId;
-      } catch (_error) {
-        return NextResponse.json(
-          { error: "workspaceId is required" },
-          { status: 400 }
-        );
-      }
-    }
-
-    const diagnostics = await getOrgContextDiagnostics(workspaceId);
-
-    return NextResponse.json({ ok: true, diagnostics }, { status: 200 });
-  } catch (error) {
-    console.error("[OrgContext] Diagnostics failed", { error });
-    return NextResponse.json(
-      { ok: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: true, diagnostics }, { status: 200 })
+  } catch (error: unknown) {
+    return handleApiError(error)
   }
 }
-

@@ -45,11 +45,11 @@ const STATUS_CONFIG: Record<CapacityStatus, { label: string; className: string }
   },
   MISSING: {
     label: "No Data",
-    className: "bg-gray-100 text-gray-600 dark:bg-gray-800/30 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+    className: "bg-gray-100 text-gray-600 dark:bg-muted/30 dark:text-muted-foreground border-gray-200 dark:border-border",
   },
   MISSING_DATA: {
     label: "Missing Data",
-    className: "bg-gray-100 text-gray-600 dark:bg-gray-800/30 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+    className: "bg-gray-100 text-gray-600 dark:bg-muted/30 dark:text-muted-foreground border-gray-200 dark:border-border",
   },
   OK: {
     label: "OK",

@@ -44,11 +44,8 @@ export function emitProjectEvent(
   try {
     if (globalSocketServer) {
       globalSocketServer.to(`project:${projectId}`).emit(event, data)
-      console.log(`Emitted ${event} to project:${projectId}`, data)
-    } else {
-      console.warn(`Socket server not available, could not emit ${event}`)
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`Error emitting ${event}:`, error)
   }
 }

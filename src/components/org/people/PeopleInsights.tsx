@@ -112,7 +112,7 @@ export function PeopleInsights({ people, isLoading = false, now = new Date() }: 
             key={card.label}
             className={cn(
               "rounded-3xl",
-              "bg-slate-900/80",
+              "bg-card/80",
               "border",
               "p-4",
               "transition-all duration-200",
@@ -141,7 +141,7 @@ export function PeopleInsights({ people, isLoading = false, now = new Date() }: 
             <div className="flex items-center gap-1.5">
               <div className={cn(
                 "text-[10px] font-semibold uppercase tracking-wider",
-                isLowEmphasis ? "text-slate-600" : "text-slate-500"
+                isLowEmphasis ? "text-slate-600" : "text-muted-foreground"
               )}>
                 {card.label}
               </div>
@@ -151,13 +151,13 @@ export function PeopleInsights({ people, isLoading = false, now = new Date() }: 
             </div>
             <div className={cn(
               "mt-2 text-[32px] font-bold tabular-nums leading-none",
-              isLowEmphasis ? "text-slate-300" : "text-slate-100"
+              isLowEmphasis ? "text-muted-foreground" : "text-foreground"
             )}>
               {card.value}
             </div>
             <div className={cn(
               "mt-1.5 text-[11px]",
-              isLowEmphasis ? "text-slate-500" : "text-slate-400"
+              isLowEmphasis ? "text-muted-foreground" : "text-muted-foreground"
             )}>
               {card.helper}
             </div>

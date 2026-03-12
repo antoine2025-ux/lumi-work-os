@@ -44,7 +44,7 @@ export async function GET(
         const dbInfo = await prisma.$queryRaw<Array<{ current_database: string }>>`SELECT current_database()`
         console.log(`[GET /api/projects/${projectId}] Database: ${dbInfo[0]?.current_database}`)
         console.log(`[GET /api/projects/${projectId}] DATABASE_URL: ${process.env.DATABASE_URL?.replace(/:[^@]+@/, ':***@') || 'NOT SET'}`)
-      } catch (e) {
+      } catch (e: unknown) {
         console.error(`[GET /api/projects/${projectId}] Could not query DB info:`, e)
       }
     }
@@ -64,6 +64,7 @@ export async function GET(
       select: {
         id: true,
         name: true,
+        excerpt: true,
         description: true,
         status: true,
         priority: true,
@@ -257,7 +258,7 @@ export async function GET(
     }
 
     return NextResponse.json(enrichedProject)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -317,6 +318,7 @@ export async function PUT(
     const validatedData = ProjectUpdateSchema.parse(bodyWithoutExtras)
     const { 
       name, 
+      excerpt,
       description, 
       status,
       priority,
@@ -444,7 +446,7 @@ export async function PUT(
                 hoursAllocated: estimatedHours,
                 description: `Project assignment: ${existingProject.name}`,
               })
-            } catch (err) {
+            } catch (err: unknown) {
               console.error('Failed to create assignee WorkAllocation', {
                 projectId,
                 userId: assigneeUserId,
@@ -523,6 +525,7 @@ export async function PUT(
       where: { id: projectId },
       data: {
         ...(name && { name }),
+        ...(excerpt !== undefined && { excerpt: excerpt?.trim() || null }),
         ...(description !== undefined && { description }),
         ...(status && { status: status as any }),
         ...(priority && { priority: priority as any }),
@@ -660,7 +663,7 @@ export async function PUT(
     }
 
     return NextResponse.json(responseProject)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -709,7 +712,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true, message: 'Project deleted successfully' })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

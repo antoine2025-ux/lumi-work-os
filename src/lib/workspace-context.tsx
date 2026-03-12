@@ -83,7 +83,6 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         if (typeof window !== 'undefined') {
           const isInvitePage = window.location.pathname.startsWith('/invites/')
           if (isInvitePage) {
-            console.log('On invite page, skipping workspace load until invite is accepted')
             setWorkspaces([])
             setCurrentWorkspace(null)
             setUserRole(null)
@@ -94,7 +93,6 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         
         // If user is first-time or has no workspace, don't load workspaces
         if (userStatus.isFirstTime || !userStatus.workspaceId) {
-          console.log('First-time user or no workspace, skipping workspace load')
           setWorkspaces([])
           setCurrentWorkspace(null)
           setUserRole(null)
@@ -170,7 +168,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
           // If workspaces API fails, use fallback
           throw new Error('Failed to load workspaces')
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to load workspaces:', error)
         // Don't set fallback workspace - let the error propagate
         setWorkspaces([])

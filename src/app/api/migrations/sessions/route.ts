@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-errors'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
@@ -27,12 +28,8 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json({ sessions })
-  } catch (error) {
-    console.error('Error fetching migration sessions:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch migration sessions' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }
 
@@ -90,10 +87,7 @@ export async function POST(request: NextRequest) {
       items: items
     })
 
-  } catch (error) {
-    console.error('Error creating migration session:', error)
-    return NextResponse.json({ 
-      error: 'Failed to create migration session' 
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }

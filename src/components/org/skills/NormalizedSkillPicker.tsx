@@ -135,7 +135,7 @@ export function NormalizedSkillPicker({
         setQuery("");
         setIsOpen(false);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[NormalizedSkillPicker] Create error:", err);
       setError("Failed to create skill");
     } finally {
@@ -154,7 +154,7 @@ export function NormalizedSkillPicker({
       <input
         ref={inputRef}
         type="text"
-        className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+        className="w-full rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
         placeholder={placeholder}
         value={query}
         onChange={(e) => {
@@ -183,9 +183,9 @@ export function NormalizedSkillPicker({
 
       {/* Dropdown */}
       {isOpen && (trimmedQuery || isLoading) && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 shadow-lg">
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-muted shadow-lg">
           {isLoading && (
-            <div className="px-3 py-2 text-sm text-slate-400">Searching...</div>
+            <div className="px-3 py-2 text-sm text-muted-foreground">Searching...</div>
           )}
 
           {!isLoading && error && (
@@ -193,7 +193,7 @@ export function NormalizedSkillPicker({
           )}
 
           {!isLoading && !error && skills.length === 0 && trimmedQuery && !showCreateOption && (
-            <div className="px-3 py-2 text-sm text-slate-400">No skills found</div>
+            <div className="px-3 py-2 text-sm text-muted-foreground">No skills found</div>
           )}
 
           {!isLoading && skills.length > 0 && (
@@ -202,7 +202,7 @@ export function NormalizedSkillPicker({
                 <button
                   key={skill.id}
                   type="button"
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-700/50 transition-colors"
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-foreground hover:bg-slate-700/50 transition-colors"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     handleSelect(skill);
@@ -210,7 +210,7 @@ export function NormalizedSkillPicker({
                 >
                   <span>{skill.name}</span>
                   {skill.category && (
-                    <span className="ml-2 text-xs text-slate-500">{skill.category}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">{skill.category}</span>
                   )}
                 </button>
               ))}
@@ -220,7 +220,7 @@ export function NormalizedSkillPicker({
           {showCreateOption && (
             <button
               type="button"
-              className="flex w-full items-center gap-2 border-t border-slate-700 px-3 py-2 text-left text-sm text-blue-400 hover:bg-slate-700/50 transition-colors disabled:opacity-50"
+              className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-sm text-blue-400 hover:bg-slate-700/50 transition-colors disabled:opacity-50"
               onMouseDown={(e) => {
                 e.preventDefault();
                 handleCreate();
@@ -248,7 +248,7 @@ export function NormalizedSkillPicker({
           </span>
           <button
             type="button"
-            className="text-xs text-slate-500 hover:text-slate-300"
+            className="text-xs text-muted-foreground hover:text-muted-foreground"
             onClick={() => {
               onSelect({ skillId: "", skillName: "", category: null });
             }}

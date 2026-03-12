@@ -54,7 +54,7 @@ export function CapacityQuickEntryPopover({ personId, personName, trigger, onSav
       setWeeklyHours(qe.weeklyHours != null ? String(qe.weeklyHours) : "40");
       setAvailabilityPct(qe.availabilityPct != null ? String(qe.availabilityPct) : "100");
       setAllocationPct(qe.allocationPct != null ? String(qe.allocationPct) : "100");
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setLoading(false);
@@ -92,7 +92,7 @@ export function CapacityQuickEntryPopover({ personId, personName, trigger, onSav
       setSaved(true);
       onSaved?.();
       setTimeout(() => setOpen(false), 800);
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);

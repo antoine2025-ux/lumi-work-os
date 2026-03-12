@@ -66,36 +66,31 @@ export function OrgSidebar({
         prefetch={true}
         aria-label={`Go to ${label}`}
         className={cn(
-          "focus-ring group flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-[13px] outline-none transition-all duration-150",
+          "focus-ring flex items-center gap-2 px-3 py-1.5 mx-2 text-sm rounded-md transition-colors outline-none",
           active
-            ? "border border-[#243B7D] bg-[#0B1220] text-slate-50 shadow-sm"
-            : "text-slate-300 hover:bg-[#050816] hover:text-slate-50 hover:shadow-[0_0_0_1px_rgba(148,163,184,0.35)]"
+            ? "bg-accent/70 text-foreground font-medium"
+            : "text-foreground/70 hover:bg-accent/50 hover:text-foreground"
         )}
       >
-        <span
+        <Icon
           className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full transition-all duration-150",
-            active ? "bg-[#5CA9FF] scale-100" : "bg-transparent group-hover:bg-[#334155] scale-75"
+            "w-4 h-4 shrink-0",
+            active ? "text-primary" : "text-foreground/50"
           )}
         />
-        <Icon className="h-4 w-4 shrink-0" />
         <span className="truncate">{label}</span>
       </Link>
     </li>
   );
 
-  return (
-    <aside className="flex w-60 flex-col border-r border-[#111827] bg-[#020617] px-3 py-4 text-[13px] text-slate-300">
-      <div className="mb-4 text-center">
-        <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">ORG</div>
-      </div>
+  const sectionLabelClass = "text-xs font-medium text-muted-foreground/60 uppercase tracking-wider px-3 mb-1.5";
 
-      <nav className="space-y-6">
-        <div>
-          <h3 className="mb-2 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            My Profile
-          </h3>
-          <ul className="space-y-1">
+  return (
+    <aside className="w-[240px] flex-shrink-0 border-r border-border bg-card h-full overflow-y-auto">
+      <nav className="py-3">
+        <div className="mb-4">
+          <h3 className={sectionLabelClass}>My Profile</h3>
+          <ul className="space-y-0.5">
             {myProfileSection.map((item) => {
               const Icon = item.icon;
               return renderLink(
@@ -108,11 +103,9 @@ export function OrgSidebar({
           </ul>
         </div>
 
-        <div>
-          <h3 className="mb-2 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            My Team
-          </h3>
-          <ul className="space-y-1">
+        <div className="mt-5 mb-4">
+          <h3 className={sectionLabelClass}>My Team</h3>
+          <ul className="space-y-0.5">
             {myTeamSection.map((item) => {
               const Icon = item.icon;
               return renderLink(
@@ -125,11 +118,9 @@ export function OrgSidebar({
           </ul>
         </div>
 
-        <div>
-          <h3 className="mb-2 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Organization
-          </h3>
-          <ul className="space-y-1">
+        <div className="mt-5 mb-4">
+          <h3 className={sectionLabelClass}>Organization</h3>
+          <ul className="space-y-0.5">
             {orgSection.map((item) => {
               const Icon = item.icon;
               return renderLink(
@@ -143,12 +134,12 @@ export function OrgSidebar({
         </div>
 
         {adminSection.length > 0 && (
-          <div>
-            <h3 className="mb-2 flex items-center gap-1.5 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              <Shield className="h-3 w-3" />
+          <div className="mt-5">
+            <h3 className={cn(sectionLabelClass, "flex items-center gap-1.5")}>
+              <Shield className="w-3 h-3 shrink-0" />
               Admin
             </h3>
-            <ul className="space-y-1">
+            <ul className="space-y-0.5">
               {adminSection.map((item) => {
                 const Icon = item.icon;
                 return renderLink(

@@ -8,6 +8,8 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { safeRebuildOrgContext } from '@/lib/org/org-context-service'
 import { handleApiError } from '@/lib/api-errors'
+import { WorkspaceRole } from '@prisma/client'
+import { AdminUpdateUserSchema } from '@/lib/validations/admin'
 
 // GET /api/admin/users/[id] - Get a specific user
 export async function GET(
@@ -46,7 +48,7 @@ export async function GET(
     }
 
     return NextResponse.json(user)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -71,7 +73,7 @@ export async function PUT(
     setWorkspaceContext(authCtx.workspaceId)
 
     const { id } = await params
-    const body = await request.json()
+    const body = AdminUpdateUserSchema.parse(await request.json())
     const { 
       name, 
       email, 
@@ -119,7 +121,7 @@ export async function PUT(
           workspaceId
         },
         data: {
-          role: role as any
+          role: role as WorkspaceRole
         }
       })
     }
@@ -333,7 +335,7 @@ export async function PUT(
       message: 'User updated successfully',
       user: updatedUser 
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -392,7 +394,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: 'User removed from workspace successfully' })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -119,7 +119,7 @@ export function OrgCleanSlate({ workspaceId, onStructureCreated, colors }: OrgCl
           ))
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading departments:', error)
     }
   }
@@ -138,7 +138,7 @@ export function OrgCleanSlate({ workspaceId, onStructureCreated, colors }: OrgCl
           ))
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading teams:', error)
     }
   }
@@ -157,7 +157,7 @@ export function OrgCleanSlate({ workspaceId, onStructureCreated, colors }: OrgCl
           ))
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading positions:', error)
     }
   }
@@ -228,7 +228,7 @@ export function OrgCleanSlate({ workspaceId, onStructureCreated, colors }: OrgCl
                       <CheckCircle2 className="h-6 w-6 text-green-600" />
                     ) : (
                       <Icon className={`h-6 w-6 ${
-                        isAccessible ? 'text-gray-600' : 'text-gray-400'
+                        isAccessible ? 'text-gray-600' : 'text-muted-foreground'
                       }`} />
                     )}
                   </div>
@@ -240,11 +240,11 @@ export function OrgCleanSlate({ workspaceId, onStructureCreated, colors }: OrgCl
                 </div>
 
                 <h3 className={`text-lg font-medium mb-2 ${
-                  isAccessible ? '' : 'text-gray-400'
+                  isAccessible ? '' : 'text-muted-foreground'
                 }`} style={{ color: isAccessible ? colors.text : colors.textSecondary }}>
                   {index + 1}. {step.title}
                   {isOptional && (
-                    <span className="text-xs font-normal ml-2 text-gray-400">(Optional)</span>
+                    <span className="text-xs font-normal ml-2 text-muted-foreground">(Optional)</span>
                   )}
                 </h3>
                 <p className="text-sm mb-4" style={{ color: colors.textSecondary }}>
@@ -252,7 +252,7 @@ export function OrgCleanSlate({ workspaceId, onStructureCreated, colors }: OrgCl
                 </p>
 
                 {!isAccessible && (
-                  <p className="text-xs text-gray-400 italic">
+                  <p className="text-xs text-muted-foreground italic">
                     Complete previous steps first
                   </p>
                 )}

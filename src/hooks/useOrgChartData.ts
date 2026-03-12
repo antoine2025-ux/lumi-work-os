@@ -57,7 +57,7 @@ export function useOrgChartData(): UseOrgChartDataResult {
         // NEW endpoint returns data directly
         setData(json as OrgChartData);
         setIsLoading(false);
-      } catch (err) {
+      } catch (err: unknown) {
         if (cancelled) return;
         console.error("[useOrgChartData]", err);
         setError("Failed to load org chart.");

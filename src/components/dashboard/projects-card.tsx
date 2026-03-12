@@ -1,6 +1,6 @@
 "use client"
 
-import { Card } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -40,17 +40,17 @@ export function ProjectsCard({ projects, workspaceSlug, className }: ProjectsCar
   }
 
   return (
-    <Card className={`widget-card ${className || ''}`}>
-      <div className="widget-header">
-        <div className="widget-header-start">
-          <CheckSquare className="h-4 w-4 flex-shrink-0" aria-hidden />
-          <span className="widget-title">PROJECTS</span>
+    <div className={cn("bg-card rounded-md border border-border flex flex-col h-full min-h-0", className)}>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <CheckSquare className="h-4 w-4 text-muted-foreground" aria-hidden />
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Projects</h3>
         </div>
-        <div className="widget-actions">
+        <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">{projects.length}</Badge>
         </div>
       </div>
-      <div className="widget-content space-y-4 max-h-[340px] overflow-y-auto dashboard-card-scroll">
+      <div className="p-3 flex-1 space-y-4 max-h-[340px] overflow-y-auto dashboard-card-scroll">
         {projects.length > 0 ? (
           projects.slice(0, 5).map((project) => {
             const completedTasks = project.tasks?.filter((t) => t.status === 'DONE').length || 0
@@ -118,6 +118,6 @@ export function ProjectsCard({ projects, workspaceSlug, className }: ProjectsCar
           </div>
         )}
       </div>
-    </Card>
+    </div>
   )
 }

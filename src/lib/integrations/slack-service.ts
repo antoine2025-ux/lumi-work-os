@@ -92,7 +92,7 @@ export async function storeSlackIntegration(
     }
 
     logger.info('Slack integration stored successfully', { workspaceId, teamId: config.teamId })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to store Slack integration', {
       workspaceId,
       error: error instanceof Error ? error.message : String(error),
@@ -156,7 +156,7 @@ export async function refreshSlackToken(workspaceId: string): Promise<string> {
 
     logger.info('Slack token refreshed', { workspaceId })
     return updatedConfig.accessToken
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to refresh Slack token', {
       workspaceId,
       error: error instanceof Error ? error.message : String(error)
@@ -244,7 +244,7 @@ export async function sendSlackMessage(
     })
 
     return { ok: true, ts: data.ts }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to send Slack message', {
       workspaceId,
       error: error instanceof Error ? error.message : String(error)
@@ -277,7 +277,7 @@ export async function getSlackChannels(workspaceId: string): Promise<Array<{ id:
       id: channel.id,
       name: channel.name
     }))
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to fetch Slack channels', {
       workspaceId,
       error: error instanceof Error ? error.message : String(error)
@@ -315,7 +315,7 @@ export async function getSlackUserInfo(
       realName: user.real_name,
       displayName: user.profile?.display_name || user.real_name || user.name
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to fetch Slack user info', {
       workspaceId,
       userId,
@@ -350,7 +350,7 @@ export async function getSlackUserEmail(
     }
 
     return data.user.profile?.email ?? null
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to fetch Slack user email', {
       workspaceId,
       slackUserId,
@@ -475,7 +475,7 @@ export async function getSlackChannelMessages(
     })
 
     return messagesWithNames
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to fetch Slack channel messages', {
       workspaceId,
       channel,
@@ -532,7 +532,7 @@ export async function getSlackUserDMChannel(
     })
     
     return result.channel.id
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error opening Slack DM channel', {
       workspaceId,
       slackUserId,

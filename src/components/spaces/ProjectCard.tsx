@@ -54,10 +54,10 @@ export function ProjectCard({ project, workspaceSlug }: ProjectCardProps) {
   return (
     <Link
       href={`/w/${workspaceSlug}/projects/${project.id}`}
-      className="block p-4 bg-card rounded-lg border hover:border-amber-500/50 transition-colors"
+      className="block p-4 bg-card rounded-md border border-border hover:border-primary/50 transition-colors"
     >
       <div className="flex items-start justify-between mb-2">
-        <h3 className="font-medium truncate">{project.name}</h3>
+        <h3 className="text-sm font-medium text-foreground truncate">{project.name}</h3>
         <span
           className={cn(
             "text-sm font-medium flex-shrink-0 ml-2",
@@ -69,7 +69,7 @@ export function ProjectCard({ project, workspaceSlug }: ProjectCardProps) {
       </div>
 
       {project.space && (
-        <p className="text-sm text-amber-500 mb-2">
+        <p className="text-sm text-muted-foreground mb-2">
           {project.space.name}
           {project.members != null && (
             <> · {project.members.length} members</>
@@ -88,9 +88,9 @@ export function ProjectCard({ project, workspaceSlug }: ProjectCardProps) {
       </div>
 
       {progress > 0 && (
-        <div className="w-full h-1 bg-muted rounded-full mb-3">
+        <div className="w-full h-1.5 rounded-full bg-muted mb-3">
           <div
-            className="h-full bg-amber-500 rounded-full transition-all"
+            className="h-full bg-primary rounded-full transition-all"
             style={{ width: `${Math.min(100, progress)}%` }}
           />
         </div>

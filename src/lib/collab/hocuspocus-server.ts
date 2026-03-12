@@ -5,6 +5,7 @@ import { prismaUnscoped } from '@/lib/db'
 import { getWikiEditorSchema } from './wiki-schema-server'
 import type { JSONContent } from '@tiptap/core'
 import type { Schema } from '@tiptap/pm/model'
+import { decode } from 'next-auth/jwt'
 
 const FRAGMENT_NAME = 'default' // TipTap Collaboration extension reads from 'default'
 
@@ -64,12 +65,106 @@ export function createCollabServer(): InstanceType<typeof Server> {
     port: 1234,
 
     async onAuthenticate(data) {
-      // Phase 4: replace with real token validation
-      return {
-        user: {
-          id: data.token ?? 'anonymous',
-          name: 'User',
-        },
+      const token = data.token
+
+      if (!token) {
+        throw new Error('No authentication token provided')
+      }
+
+      // Service token bypass for server-to-server connections (Loopbrain document writer)
+      // MUST be first — if JWT decode runs first and throws, service token never gets checked
+      const serviceSecret = process.env.COLLAB_SERVICE_SECRET
+      if (serviceSecret && token === serviceSecret) {
+        console.log('[Hocuspocus] Service token authenticated for document:', data.documentName)
+        return {
+          user: {
+            id: 'loopbrain-service',
+            name: 'Loopbrain Service',
+            workspaceId: 'service',
+          },
+        }
+      }
+
+      // JWT verification for browser clients
+      const secret = process.env.NEXTAUTH_SECRET
+      if (!secret) {
+        console.error('[Hocuspocus] NEXTAUTH_SECRET not configured')
+        throw new Error('Server configuration error')
+      }
+
+      try {
+        const decoded = await decode({
+          token,
+          secret,
+        })
+
+        if (!decoded || !decoded.sub) {
+          throw new Error('Invalid authentication token')
+        }
+
+        const userId = decoded.sub
+        const workspaceId = decoded.workspaceId as string | undefined
+        const userName = decoded.name as string | undefined
+
+        if (!workspaceId) {
+          throw new Error('No workspace context in token')
+        }
+
+        const documentName = data.documentName
+        if (!documentName || !documentName.startsWith('wiki-')) {
+          throw new Error('Invalid document name')
+        }
+
+        const pageId = documentName.replace('wiki-', '')
+
+        const page = await prismaUnscoped.wikiPage.findFirst({
+          where: {
+            id: pageId,
+            workspaceId: workspaceId,
+          },
+          select: { id: true, workspaceId: true },
+        })
+
+        if (!page) {
+          throw new Error('Document not found or access denied')
+        }
+
+        console.log('[Hocuspocus] User authenticated:', { userId, workspaceId, pageId })
+
+        return {
+          user: {
+            id: userId,
+            name: userName || 'Unknown',
+            workspaceId: workspaceId,
+          },
+        }
+      } catch (error) {
+        console.error('[Hocuspocus] Authentication failed:', error)
+
+        // Development fallback: JWT decode failed (e.g. secret mismatch). Accept token as userId.
+        // Production stays secure — JWT required.
+        if (process.env.NODE_ENV === 'development') {
+          const documentName = data.documentName
+          if (documentName?.startsWith('wiki-')) {
+            const pageId = documentName.replace('wiki-', '')
+            const page = await prismaUnscoped.wikiPage.findUnique({
+              where: { id: pageId },
+              select: { workspaceId: true },
+            })
+            if (page) {
+              console.warn('[Hocuspocus] JWT decode failed, using dev fallback (token as userId)')
+              return {
+                user: {
+                  id: token,
+                  name: 'Dev User',
+                  workspaceId: page.workspaceId,
+                },
+              }
+            }
+          }
+        }
+
+        throw new Error('Authentication failed')
       }
     },
 
@@ -170,7 +265,7 @@ export function createCollabServer(): InstanceType<typeof Server> {
           pageId,
           contentNodes: (json as { content?: unknown[] })?.content?.length ?? 0,
         })
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[Hocuspocus] onStoreDocument FAILED:', err)
       }
     },

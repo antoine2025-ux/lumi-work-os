@@ -156,8 +156,8 @@ export const PeopleCard = memo(function PeopleCard({
             "h-5 w-5 rounded-full",
             "border-2 transition-colors",
             isSelected
-              ? "bg-primary border-primary text-white"
-              : "bg-slate-900/80 border-white/20 hover:border-primary/50 text-transparent hover:text-white",
+              ? "bg-primary border-primary text-foreground"
+              : "bg-card/80 border-white/20 hover:border-primary/50 text-transparent hover:text-foreground",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           )}
           aria-label={isSelected ? "Deselect" : "Select"}
@@ -174,7 +174,7 @@ export const PeopleCard = memo(function PeopleCard({
         {/* Avatar with manager indicator */}
         <div className="relative shrink-0">
           <Avatar className="h-10 w-10 border border-white/10 shrink-0">
-            <AvatarFallback className="bg-slate-800 text-slate-200 text-sm font-medium">
+            <AvatarFallback className="bg-muted text-foreground text-sm font-medium">
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -183,7 +183,7 @@ export const PeopleCard = memo(function PeopleCard({
         <div className="flex-1 min-w-0">
           {/* Name - primary text, strongest contrast */}
           <div className="flex items-start justify-between gap-2 mb-1">
-            <h3 className="text-[14px] font-semibold text-slate-50 truncate">
+            <h3 className="text-[14px] font-semibold text-foreground truncate">
               {person.name || ""}
             </h3>
           </div>
@@ -191,7 +191,7 @@ export const PeopleCard = memo(function PeopleCard({
           {/* Role - secondary text */}
           {person.role && (
             <div className="flex items-center gap-2 truncate mb-0.5">
-              <p className="text-[12px] font-medium text-slate-400 truncate">{person.role}</p>
+              <p className="text-[12px] font-medium text-muted-foreground truncate">{person.role}</p>
             </div>
           )}
 
@@ -199,12 +199,12 @@ export const PeopleCard = memo(function PeopleCard({
           {(person.team || person.department) && (
             <div className="flex items-center gap-2 truncate">
               {person.team && (
-                <p className="text-[11px] text-slate-500 truncate">{person.team}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{person.team}</p>
               )}
               {person.department && person.department !== person.team && (
                 <>
                   {person.team && <span className="text-[11px] text-slate-600">•</span>}
-                  <p className="text-[11px] text-slate-500 truncate">{person.department}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{person.department}</p>
                 </>
               )}
             </div>
@@ -217,17 +217,17 @@ export const PeopleCard = memo(function PeopleCard({
         <div className="mb-2.5 pt-2 border-t border-white/5">
           <div className="flex items-center gap-1.5">
             <Network className="h-3 w-3 text-slate-600 shrink-0" />
-            <span className="text-[11px] text-slate-500">
+            <span className="text-[11px] text-muted-foreground">
               {managerId && onManagerClick ? (
                 <button
                   type="button"
                   onClick={handleManagerClick}
-                  className="text-slate-400 hover:text-slate-300 hover:underline transition-colors"
+                  className="text-muted-foreground hover:text-muted-foreground hover:underline transition-colors"
                 >
                   {managerName}
                 </button>
               ) : (
-                <span className="text-slate-400">{managerName}</span>
+                <span className="text-muted-foreground">{managerName}</span>
               )}
             </span>
           </div>

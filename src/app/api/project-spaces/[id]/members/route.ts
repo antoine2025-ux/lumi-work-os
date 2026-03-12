@@ -4,6 +4,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
+import { ProjectSpaceMemberAddSchema } from '@/lib/pm/schemas'
 
 // @deprecated Use /api/spaces/[id]/members instead (unified Space model, Sprint 2).
 
@@ -66,7 +67,7 @@ export async function GET(
     })
 
     return NextResponse.json({ members })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -85,12 +86,8 @@ export async function POST(
       return NextResponse.json({ error: 'ProjectSpace ID is required' }, { status: 400 })
     }
 
-    const body = await request.json()
-    const { userId } = body
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
-    }
+    const body = ProjectSpaceMemberAddSchema.parse(await request.json())
+    const { userId, role } = body
 
     // Get ProjectSpace to verify it belongs to workspace
     const projectSpace = await prisma.projectSpace.findUnique({
@@ -172,7 +169,7 @@ export async function POST(
     })
 
     return NextResponse.json({ member }, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

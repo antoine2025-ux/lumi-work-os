@@ -9,13 +9,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
-import { requireNonEmptyString } from "@/server/org/validate";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { addTeamMember } from "@/server/org/structure/write";
 import { handleApiError } from "@/lib/api-errors"
 import { logOrgAudit } from "@/lib/audit/org-audit"
 import { computeChanges } from "@/lib/audit/diff"
 import { prisma } from "@/lib/db"
+import { AddTeamMemberSchema } from "@/lib/validations/org"
 
 export async function POST(request: NextRequest, ctx: { params: Promise<{ teamId: string }> }) {
   try {
@@ -43,8 +43,8 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ teamId
 
     // Step 4: Parse request
     const { teamId } = await ctx.params;
-    const body = await request.json();
-    const personId = requireNonEmptyString(body.personId, "personId");
+    const body = AddTeamMemberSchema.parse(await request.json());
+    const personId = body.personId;
 
     // Step 4a: Fetch person before update for audit logging
     const personBefore = await prisma.orgPosition.findFirst({
@@ -85,21 +85,22 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ teamId
         entity: { type: "team", id: teamId },
         payload: { personId },
       });
-    } catch (contextError: any) {
-      // Log but don't fail - context emission is non-blocking
-      // Common case: context_items table may not exist yet if migrations haven't run
-      console.warn("[POST /api/org/structure/teams/[teamId]/members/add] Failed to emit context object (non-blocking):", contextError?.message);
+    } catch (contextError: unknown) {
+      const message = contextError instanceof Error ? contextError.message : String(contextError);
+      const code = contextError && typeof contextError === 'object' && 'code' in contextError ? (contextError as { code: string }).code : undefined;
+      const stack = contextError instanceof Error ? contextError.stack : undefined;
+      console.warn("[POST /api/org/structure/teams/[teamId]/members/add] Failed to emit context object (non-blocking):", message);
       if (process.env.NODE_ENV !== "production") {
         console.warn("[POST /api/org/structure/teams/[teamId]/members/add] Context error details:", {
-          message: contextError?.message,
-          code: contextError?.code,
-          stack: contextError?.stack,
+          message,
+          code,
+          stack,
         });
       }
     }
 
     return NextResponse.json({ id: created.id }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

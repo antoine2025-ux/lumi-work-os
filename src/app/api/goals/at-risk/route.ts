@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         },
       })),
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

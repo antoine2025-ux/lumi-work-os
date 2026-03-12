@@ -9,7 +9,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
+import { UpdateSkillSchema } from "@/lib/validations/org";
 
 /**
  * Normalize skill name for consistent storage.
@@ -58,7 +60,7 @@ export async function PATCH(
     }
 
     // Step 5: Parse and validate request body
-    const body = await request.json();
+    const body = UpdateSkillSchema.parse(await request.json());
     const updateData: Record<string, unknown> = {};
 
     if (body.name !== undefined) {
@@ -84,11 +86,11 @@ export async function PATCH(
     }
 
     if (body.category !== undefined) {
-      updateData.category = body.category ? String(body.category).trim() : null;
+      updateData.category = body.category;
     }
 
     if (body.description !== undefined) {
-      updateData.description = body.description ? String(body.description).trim() : null;
+      updateData.description = body.description;
     }
 
     // Step 6: Update skill
@@ -107,8 +109,7 @@ export async function PATCH(
       },
     });
   } catch (error: unknown) {
-    console.error("[PATCH /api/org/skills/[skillId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -178,8 +179,7 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
-    console.error("[DELETE /api/org/skills/[skillId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 

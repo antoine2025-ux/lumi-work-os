@@ -55,7 +55,7 @@ export async function getFeatureFlags(workspaceId?: string): Promise<FeatureFlag
             break
         }
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Failed to fetch workspace feature flags:', error)
     }
   }
@@ -138,7 +138,7 @@ export async function isFeatureEnabledByKey(
     })
 
     return !!flag?.enabled
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn(`Failed to check feature flag ${key} for workspace ${workspaceId}:`, error)
     return false
   }
@@ -170,7 +170,7 @@ export async function ensureFeatureFlag(
         enabled: defaultEnabled,
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn(`Failed to ensure feature flag ${key} for workspace ${workspaceId}:`, error)
   }
 }

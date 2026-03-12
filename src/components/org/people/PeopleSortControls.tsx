@@ -48,12 +48,12 @@ export function PeopleSortControls({ filters }: PeopleSortControlsProps) {
 
   return (
     <div className="flex items-center gap-2 text-[11px]">
-      <span className="text-[11px] text-slate-400">Sort by</span>
+      <span className="text-[11px] text-muted-foreground">Sort by</span>
       <select
         value={sort}
         onChange={(e) => updateSort(e.target.value as PeopleFilters["sort"])}
         className={cn(
-          "h-7 rounded-full border border-slate-700/70 bg-[#020617] px-3 text-[11px] text-slate-100",
+          "h-7 rounded-full border border-border/70 bg-background px-3 text-[11px] text-foreground",
           "outline-none transition-colors duration-150",
           "hover:border-slate-500 focus-visible:ring-2 focus-visible:ring-[#5CA9FF] focus-visible:ring-offset-0"
         )}
@@ -69,8 +69,8 @@ export function PeopleSortControls({ filters }: PeopleSortControlsProps) {
         type="button"
         onClick={toggleDirection}
         className={cn(
-          "inline-flex h-7 items-center rounded-full border border-slate-700/70 px-2 text-[11px] text-slate-100",
-          "bg-[#020617] hover:border-slate-500 hover:text-slate-50",
+          "inline-flex h-7 items-center rounded-full border border-border/70 px-2 text-[11px] text-foreground",
+          "bg-background hover:border-slate-500 hover:text-foreground",
           "transition-colors duration-150",
           "focus-visible:ring-2 focus-visible:ring-[#5CA9FF] focus-visible:ring-offset-0"
         )}

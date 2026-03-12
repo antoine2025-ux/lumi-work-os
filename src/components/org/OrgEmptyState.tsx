@@ -35,7 +35,7 @@ export function OrgEmptyState({
 }: OrgEmptyStateProps) {
   // Determine styling based on variant
   const variantStyles = {
-    empty: "border-white/5 bg-slate-900/80",
+    empty: "border-white/5 bg-card/80",
     good: "border-green-500/20 bg-green-950/20",
     incomplete: "border-amber-500/20 bg-amber-950/20",
   };
@@ -55,10 +55,10 @@ export function OrgEmptyState({
     >
       {icon && <div className="mb-4 flex justify-center md:justify-start">{icon}</div>}
       <div className="space-y-2">
-        <h2 className="text-[15px] font-semibold text-slate-100">
+        <h2 className="text-[15px] font-semibold text-foreground">
           {title}
         </h2>
-        <p className="max-w-xl text-[13px] text-slate-400">
+        <p className="max-w-xl text-[13px] text-muted-foreground">
           {description}
         </p>
       </div>
@@ -74,8 +74,8 @@ export function OrgEmptyState({
                 className={cn(
                   "focus-ring inline-flex items-center rounded-lg px-4 py-2 text-[12px] font-medium transition-all duration-200 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2",
                   variant === "good" 
-                    ? "border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-slate-50"
-                    : "bg-primary text-white hover:bg-primary/90"
+                    ? "border border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                    : "bg-primary text-foreground hover:bg-primary/90"
                 )}
                 aria-label={primaryActionLabel}
               >
@@ -87,8 +87,8 @@ export function OrgEmptyState({
                 className={cn(
                   "focus-ring inline-flex items-center rounded-lg px-4 py-2 text-[12px] font-medium transition-all duration-200 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2",
                   variant === "good" 
-                    ? "border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-slate-50"
-                    : "bg-primary text-white hover:bg-primary/90"
+                    ? "border border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                    : "bg-primary text-foreground hover:bg-primary/90"
                 )}
                 aria-label={primaryActionLabel}
               >
@@ -101,7 +101,7 @@ export function OrgEmptyState({
             secondaryActionHref ? (
               <Link
                 href={secondaryActionHref}
-                className="focus-ring inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-[12px] font-medium text-slate-300 transition-all duration-200 hover:border-white/20 hover:bg-slate-800/50 hover:text-slate-50 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2"
+                className="focus-ring inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-[12px] font-medium text-muted-foreground transition-all duration-200 hover:border-white/20 hover:bg-muted/50 hover:text-foreground hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2"
                 aria-label={secondaryActionLabel}
               >
                 {secondaryActionLabel}
@@ -109,7 +109,7 @@ export function OrgEmptyState({
             ) : (
               <button
                 onClick={secondaryActionOnClick}
-                className="focus-ring inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-[12px] font-medium text-slate-300 transition-all duration-200 hover:border-white/20 hover:bg-slate-800/50 hover:text-slate-50 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2"
+                className="focus-ring inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-[12px] font-medium text-muted-foreground transition-all duration-200 hover:border-white/20 hover:bg-muted/50 hover:text-foreground hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2"
                 aria-label={secondaryActionLabel}
               >
                 {secondaryActionLabel}

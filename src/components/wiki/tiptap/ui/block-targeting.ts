@@ -81,7 +81,7 @@ export function getBlockAtPos(editor: Editor, pos: number): ActiveBlockInfo | nu
     }
 
     return null
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn('[BLOCK TARGETING] Error getting block at position:', error)
     return null
   }
@@ -124,7 +124,7 @@ export function getActiveBlock(editor: Editor): ActiveBlockInfo | null {
     }
 
     return null
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn('[BLOCK TARGETING] Error getting active block:', error)
     return null
   }
@@ -172,7 +172,7 @@ export function getBlockDOMElement(editor: Editor, from: number): HTMLElement | 
     }
 
     return null
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn('Error getting block DOM element:', error)
     return null
   }

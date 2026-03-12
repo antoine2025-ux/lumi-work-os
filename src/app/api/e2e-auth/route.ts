@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     })
     
     return response
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[E2E Auth] Error:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ error: 'Failed to create test session', details: message }, { status: 500 })

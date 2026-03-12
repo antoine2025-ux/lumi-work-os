@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,11 @@ interface EditBasicInfoDialogProps {
   initialName: string;
   initialTitle: string;
   email?: string | null;
+  /** Controlled mode: external control of open state */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** When true, do not render the trigger button (for use with ProfileEditButton) */
+  hideTrigger?: boolean;
 }
 
 export function EditBasicInfoDialog({
@@ -26,8 +31,22 @@ export function EditBasicInfoDialog({
   initialName,
   initialTitle,
   email,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
 }: EditBasicInfoDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled
+    ? (v: boolean) => onOpenChange?.(v)
+    : setInternalOpen;
+
+  useEffect(() => {
+    if (open) {
+      setFormData({ name: initialName, title: initialTitle });
+    }
+  }, [open, initialName, initialTitle]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -43,7 +62,9 @@ export function EditBasicInfoDialog({
 
     try {
       const name = formData.name.trim();
+      const title = formData.title.trim();
       if (!name) throw new Error("Name is required");
+      if (!title) throw new Error("Role / title is required");
 
       const [nameRes, titleRes] = await Promise.all([
         fetch(`/api/org/people/${positionId}/name`, {
@@ -56,7 +77,7 @@ export function EditBasicInfoDialog({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ title: formData.title.trim() }),
+          body: JSON.stringify({ title }),
         }),
       ]);
 
@@ -75,7 +96,7 @@ export function EditBasicInfoDialog({
       toast({ title: "Profile updated", description: "Your name and title have been saved." });
       setOpen(false);
       router.refresh();
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
         title: "Error",
         description:
@@ -89,11 +110,13 @@ export function EditBasicInfoDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="border-slate-600 text-slate-300">
-          Edit Profile
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button variant="outline" className="border-slate-600 text-muted-foreground">
+            Edit Profile
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
@@ -122,6 +145,7 @@ export function EditBasicInfoDialog({
                 setFormData((prev) => ({ ...prev, title: e.target.value }))
               }
               placeholder="e.g. Product Designer"
+              required
               disabled={loading}
             />
           </div>

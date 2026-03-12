@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ roles }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     }).catch((e) => console.error("[POST /api/org/custom-roles] Audit error:", e));
 
     return NextResponse.json({ role: created }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

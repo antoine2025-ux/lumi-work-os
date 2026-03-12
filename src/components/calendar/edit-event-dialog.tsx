@@ -91,7 +91,7 @@ export function EditEventDialog({
       })
 
       onOpenChange(false)
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof CalendarScopeError) {
         onNeedsReAuth?.()
         return

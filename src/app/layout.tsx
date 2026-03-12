@@ -1,19 +1,10 @@
 import type { Metadata } from "next";
-import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { StructuredData } from "@/components/seo/structured-data";
 import { ApiDebugOverlay } from "@/components/dev/api-debug-overlay";
-
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-montserrat",
-  display: 'swap', // Add font-display: swap for better LCP
-  preload: true,   // Preload critical font with high priority
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://loopwell.io'),
@@ -159,7 +150,7 @@ export default function RootLayout({
                   root.style.setProperty('--popover-foreground', darkConfig.popoverForeground);
                   root.style.setProperty('--destructive', darkConfig.destructive);
                   root.style.setProperty('--destructive-foreground', darkConfig.destructiveForeground);
-                } catch (e) {
+                } catch (e: unknown) {
                   // Fallback: just add dark class if anything fails
                   document.documentElement.classList.add('dark');
                 }
@@ -168,7 +159,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${montserrat.variable} font-sans antialiased bg-background`} suppressHydrationWarning>
+      <body className="font-sans antialiased bg-background" suppressHydrationWarning>
         <StructuredData />
         <Providers>
           {children}

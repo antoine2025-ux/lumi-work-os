@@ -7,7 +7,7 @@
  */
 
 import { prisma } from '@/lib/db'
-import { callLoopbrainLLM } from '@/lib/loopbrain/orchestrator'
+import { callLoopbrainLLM } from '@/lib/loopbrain/llm-caller'
 import { logger } from '@/lib/logger'
 
 // ---------------------------------------------------------------------------
@@ -199,7 +199,7 @@ ${plain}`
       maxTokens: 3000,
     })
     raw = response.content
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Meeting task extraction LLM call failed', { workspaceId, userId, error })
     throw new Error('Failed to extract tasks from meeting notes. Please try again.')
   }

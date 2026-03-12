@@ -9,7 +9,7 @@ export async function getCurrentUserId(request?: NextRequest): Promise<string | 
   try {
     const auth = await getUnifiedAuth(request);
     return auth.user.userId;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[getCurrentUserId] Failed to get user ID:", error);
     return null;
   }

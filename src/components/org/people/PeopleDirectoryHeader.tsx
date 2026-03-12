@@ -46,15 +46,15 @@ export function PeopleDirectoryHeader(props: PeopleDirectoryHeaderProps) {
       {/* Title + Subtitle + Add Button */}
       <div className="flex items-start justify-between gap-6 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">People</h1>
-          <div className="mt-1.5 text-sm text-white/60">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">People</h1>
+          <div className="mt-1.5 text-sm text-foreground/60">
             Everyone in your organization
           </div>
         </div>
 
         <Link
           href={orgUrl.newPerson}
-          className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-medium text-white hover:bg-white/[0.08] transition-colors"
+          className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-medium text-foreground hover:bg-white/[0.08] transition-colors"
         >
           Add person
         </Link>
@@ -64,12 +64,12 @@ export function PeopleDirectoryHeader(props: PeopleDirectoryHeaderProps) {
       <div className="flex items-center gap-3 flex-nowrap">
         {/* Search - takes 50-60% width */}
         <div className="relative flex-[0_1_50%] min-w-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/40" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search by name, email, or role…"
-            className="w-full h-10 rounded-xl border border-white/10 bg-white/[0.02] pl-9 pr-3 text-sm text-white placeholder:text-white/35 outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
+            className="w-full h-10 rounded-xl border border-white/10 bg-white/[0.02] pl-9 pr-3 text-sm text-foreground placeholder:text-foreground/35 outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
           />
         </div>
 
@@ -80,16 +80,16 @@ export function PeopleDirectoryHeader(props: PeopleDirectoryHeaderProps) {
             setDepartmentId(e.target.value)
             setTeamId("")
           }}
-          className="h-10 rounded-xl border border-white/10 bg-white/[0.02] px-3 pr-8 text-sm text-white outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all appearance-none cursor-pointer shrink-0 min-w-[140px]"
+          className="h-10 rounded-xl border border-white/10 bg-white/[0.02] px-3 pr-8 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all appearance-none cursor-pointer shrink-0 min-w-[140px]"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4L6 8L10 4' stroke='rgba(255,255,255,0.5)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
             backgroundRepeat: 'no-repeat',
             backgroundPosition: 'right 0.75rem center',
           }}
         >
-          <option value="" className="bg-[#020617] text-white">All departments</option>
+          <option value="" className="bg-background text-foreground">All departments</option>
           {departments.map((d) => (
-            <option key={d.id} value={d.id} className="bg-[#020617] text-white">
+            <option key={d.id} value={d.id} className="bg-background text-foreground">
               {d.name}
             </option>
           ))}
@@ -99,16 +99,16 @@ export function PeopleDirectoryHeader(props: PeopleDirectoryHeaderProps) {
         <select
           value={teamId}
           onChange={(e) => setTeamId(e.target.value)}
-          className="h-10 rounded-xl border border-white/10 bg-white/[0.02] px-3 pr-8 text-sm text-white outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all appearance-none cursor-pointer shrink-0 min-w-[120px]"
+          className="h-10 rounded-xl border border-white/10 bg-white/[0.02] px-3 pr-8 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all appearance-none cursor-pointer shrink-0 min-w-[120px]"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4L6 8L10 4' stroke='rgba(255,255,255,0.5)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
             backgroundRepeat: 'no-repeat',
             backgroundPosition: 'right 0.75rem center',
           }}
         >
-          <option value="" className="bg-[#020617] text-white">All teams</option>
+          <option value="" className="bg-background text-foreground">All teams</option>
           {teams.map((t) => (
-            <option key={t.id} value={t.id} className="bg-[#020617] text-white">
+            <option key={t.id} value={t.id} className="bg-background text-foreground">
               {t.name}
             </option>
           ))}
@@ -118,33 +118,33 @@ export function PeopleDirectoryHeader(props: PeopleDirectoryHeaderProps) {
         <select
           value={availability}
           onChange={(e) => setAvailability(e.target.value)}
-          className="h-10 rounded-xl border border-white/10 bg-white/[0.02] px-3 pr-8 text-sm text-white outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all appearance-none cursor-pointer shrink-0 min-w-[140px]"
+          className="h-10 rounded-xl border border-white/10 bg-white/[0.02] px-3 pr-8 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all appearance-none cursor-pointer shrink-0 min-w-[140px]"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4L6 8L10 4' stroke='rgba(255,255,255,0.5)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
             backgroundRepeat: 'no-repeat',
             backgroundPosition: 'right 0.75rem center',
           }}
         >
-          <option value="" className="bg-[#020617] text-white">Any availability</option>
-          <option value="AVAILABLE" className="bg-[#020617] text-white">Available</option>
-          <option value="LIMITED" className="bg-[#020617] text-white">Limited</option>
-          <option value="UNAVAILABLE" className="bg-[#020617] text-white">Unavailable</option>
-          <option value="OOO" className="bg-[#020617] text-white">Out of Office</option>
+          <option value="" className="bg-background text-foreground">Any availability</option>
+          <option value="AVAILABLE" className="bg-background text-foreground">Available</option>
+          <option value="LIMITED" className="bg-background text-foreground">Limited</option>
+          <option value="UNAVAILABLE" className="bg-background text-foreground">Unavailable</option>
+          <option value="OOO" className="bg-background text-foreground">Out of Office</option>
         </select>
 
         {/* Sort */}
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as "name" | "role")}
-          className="h-10 rounded-xl border border-white/10 bg-white/[0.02] px-3 pr-8 text-sm text-white outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all appearance-none cursor-pointer shrink-0 min-w-[120px]"
+          className="h-10 rounded-xl border border-white/10 bg-white/[0.02] px-3 pr-8 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all appearance-none cursor-pointer shrink-0 min-w-[120px]"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4L6 8L10 4' stroke='rgba(255,255,255,0.5)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
             backgroundRepeat: 'no-repeat',
             backgroundPosition: 'right 0.75rem center',
           }}
         >
-          <option value="name" className="bg-[#020617] text-white">Name A–Z</option>
-          <option value="role" className="bg-[#020617] text-white">Role</option>
+          <option value="name" className="bg-background text-foreground">Name A–Z</option>
+          <option value="role" className="bg-background text-foreground">Role</option>
         </select>
       </div>
     </div>

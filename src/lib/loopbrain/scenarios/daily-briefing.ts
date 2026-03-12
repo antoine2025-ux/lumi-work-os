@@ -15,7 +15,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { callLoopbrainLLM } from "@/lib/loopbrain/orchestrator";
+import { callLoopbrainLLM } from "@/lib/loopbrain/llm-caller";
 import { gatherBriefingData, type BriefingData } from "./briefing-data";
 
 // =============================================================================
@@ -103,7 +103,7 @@ export async function generateDailyBriefing(
       maxTokens: 2000,
       timeoutMs: 15000,
     });
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[daily-briefing] LLM call failed, using fallback", {
       userId,
       workspaceId,
@@ -183,7 +183,7 @@ async function persistDailyBriefing(
         metadata: JSON.parse(JSON.stringify({ userId, briefing })) as Prisma.InputJsonValue,
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[daily-briefing] Failed to persist briefing insight", {
       userId,
       workspaceId,

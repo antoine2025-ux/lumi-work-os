@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
       take: limit,
     })
     return NextResponse.json(tasks)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

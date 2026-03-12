@@ -99,7 +99,7 @@ export async function GET(
     };
 
     return NextResponse.json({ ok: true, department: dto });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }
@@ -168,7 +168,7 @@ export async function PUT(
     }).catch((e) => console.error("[PUT /api/org/departments/[id]] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ ok: true, department: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }
@@ -308,7 +308,7 @@ export async function DELETE(
         department: archived,
       });
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

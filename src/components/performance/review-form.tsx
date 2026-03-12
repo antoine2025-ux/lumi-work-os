@@ -133,7 +133,7 @@ export function ReviewForm({
       if (!isMountedRef.current) return
       lastSavedRef.current = currentState
       setSaveStatus('saved')
-    } catch (err) {
+    } catch (err: unknown) {
       if (!isMountedRef.current) return
       setSaveStatus('error')
       console.error('Auto-save failed:', err)
@@ -193,7 +193,7 @@ export function ReviewForm({
       }
 
       router.refresh()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     }
   }
@@ -216,7 +216,7 @@ export function ReviewForm({
       }
 
       router.refresh()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     }
   }

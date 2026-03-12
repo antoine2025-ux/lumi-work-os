@@ -38,15 +38,7 @@ export interface AuditLogEntry {
 
 export async function logAuditEvent(entry: AuditLogEntry) {
   try {
-    console.log('🔍 Logging audit event:', {
-      workspaceId: entry.workspaceId,
-      userId: entry.userId,
-      action: entry.action,
-      entityType: entry.entityType,
-      entityId: entry.entityId,
-    })
-    
-    const auditLog = await prisma.orgAuditLog.create({
+    await prisma.orgAuditLog.create({
       data: {
         workspaceId: entry.workspaceId,
         userId: entry.userId,
@@ -58,9 +50,7 @@ export async function logAuditEvent(entry: AuditLogEntry) {
         metadata: (entry.metadata ?? Prisma.JsonNull) as Prisma.InputJsonValue,
       },
     })
-    
-    console.log('✅ Audit log created:', auditLog.id)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Failed to log audit event:', error)
     // Don't throw - audit logging should not break the main operation
   }

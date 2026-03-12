@@ -97,7 +97,7 @@ export function ProjectDocumentationSection({
           console.error('Error details:', errorDetails)
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading documentation:', error)
     } finally {
       setIsLoading(false)
@@ -138,7 +138,7 @@ export function ProjectDocumentationSection({
           console.error('Failed to load wiki page content')
           setSelectedPageContent(null)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading wiki page content:', error)
         setSelectedPageContent(null)
       } finally {
@@ -158,7 +158,7 @@ export function ProjectDocumentationSection({
           const project = await response.json()
           setProjectSpaceId(project.spaceId || null)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading project spaceId:', error)
       }
     }
@@ -210,7 +210,7 @@ export function ProjectDocumentationSection({
         console.error('Failed to attach documentation:', errorMessage)
         alert(errorMessage)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Error attaching documentation:', errorMessage)
       alert(`Failed to attach documentation: ${errorMessage}`)
@@ -256,7 +256,7 @@ export function ProjectDocumentationSection({
         console.error('Failed to detach documentation:', errorMessage)
         alert(errorMessage)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Revert on error
       loadDocumentation()
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -301,7 +301,7 @@ export function ProjectDocumentationSection({
       setDocumentation((prev) => [...prev, newDoc])
       setSelectedDocId(newDoc.id)
       router.push(`/wiki/${newPage.slug}?edit=true`)
-    } catch (error) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Failed to create page"
       console.error("Error creating project doc:", error)
       alert(msg)

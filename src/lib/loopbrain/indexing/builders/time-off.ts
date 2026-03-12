@@ -52,7 +52,7 @@ export async function buildContextObjectForTimeOff(
     }, workspaceId)
 
     return contextObject
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to build time off context object', {
       workspaceId,
       entityId,

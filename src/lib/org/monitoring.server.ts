@@ -21,7 +21,7 @@ export async function recordOrgApiHit(
       type: "org_api_hit",
       route,
       status,
-      orgId: workspaceId ?? null,
+      workspaceId: workspaceId ?? null,
       userId: userId ?? null,
       ts: new Date().toISOString(),
     })
@@ -43,7 +43,7 @@ export async function recordOrgApiError(
       route,
       error: errorMessage,
       stack: errorStack,
-      orgId: workspaceId ?? null,
+      workspaceId: workspaceId ?? null,
       userId: userId ?? null,
       ts: new Date().toISOString(),
     })

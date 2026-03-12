@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { WorkspaceRole, Workspace, WikiPage, Project, wiki_workspaces } from '@prisma/client'
 import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
+import { getOrCreateTeamSpace } from '@/lib/spaces/canonical-space-helpers'
 
 export interface WorkspaceTemplate {
   id: string
@@ -357,6 +358,12 @@ export async function createWorkspaceWithOnboarding(
     )
   )
 
+  // Get or create default team space for projects
+  const defaultSpaceId = await getOrCreateTeamSpace(workspace.id, userId)
+  if (!defaultSpaceId) {
+    throw new Error('Failed to create default space for workspace')
+  }
+
   // Create default projects
   const defaultProjects = await Promise.all(
     template.defaultProjects.map(project =>
@@ -367,6 +374,7 @@ export async function createWorkspaceWithOnboarding(
           workspaceId: workspace.id,
           createdById: userId,
           ownerId: userId,
+          spaceId: defaultSpaceId,
           members: {
             create: {
               userId,
@@ -444,15 +452,8 @@ export async function createDefaultWorkspaceForUser(userId: string): Promise<str
       templateId: 'personal'
     })
     
-    console.log(`✅ Created comprehensive workspace for user ${userId}:`, {
-      workspaceId: result.workspace.id,
-      pages: result.defaultPages.length,
-      projects: result.defaultProjects.length,
-      wikiWorkspaces: result.wikiWorkspaces.length
-    })
-    
     return result.workspace.id
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating default workspace:', error)
     
     // Fallback to simple workspace creation

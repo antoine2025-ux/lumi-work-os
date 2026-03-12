@@ -46,7 +46,7 @@ export function VersionHistory({ pageId, onClose, onRestore }: VersionHistoryPro
           const data = await response.json()
           setVersions(data)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error fetching versions:', error)
       } finally {
         setIsLoading(false)

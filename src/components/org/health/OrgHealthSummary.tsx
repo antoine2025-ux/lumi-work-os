@@ -15,8 +15,8 @@ import Link from "next/link"
 import { getOrgOverviewSummary } from "@/server/org/overview/summary"
 import { OrgCard } from "@/components/org/ui/OrgCard"
 
-export async function OrgHealthSummary(props: { orgId: string }) {
-  const summary = await getOrgOverviewSummary(props.orgId)
+export async function OrgHealthSummary(props: { workspaceId: string }) {
+  const summary = await getOrgOverviewSummary(props.workspaceId)
 
   // Extract health signals that can be deep-linked
   const signals = summary.topSignals || []

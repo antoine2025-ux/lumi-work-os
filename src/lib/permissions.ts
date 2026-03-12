@@ -14,18 +14,9 @@ export interface PermissionContext {
 
 export async function getPermissionContext(request?: NextRequest): Promise<PermissionContext> {
   try {
-    console.log('🔍 Getting permission context')
     const auth = await getUnifiedAuth(request)
-    console.log('✅ Auth context:', auth)
-    
-    // Use the workspace ID from unified auth
     const workspaceId = auth.workspaceId
-    console.log('✅ Workspace ID:', workspaceId)
-  
-    // Get user's role in workspace
     const userRole = (await getUserWorkspaceRole(auth.user.userId, workspaceId) as UserRole) || 'MEMBER'
-    console.log('✅ User role:', userRole)
-    
     const context = {
       userId: auth.user.userId,
       workspaceId,
@@ -34,11 +25,8 @@ export async function getPermissionContext(request?: NextRequest): Promise<Permi
       isAdmin: userRole === 'OWNER' || userRole === 'ADMIN',
       isMember: userRole === 'MEMBER'
     }
-    
-    console.log('✅ Permission context created:', context)
     return context
-  } catch (error) {
-    console.error('❌ Error in getPermissionContext:', error)
+  } catch (error: unknown) {
     throw error
   }
 }

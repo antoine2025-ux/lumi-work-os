@@ -139,6 +139,8 @@ model User {
   notificationsReceived   Notification[] @relation("NotificationRecipient")
   notificationsActed      Notification[] @relation("NotificationActor")
   notificationPreferences NotificationPreference[]
+  personalNotes           PersonalNote[]
+  loopbrainPolicies       LoopbrainPolicy[]
 
   @@map("users")
 }
@@ -194,6 +196,7 @@ model Workspace {
   projectTemplates               ProjectTemplate[]
   projects                       Project[]
   roleCards                      RoleCard[]
+  jobDescriptions                JobDescription[]
   taskTemplates                  TaskTemplate[]
   tasks                          Task[]
   wikiChunks                     WikiChunk[]
@@ -338,6 +341,10 @@ model Workspace {
   projectAllocations          ProjectAllocation[]
   // Loopbrain conversation sessions
   loopbrainSessions           LoopbrainSession[]
+  // Personal notes
+  personalNotes               PersonalNote[]
+  // Loopbrain Policy Engine
+  loopbrainPolicies           LoopbrainPolicy[]
 
   @@map("workspaces")
 }
@@ -889,6 +896,31 @@ model OrgPersonProfileOverride {
   @@map("org_person_profile_overrides")
 }
 
+// Shared job description template — reusable across many OrgPositions
+model JobDescription {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  title            String                        // "Software Engineer", "Product Manager"
+  summary          String?                       // 2-3 sentence overview of the role
+  level            String?                       // "Junior", "Mid", "Senior", "Lead", "Principal"
+  jobFamily        String?                       // "Engineering", "Design", "Operations"
+  responsibilities String[] @default([])
+  requiredSkills   String[] @default([])
+  preferredSkills  String[] @default([])
+  keyMetrics       String[] @default([])
+
+  workspace        Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  positions        OrgPosition[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([workspaceId, title, level])
+  @@index([workspaceId])
+  @@index([workspaceId, jobFamily])
+  @@map("job_descriptions")
+}
+
 model RoleCard {
   id               String       @id @default(cuid())
   workspaceId      String
@@ -904,6 +936,9 @@ model RoleCard {
   preferredSkills  String[]     @default([]) // Legacy: string array (Phase 3 migrates to Skill entities)
   requiredSkills   String[]     @default([]) // Legacy: string array (Phase 3 migrates to Skill entities)
   responsibilities String[]     @default([])
+  roleInOrg        String?                   // "Epic Owner for Platform Migration"
+  focusArea        String?                   // "Leading auth migration + API redesign"
+  managerNotes     String?                   // Free text context from manager
   createdBy        User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
   position         OrgPosition? @relation(fields: [positionId], references: [id])
   workspace        Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -942,6 +977,7 @@ model OrgPosition {
   archivedById       String? // User ID of who archived this position
   archivedReason     String?
   mergedIntoId       String? // canonical position id when merged
+  jobDescriptionId   String? // optional link to shared JobDescription template
 
   // Phase 1: Intentional absence tracking for structural integrity
   // When true, LoopBrain will not flag missing team/manager as issues
@@ -954,12 +990,13 @@ model OrgPosition {
   location       String?
   timezone       String?
 
-  parent    OrgPosition?  @relation("OrgHierarchy", fields: [parentId], references: [id])
-  children  OrgPosition[] @relation("OrgHierarchy")
-  team      OrgTeam?      @relation(fields: [teamId], references: [id])
-  user      User?         @relation(fields: [userId], references: [id])
-  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  roleCard           RoleCard?
+  parent          OrgPosition?    @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children        OrgPosition[]   @relation("OrgHierarchy")
+  team            OrgTeam?        @relation(fields: [teamId], references: [id])
+  user            User?           @relation(fields: [userId], references: [id])
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  jobDescription  JobDescription? @relation(fields: [jobDescriptionId], references: [id])
+  roleCard        RoleCard?
   projectMembers     ProjectMember[]
   projectAssignees   ProjectAssignee[]
   projectPersonLinks ProjectPersonLink[]
@@ -972,6 +1009,7 @@ model OrgPosition {
   @@index([teamId])
   @@index([parentId])  // Fast reporting chain traversal
   @@index([level])
+  @@index([jobDescriptionId])
   // Entity Graph: Optimized for MEMBER_OF and REPORTS_TO link queries
   @@index([workspaceId, teamId, userId], map: "idx_org_positions_entity_graph")
   @@map("org_positions")
@@ -1211,8 +1249,8 @@ model Project {
   id                  String                 @id @default(cuid())
   workspaceId         String
   teamId              String? // Optional org team assignment
-  orgId               String? // Org identifier (same as workspaceId for v1, optional for backward compatibility)
   name                String
+  excerpt             String?   // Short summary (1-2 lines)
   description         String?
   status              ProjectStatus          @default(ACTIVE)
   priority            Priority               @default(MEDIUM)
@@ -1237,14 +1275,14 @@ model Project {
   watchers            ProjectWatcher[]
   accountability      ProjectAccountability?
   allocations         ProjectAllocation[]
-  spaceId               String?
+  spaceId               String
   createdBy             User                   @relation(fields: [createdById], references: [id], onDelete: Cascade)
   owner                  User?                  @relation("ProjectOwner", fields: [ownerId], references: [id])
   wikiPage               WikiPage?              @relation(fields: [wikiPageId], references: [id])
   projectDocumentation   ProjectDocumentation[]
   workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   orgTeam                OrgTeam?               @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  space                  Space?                 @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  space                  Space                  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   tasks                  Task[]
   goalLinks              ProjectGoalLink[]
   personLinks            ProjectPersonLink[]
@@ -1253,7 +1291,6 @@ model Project {
   @@index([workspaceId, ownerId])  // Dashboard "my projects" query
   @@index([status])                // Project filtering by status
   @@index([updatedAt(sort: Desc)], map: "idx_projects_updated_at")
-  @@index([orgId])
   @@index([teamId])
   @@index([spaceId])
   @@map("projects")
@@ -1590,6 +1627,23 @@ model Todo {
   @@index([workspaceId, anchorType, anchorId], map: "idx_todos_workspace_anchor")
   @@index([workspaceId, createdById], map: "idx_todos_workspace_creator")
   @@map("todos")
+}
+
+model PersonalNote {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  title       String   @default("Untitled")
+  content     String   @default("")
+  pinned      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, userId, updatedAt])
+  @@map("personal_notes")
 }
 
 model Notification {
@@ -2179,9 +2233,8 @@ model OrgInvitation {
   id          String     @id @default(cuid())
   workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   workspaceId String?
-  org         Org?       @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  orgId       String?
   email       String
+  fullName    String?    // Intended name, shown in pending profile preview
   role        OrgRole?   @default(VIEWER)
   status      String     @default("PENDING") // PENDING | ACCEPTED | DECLINED | EXPIRED (using String for new org system)
   invitedBy   User?      @relation("InvitedBy", fields: [invitedById], references: [id])
@@ -2193,15 +2246,15 @@ model OrgInvitation {
   expiresAt   DateTime?
   
   // Organizational placement (applied on acceptance)
-  title        String?
-  departmentId String?
-  teamId       String?
-  managerId    String? // Person.id of the manager
+  title            String?
+  departmentId     String?
+  teamId           String?
+  managerId        String? // Person.id of the manager
+  jobDescriptionId String? // Optional JD to link on acceptance
 
   @@unique([workspaceId, email])
   @@index([workspaceId])
   @@index([workspaceId, status], map: "idx_org_invitations_workspace_status")
-  @@index([orgId, status])
   @@index([email])
   @@index([token])
   @@map("org_invitations")
@@ -2224,7 +2277,6 @@ model Org {
   updatedAt DateTime @updatedAt
 
   memberships OrgMembership[]
-  invitations OrgInvitation[]
   audit       AuditLogEntry[]
   roles       Role[]
 
@@ -2958,7 +3010,7 @@ enum AvailabilityStatus {
 
 model PersonAvailabilityHealth {
   id          String @id @default(cuid())
-  workspaceId String // Phase 1: migrated from orgId to workspaceId
+  workspaceId String
   personId    String
 
   status AvailabilityStatus @default(AVAILABLE)
@@ -3106,7 +3158,7 @@ enum OwnedEntityType {
 
 model OwnerAssignment {
   id          String @id @default(cuid())
-  workspaceId String // Phase 1: migrated from orgId to workspaceId
+  workspaceId String
 
   entityType  OwnedEntityType
   entityId    String
@@ -3158,7 +3210,7 @@ model SystemEntity {
 
 model PersonManagerLink {
   id          String @id @default(cuid())
-  workspaceId String // Phase 1: migrated from orgId to workspaceId
+  workspaceId String
   personId    String
   managerId   String
 
@@ -4761,6 +4813,118 @@ model GoalWorkflowRule {
   @@index([workspaceId, isActive])
   @@index([trigger])
   @@map("goal_workflow_rules")
+}
+
+// ---------------------------------------------------------------------------
+// Loopbrain Policy Engine
+// ---------------------------------------------------------------------------
+
+enum PolicyScheduleType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  CRON
+}
+
+enum PolicyTriggerType {
+  SCHEDULE
+  EMAIL_KEYWORD
+  TASK_STATUS_CHANGE
+  CALENDAR_EVENT
+}
+
+enum PolicyExecutionStatus {
+  RUNNING
+  SUCCESS
+  FAILURE
+  PARTIAL
+  TIMEOUT
+  CANCELLED
+}
+
+model LoopbrainPolicy {
+  id              String              @id @default(cuid())
+  workspaceId     String
+  userId          String
+  name            String
+  description     String?
+  content         String              @db.Text
+  compiledPlan    Json?
+  compiledAt      DateTime?
+  compileError    String?
+
+  scheduleType    PolicyScheduleType?
+  scheduleConfig  Json?
+  nextRunAt       DateTime?
+
+  triggerType     PolicyTriggerType   @default(SCHEDULE)
+  triggerConfig   Json?
+
+  maxActions      Int                 @default(50)
+  maxDurationMs   Int                 @default(300000)
+  tokenBudget     Int                 @default(50000)
+
+  consecutiveFailures Int             @default(0)
+  disabledReason  String?
+
+  enabled         Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  executions      PolicyExecution[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, enabled])
+  @@index([workspaceId, userId])
+  @@index([enabled, nextRunAt])
+  @@index([enabled, triggerType])
+  @@map("loopbrain_policies")
+}
+
+model PolicyExecution {
+  id              String                  @id @default(cuid())
+  policyId        String
+  workspaceId     String
+  userId          String
+  status          PolicyExecutionStatus   @default(RUNNING)
+  triggerSource   String
+  startedAt       DateTime                @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+  actionsCount    Int                     @default(0)
+  tokenUsage      Int?
+  result          Json?
+  errorMessage    String?
+  userFeedback    String?
+
+  policy          LoopbrainPolicy         @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  actionLogs      PolicyActionLog[]
+
+  @@index([policyId])
+  @@index([workspaceId])
+  @@index([policyId, startedAt(sort: Desc)])
+  @@index([workspaceId, startedAt(sort: Desc)])
+  @@map("policy_executions")
+}
+
+model PolicyActionLog {
+  id              String    @id @default(cuid())
+  executionId     String
+  stepNumber      Int
+  toolName        String
+  params          Json?
+  success         Boolean
+  result          Json?
+  errorMessage    String?
+  durationMs      Int?
+  createdAt       DateTime  @default(now())
+
+  execution       PolicyExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@map("policy_action_logs")
 }
 
 model OnboardingProgress {

@@ -128,7 +128,7 @@ export async function generateAndSendDigests(
 
         await sendEmail({ to: user.email, subject, html })
         result.sent++
-      } catch (error) {
+      } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error)
         result.errors.push(`${workspace.id}:${user.id}: ${msg}`)
         result.skipped++

@@ -26,7 +26,7 @@ export async function GET() {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[dev/org-context-health] Failed to compute health report", error);
 
     return NextResponse.json(

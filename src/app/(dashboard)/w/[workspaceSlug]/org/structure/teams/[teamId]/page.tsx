@@ -4,7 +4,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { getTeamById, getDepartmentsWithTeams } from "@/lib/org/queries";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { prisma } from "@/lib/db";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getOrgPermissionContext } from "@/lib/org/permissions.server";
 
 type PageProps = {
   params: Promise<{ workspaceSlug: string; teamId: string }>;
@@ -21,7 +22,10 @@ type PageProps = {
 
 export default async function WorkspaceOrgTeamPage({ params }: PageProps) {
   const { workspaceSlug, teamId } = await params;
-  const team = await getTeamById(teamId);
+  const ctx = await getOrgPermissionContext();
+  if (!ctx) redirect("/login");
+
+  const team = await getTeamById(teamId, ctx.workspaceId);
   if (!team) return notFound();
 
   const department = team.department;
@@ -67,7 +71,7 @@ export default async function WorkspaceOrgTeamPage({ params }: PageProps) {
             href={backHref}
             className={cn(
               "inline-flex items-center gap-1.5",
-              "text-[12px] text-slate-500 hover:text-slate-300",
+              "text-[12px] text-muted-foreground hover:text-muted-foreground",
               "transition-colors duration-150"
             )}
           >
@@ -90,7 +94,7 @@ export default async function WorkspaceOrgTeamPage({ params }: PageProps) {
                 <Link
                   key={project.id}
                   href={`/w/${workspaceSlug}/projects/${project.id}`}
-                  className="block p-3 rounded-lg bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block p-3 rounded-lg bg-slate-50 dark:bg-card hover:bg-slate-100 dark:hover:bg-muted transition-colors"
                 >
                   <p className="font-medium">{project.name}</p>
                   <p className="text-sm text-muted-foreground">

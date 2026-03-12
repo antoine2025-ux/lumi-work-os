@@ -57,11 +57,11 @@ export function CompareHighlights({ people }: CompareHighlightsProps) {
   if (highlights.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-slate-800/30 border border-white/5">
+    <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-muted/30 border border-white/5">
       {highlights.map((highlight, index) => (
         <span
           key={index}
-          className="text-xs text-slate-300 px-2 py-1 rounded bg-slate-800/50"
+          className="text-xs text-muted-foreground px-2 py-1 rounded bg-muted/50"
         >
           {highlight}
         </span>

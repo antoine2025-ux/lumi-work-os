@@ -37,15 +37,15 @@ export function OrgInsightsSummaryCards({ snapshot }: Props) {
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-2xl border border-slate-800 bg-[#020617] px-4 py-4 shadow-sm shadow-slate-950/40 transition-all duration-150 hover:-translate-y-[1px] hover:border-slate-700 hover:shadow-md"
+          className="rounded-2xl border border-border bg-background px-4 py-4 shadow-sm shadow-slate-950/40 transition-all duration-150 hover:-translate-y-[1px] hover:border-border hover:shadow-md"
         >
-          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             {card.label}
           </div>
-          <div className="mt-2 text-2xl font-semibold text-slate-50">
+          <div className="mt-2 text-2xl font-semibold text-foreground">
             {card.value}
           </div>
-          <div className="mt-1 text-[11px] text-slate-500">
+          <div className="mt-1 text-[11px] text-muted-foreground">
             {card.helper}
           </div>
         </div>

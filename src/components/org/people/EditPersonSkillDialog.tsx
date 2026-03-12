@@ -127,7 +127,7 @@ export function EditPersonSkillDialog({
       }
 
       onSaved();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[EditPersonSkillDialog] Save error:", err);
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -137,9 +137,9 @@ export function EditPersonSkillDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-md bg-slate-900 border-slate-800">
+      <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-slate-100">
+          <DialogTitle className="text-foreground">
             {isEdit ? "Edit Skill" : "Add Skill"}
           </DialogTitle>
         </DialogHeader>
@@ -148,7 +148,7 @@ export function EditPersonSkillDialog({
           {/* Skill picker - only shown for new skills */}
           {!isEdit && (
             <div className="space-y-2">
-              <Label className="text-slate-300">Skill</Label>
+              <Label className="text-muted-foreground">Skill</Label>
               <NormalizedSkillPicker
                 value={selectedSkill}
                 onSelect={handleSkillSelect}
@@ -162,11 +162,11 @@ export function EditPersonSkillDialog({
           {/* Show selected skill for edit mode */}
           {isEdit && selectedSkill && (
             <div className="space-y-2">
-              <Label className="text-slate-300">Skill</Label>
-              <div className="rounded-lg bg-slate-800/50 px-3 py-2 text-sm text-slate-100">
+              <Label className="text-muted-foreground">Skill</Label>
+              <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-foreground">
                 {selectedSkill.skillName}
                 {selectedSkill.category && (
-                  <span className="ml-2 text-xs text-slate-500">
+                  <span className="ml-2 text-xs text-muted-foreground">
                     {selectedSkill.category}
                   </span>
                 )}
@@ -176,11 +176,11 @@ export function EditPersonSkillDialog({
 
           {/* Proficiency */}
           <div className="space-y-2">
-            <Label className="text-slate-300">Proficiency</Label>
+            <Label className="text-muted-foreground">Proficiency</Label>
             <select
               value={proficiency}
               onChange={(e) => setProficiency(Number(e.target.value))}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {PROFICIENCY_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -192,11 +192,11 @@ export function EditPersonSkillDialog({
 
           {/* Source */}
           <div className="space-y-2">
-            <Label className="text-slate-300">Source</Label>
+            <Label className="text-muted-foreground">Source</Label>
             <select
               value={source}
               onChange={(e) => setSource(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {SOURCE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>

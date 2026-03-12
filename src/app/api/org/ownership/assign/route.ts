@@ -11,7 +11,6 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
-import { requireNonEmptyString } from "@/server/org/validate";
 import { assignOwnership } from "@/server/org/ownership/write";
 import { deriveOwnershipIssuesForEntity } from "@/lib/org/deriveIssues";
 import { getOrgOwnership } from "@/server/org/ownership/read";
@@ -21,7 +20,8 @@ import {
   type MutationResult,
 } from "@/lib/org/mutations/types";
 import { computeIssueResolution } from "@/lib/org/mutations/utils";
-import { handleApiError } from "@/lib/api-errors"
+import { handleApiError } from "@/lib/api-errors";
+import { AssignOwnershipSchema } from '@/lib/validations/org';
 
 export async function POST(request: NextRequest) {
   let userId: string | undefined;
@@ -63,12 +63,11 @@ export async function POST(request: NextRequest) {
     const workspaceSlug = workspaceRecord?.slug ?? workspaceId;
 
     // Step 4: Parse and validate request body
-    const body = await request.json();
-    const entityType = requireNonEmptyString(body.entityType, "entityType") as "TEAM" | "DEPARTMENT";
-    const entityId = requireNonEmptyString(body.entityId, "entityId");
-    const ownerPersonId = requireNonEmptyString(body.ownerPersonId, "ownerPersonId");
+    const body = AssignOwnershipSchema.parse(await request.json());
+    const { entityType, entityId, ownerId: ownerPersonId } = body;
 
-    if (entityType !== "TEAM" && entityType !== "DEPARTMENT") {
+    // Validate entityType is TEAM or DEPARTMENT for this route
+    if (entityType !== 'TEAM' && entityType !== 'DEPARTMENT') {
       return NextResponse.json(
         { ok: false, error: "Invalid entityType: must be 'TEAM' or 'DEPARTMENT'" },
         { status: 400 }
@@ -78,7 +77,7 @@ export async function POST(request: NextRequest) {
     // Step 5: Compute issues BEFORE mutation (scoped to affected entity)
     const issuesBefore = await deriveOwnershipIssuesForEntity(
       workspaceId,
-      entityType,
+      entityType as "TEAM" | "DEPARTMENT",
       entityId,
       workspaceSlug
     );
@@ -86,7 +85,7 @@ export async function POST(request: NextRequest) {
     // Step 6: Assign ownership (returns previous owner for audit logging)
     const record = await assignOwnership({
       workspaceId, // Pass workspaceId for resolver
-      entityType,
+      entityType: entityType as "TEAM" | "DEPARTMENT",
       entityId,
       ownerPersonId,
     });
@@ -94,7 +93,7 @@ export async function POST(request: NextRequest) {
     // Step 7: Compute issues AFTER mutation (same scoped set)
     const issuesAfter = await deriveOwnershipIssuesForEntity(
       workspaceId,
-      entityType,
+      entityType as "TEAM" | "DEPARTMENT",
       entityId,
       workspaceSlug
     );
@@ -152,7 +151,7 @@ export async function POST(request: NextRequest) {
     };
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -11,6 +11,8 @@ import { prisma, prismaUnscoped } from "@/lib/db";
 import { google } from "googleapis";
 import { logger } from "@/lib/logger";
 import { randomUUID } from "crypto";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/server/authOptions";
 import type {
   CalendarAvailabilitySnapshotV0,
   DayOfWeekV0,
@@ -213,7 +215,7 @@ export async function buildCalendarAvailability(
     });
 
     return snapshot;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[CalendarContext] Failed to build snapshot", {
       workspaceId,
       personId,
@@ -254,12 +256,32 @@ export async function loadCalendarEvents(
       return [];
     }
 
-    const account = await prismaUnscoped.account.findFirst({
+    // First try Account table
+    let account = await prismaUnscoped.account.findFirst({
       where: { userId: personId, provider: "google" },
       select: { access_token: true, refresh_token: true, expires_at: true },
     });
 
-    if (!account?.refresh_token) return [];
+    // If refresh_token is null in DB, try JWT session as fallback
+    if (!account?.refresh_token) {
+      try {
+        const session = await getServerSession(authOptions)
+        if (session?.refreshToken && session?.accessToken) {
+          // Use tokens from JWT session
+          account = {
+            access_token: session.accessToken as string,
+            refresh_token: session.refreshToken as string,
+            expires_at: session.expiresAt ? Math.floor(new Date(session.expiresAt as number).getTime() / 1000) : null,
+          }
+        }
+      } catch (err: unknown) {
+        console.error('[Calendar] JWT session fallback failed:', err)
+      }
+    }
+
+    if (!account?.refresh_token) {
+      return []
+    }
 
     const baseUrl = getOAuthRedirectBaseUrl()
     const oauth2Client = new google.auth.OAuth2(
@@ -314,11 +336,24 @@ export async function loadCalendarEvents(
         status: e.status ?? "confirmed",
       });
     }
-    return items;
-  } catch (error) {
-    logger.warn("[CalendarContext] Failed to load Google Calendar events", {
+    
+    logger.info("[CalendarContext] Successfully loaded calendar events", {
       personId,
-      error,
+      eventCount: items.length,
+      dateRange: `${startDate.toISOString()} to ${endDate.toISOString()}`,
+    });
+    
+    return items;
+  } catch (error: unknown) {
+    // Log detailed error information for debugging
+    const errorDetails = error instanceof Error 
+      ? { message: error.message, stack: error.stack, name: error.name }
+      : { raw: String(error) };
+    
+    logger.error("[CalendarContext] Failed to load Google Calendar events", {
+      personId,
+      error: errorDetails,
+      dateRange: `${startDate.toISOString()} to ${endDate.toISOString()}`,
     });
     return [];
   }
@@ -842,7 +877,7 @@ export async function buildTeamAvailabilitySnapshot(
         ) {
           availableCount++;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn("[CalendarContext] Failed to build member snapshot", {
           teamId,
           personId: position.userId,
@@ -883,7 +918,7 @@ export async function buildTeamAvailabilitySnapshot(
     });
 
     return snapshot;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[CalendarContext] Failed to build team snapshot", {
       workspaceId,
       teamId,

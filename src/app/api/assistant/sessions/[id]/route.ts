@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-errors'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
+import { AssistantSessionUpdateByIdSchema } from '@/lib/validations/assistant'
 
 // GET /api/assistant/sessions/[id] - Get a specific session
 export async function GET(
@@ -43,9 +45,8 @@ export async function GET(
     }
 
     return NextResponse.json(session)
-  } catch (error) {
-    console.error('Error fetching session:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }
 
@@ -69,9 +70,12 @@ export async function PUT(
     setWorkspaceContext(auth.workspaceId)
 
     const resolvedParams = await params
-    const body = await request.json()
+    const rawBody = await request.json()
+    const body = AssistantSessionUpdateByIdSchema.parse(rawBody)
     
-    const { phase, requirementNotes, draftTitle, draftBody, draftFormat, pageSettings, wikiUrl } = body
+    const { phase, draftTitle, draftBody } = body
+    // Additional fields not in schema but may be in raw body
+    const { requirementNotes, draftFormat, pageSettings, wikiUrl } = rawBody as any
 
     const session = await prisma.chatSession.update({
       where: {
@@ -91,9 +95,8 @@ export async function PUT(
     })
 
     return NextResponse.json(session)
-  } catch (error) {
-    console.error('Error updating session:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }
 
@@ -126,8 +129,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Error deleting session:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }

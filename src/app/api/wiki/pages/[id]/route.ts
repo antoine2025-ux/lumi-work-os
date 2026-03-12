@@ -199,7 +199,7 @@ export async function GET(
     }
 
     return NextResponse.json(response)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/wiki/pages/[id]:', error)
     return handleApiError(error, request)
   }
@@ -432,7 +432,7 @@ export async function PUT(
     }
 
     return NextResponse.json(updatedPage)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating wiki page:', error)
     return handleApiError(error, request)
   }
@@ -488,7 +488,7 @@ export async function DELETE(
     }
 
     return NextResponse.json({ message: 'Page deleted successfully' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error deleting wiki page:', error)
     return handleApiError(error, request)
   }

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { 
   ArrowLeft, 
   AlertCircle,
@@ -34,7 +35,7 @@ type KanbanTask = NonNullable<KanbanBoardProps['filteredTasks']>[number]
 const KanbanBoard = dynamic(() => import("@/components/kanban/kanban-board").then(mod => ({ default: mod.KanbanBoard })), { ssr: false })
 const InlineWikiViewer = dynamic(() => import("@/components/projects/inline-wiki-viewer").then(mod => ({ default: mod.InlineWikiViewer })), { ssr: false })
 const _EmbedContentRenderer = dynamic(() => import("@/components/wiki/embed-content-renderer").then(mod => ({ default: mod.EmbedContentRenderer })), { ssr: false })
-const ProjectEditDialog = dynamic(() => import("@/components/projects/project-edit-dialog").then(mod => ({ default: mod.ProjectEditDialog })), { ssr: false })
+const CreateProjectDialog = dynamic(() => import("@/components/projects/create-project-dialog").then(mod => ({ default: mod.CreateProjectDialog })), { ssr: false })
 const _LiveTaskList = dynamic(() => import("@/components/realtime/live-task-list").then(mod => ({ default: mod.LiveTaskList })), { ssr: false })
 const _PresenceIndicator = dynamic(() => import("@/components/realtime/presence-indicator").then(mod => ({ default: mod.PresenceIndicator })), { ssr: false })
 const NotificationToast = dynamic(() => import("@/components/realtime/notification-toast").then(mod => ({ default: mod.NotificationToast })), { ssr: false })
@@ -172,7 +173,7 @@ export default function ProjectDetailPage() {
             'projectId type': typeof projectId,
             'matches?': allProjectIds.includes(projectId)
           })
-        } catch (e) {
+        } catch (e: unknown) {
           console.error('[ProjectPage] Error reading localStorage:', e)
         }
       }
@@ -277,7 +278,7 @@ export default function ProjectDetailPage() {
               }
             }
           }
-        } catch (e) {
+        } catch (e: unknown) {
           console.error('Error fetching project space info:', e)
         }
         setAccessDenied(true)
@@ -287,7 +288,7 @@ export default function ProjectDetailPage() {
         console.log('[ProjectPage] failed to load project', response.status, errorData)
         setError('Failed to load project')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[ProjectPage] error loading project:', error)
       setError('Failed to load project')
     } finally {
@@ -302,7 +303,7 @@ export default function ProjectDetailPage() {
         const data = await response.json()
         setEpics(data)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading epics:', error)
     }
   }
@@ -324,7 +325,7 @@ export default function ProjectDetailPage() {
       } else {
         console.error('Failed to update wiki page link')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating wiki page link:', error)
     } finally {
       setIsUpdatingWiki(false)
@@ -344,7 +345,7 @@ export default function ProjectDetailPage() {
       } else {
         console.error('Failed to create sample tasks')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating sample tasks:', error)
     } finally {
       setIsCreatingSampleTasks(false)
@@ -395,7 +396,7 @@ export default function ProjectDetailPage() {
         const errorData = await response.json().catch(() => ({}))
         alert(errorData.error || 'Failed to delete project')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting project:', error)
       alert('An error occurred while deleting the project')
     }
@@ -471,7 +472,7 @@ export default function ProjectDetailPage() {
       } else {
         console.error('Failed to create epic')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating epic:', error)
     }
   }
@@ -986,12 +987,12 @@ export default function ProjectDetailPage() {
       )}
 
       {/* Project Edit Dialog */}
-      <ProjectEditDialog
-        isOpen={isEditDialogOpen}
-        onClose={() => setIsEditDialogOpen(false)}
+      <CreateProjectDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        mode="edit"
         project={project}
-        onSave={handleProjectUpdate}
-        workspaceId={currentWorkspace?.id || 'workspace-1'}
+        onProjectUpdated={handleProjectUpdate}
       />
 
       {/* Fullscreen Task List */}
@@ -1019,39 +1020,98 @@ export default function ProjectDetailPage() {
         
         {/* Create Epic Dialog */}
         <Dialog open={isCreateEpicOpen} onOpenChange={setIsCreateEpicOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Epic</DialogTitle>
+          <DialogContent className="max-w-3xl w-[90vw] max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-base font-semibold">Create New Epic</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="epic-title">Title</Label>
+            <div className="space-y-4 -mt-1">
+              {/* Epic Title - Unboxed */}
+              <div className="border-b border-border/50 pb-3">
                 <Input
-                  id="epic-title"
                   value={newEpicTitle}
                   onChange={(e) => setNewEpicTitle(e.target.value)}
-                  placeholder="Epic title"
+                  placeholder="Epic title *"
+                  className="text-lg font-medium border-0 rounded-none px-0 h-auto py-2 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  autoFocus
                 />
               </div>
-              <div>
-                <Label htmlFor="epic-description">Description</Label>
+
+              {/* Color Pill */}
+              <div className="flex items-center gap-1.5">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs hover:bg-accent/50 transition-colors"
+                    >
+                      <div 
+                        className="w-3.5 h-3.5 rounded-full border border-border/50" 
+                        style={{ backgroundColor: newEpicColor }}
+                      />
+                      <span className="text-muted-foreground">Color</span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="z-[100] w-64 p-3" align="start" sideOffset={4}>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Choose a color</Label>
+                      <div className="grid grid-cols-8 gap-2">
+                        {[
+                          '#EF4444', '#F97316', '#F59E0B', '#EAB308',
+                          '#84CC16', '#22C55E', '#10B981', '#14B8A6',
+                          '#06B6D4', '#0EA5E9', '#3B82F6', '#6366F1',
+                          '#8B5CF6', '#A855F7', '#D946EF', '#EC4899',
+                          '#F43F5E', '#64748B', '#475569', '#1E293B'
+                        ].map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setNewEpicColor(color)}
+                            className={`w-7 h-7 rounded-md border-2 transition-all hover:scale-110 ${
+                              newEpicColor === color ? 'border-foreground ring-2 ring-offset-1 ring-foreground/20' : 'border-transparent'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                      <div className="pt-2 border-t">
+                        <Label htmlFor="custom-color" className="text-xs text-muted-foreground">Custom color</Label>
+                        <div className="flex gap-2 mt-1.5">
+                          <Input
+                            id="custom-color"
+                            type="color"
+                            value={newEpicColor}
+                            onChange={(e) => setNewEpicColor(e.target.value)}
+                            className="h-8 w-16 p-1 cursor-pointer"
+                          />
+                          <Input
+                            type="text"
+                            value={newEpicColor}
+                            onChange={(e) => setNewEpicColor(e.target.value)}
+                            placeholder="#3B82F6"
+                            className="h-8 text-xs flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Description - Enlarged */}
+              <div className="space-y-2">
+                <Label htmlFor="epic-description" className="text-sm text-muted-foreground">Description</Label>
                 <Textarea
                   id="epic-description"
                   value={newEpicDescription}
                   onChange={(e) => setNewEpicDescription(e.target.value)}
-                  placeholder="Epic description"
+                  placeholder="Add a description..."
+                  rows={8}
+                  className="min-h-[180px] resize-y focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
               </div>
-              <div>
-                <Label htmlFor="epic-color">Color</Label>
-                <Input
-                  id="epic-color"
-                  type="color"
-                  value={newEpicColor}
-                  onChange={(e) => setNewEpicColor(e.target.value)}
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
+
+              <div className="flex justify-end space-x-2 pt-2">
                 <Button variant="outline" onClick={() => setIsCreateEpicOpen(false)}>
                   Cancel
                 </Button>

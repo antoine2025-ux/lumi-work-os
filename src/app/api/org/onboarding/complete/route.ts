@@ -4,6 +4,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { CompleteOrgOnboardingSchema } from '@/lib/validations/org';
 
 /**
  * POST /api/org/onboarding/complete
@@ -25,6 +26,9 @@ export async function POST(req: NextRequest) {
       requireRole: ["ADMIN", "OWNER"],
     });
     setWorkspaceContext(auth.workspaceId);
+
+    // Parse body (optional fields for tracking)
+    const body = CompleteOrgOnboardingSchema.parse(await req.json().catch(() => ({})));
 
     if (!prisma) {
       return NextResponse.json(
@@ -49,7 +53,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

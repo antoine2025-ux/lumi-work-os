@@ -80,20 +80,20 @@ export function CompareModal({
 
       {/* Modal */}
       <div
-        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[95vw] max-w-6xl max-h-[90vh] bg-slate-900 border border-white/10 rounded-3xl shadow-[0_24px_80px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden transition-all duration-250"
+        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[95vw] max-w-6xl max-h-[90vh] bg-card border border-white/10 rounded-3xl shadow-[0_24px_80px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden transition-all duration-250"
         role="dialog"
         aria-modal="true"
         aria-labelledby="compare-modal-title"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0">
-          <h2 id="compare-modal-title" className="text-xl font-semibold text-slate-100">
+          <h2 id="compare-modal-title" className="text-xl font-semibold text-foreground">
             Compare People
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -120,13 +120,13 @@ export function CompareModal({
               return (
                 <div
                   key={person.id}
-                  className="flex flex-col space-y-4 p-5 rounded-2xl bg-slate-800/30 border border-white/5 transition-colors duration-150 hover:bg-slate-800/40"
+                  className="flex flex-col space-y-4 p-5 rounded-2xl bg-muted/30 border border-white/5 transition-colors duration-150 hover:bg-muted/40"
                 >
                   {/* Header: Avatar + Name + Remove */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <Avatar className="h-12 w-12 border border-white/10 shrink-0">
-                        <AvatarFallback className="bg-slate-700 text-slate-200 text-sm">
+                        <AvatarFallback className="bg-slate-700 text-foreground text-sm">
                           {initials}
                         </AvatarFallback>
                       </Avatar>
@@ -134,21 +134,21 @@ export function CompareModal({
                         <button
                           type="button"
                           onClick={() => onOpenPerson(person)}
-                          className="text-sm font-semibold text-slate-100 hover:text-primary truncate block text-left"
+                          className="text-sm font-semibold text-foreground hover:text-primary truncate block text-left"
                         >
-                          {person.name || <span className="text-slate-500 italic">Unknown</span>}
+                          {person.name || <span className="text-muted-foreground italic">Unknown</span>}
                         </button>
                         {person.role ? (
-                          <p className="text-xs text-slate-400 truncate">{person.role}</p>
+                          <p className="text-xs text-muted-foreground truncate">{person.role}</p>
                         ) : (
-                          <p className="text-xs text-slate-500 italic truncate" title="Role hasn't been set yet.">Not set</p>
+                          <p className="text-xs text-muted-foreground italic truncate" title="Role hasn't been set yet.">Not set</p>
                         )}
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => onRemovePerson(person.id)}
-                      className="rounded p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
+                      className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                       aria-label="Remove from comparison"
                     >
                       <X className="h-4 w-4" />
@@ -158,38 +158,38 @@ export function CompareModal({
                   {/* Details */}
                   <div className="space-y-2.5 text-sm">
                     <div>
-                      <span className="text-xs text-slate-500">Team</span>
+                      <span className="text-xs text-muted-foreground">Team</span>
                       {person.team ? (
-                        <p className="text-slate-200">{person.team}</p>
+                        <p className="text-foreground">{person.team}</p>
                       ) : (
-                        <p className="text-slate-500 italic" title="Team hasn't been set yet.">Not set</p>
+                        <p className="text-muted-foreground italic" title="Team hasn't been set yet.">Not set</p>
                       )}
                     </div>
 
                     <div>
-                      <span className="text-xs text-slate-500">Department</span>
+                      <span className="text-xs text-muted-foreground">Department</span>
                       {person.department ? (
-                        <p className="text-slate-200">{person.department}</p>
+                        <p className="text-foreground">{person.department}</p>
                       ) : (
-                        <p className="text-slate-500 italic" title="Department hasn't been set yet.">Not set</p>
+                        <p className="text-muted-foreground italic" title="Department hasn't been set yet.">Not set</p>
                       )}
                     </div>
 
                     <div>
-                      <span className="text-xs text-slate-500">Reports to</span>
+                      <span className="text-xs text-muted-foreground">Reports to</span>
                       {manager ? (
-                        <p className="text-slate-200">{manager.name}</p>
+                        <p className="text-foreground">{manager.name}</p>
                       ) : (
-                        <p className="text-slate-500 italic" title="Manager hasn't been set yet.">Not set</p>
+                        <p className="text-muted-foreground italic" title="Manager hasn't been set yet.">Not set</p>
                       )}
                     </div>
 
                     <div>
-                      <span className="text-xs text-slate-500">Tenure</span>
+                      <span className="text-xs text-muted-foreground">Tenure</span>
                       {tenure ? (
-                        <p className="text-slate-200">{tenure}</p>
+                        <p className="text-foreground">{tenure}</p>
                       ) : (
-                        <p className="text-slate-500 italic" title={person.joinedAt ? "Unable to calculate tenure." : "Start date hasn't been set yet."}>Not set</p>
+                        <p className="text-muted-foreground italic" title={person.joinedAt ? "Unable to calculate tenure." : "Start date hasn't been set yet."}>Not set</p>
                       )}
                     </div>
                   </div>

@@ -179,19 +179,19 @@ export function CreateTeamDialog(props: CreateTeamDialogProps) {
             New team
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-md border border-slate-800 bg-[#020617] text-slate-100">
+        <DialogContent className="max-w-md border border-border bg-background text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold text-slate-50">
+          <DialogTitle className="text-base font-semibold text-foreground">
             Create team
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">
+          <DialogDescription className="text-xs text-muted-foreground">
             Add a new team to your organization. A department is required to create a team.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-medium text-slate-300">
+            <label className="block text-[11px] font-medium text-muted-foreground">
               Team name
             </label>
             <Input
@@ -201,14 +201,14 @@ export function CreateTeamDialog(props: CreateTeamDialogProps) {
                 setValues((prev) => ({ ...prev, name: e.target.value }))
               }
               placeholder="e.g. Onboarding squad"
-              className="h-8 rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100 placeholder:text-slate-500"
+              className="h-8 rounded-md border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-medium text-slate-300">
+            <label className="block text-[11px] font-medium text-muted-foreground">
               Department
-              <span className="ml-1 text-[11px] font-normal text-slate-500">
+              <span className="ml-1 text-[11px] font-normal text-muted-foreground">
                 (required)
               </span>
             </label>
@@ -222,7 +222,7 @@ export function CreateTeamDialog(props: CreateTeamDialogProps) {
                   }))
                 }
                 className={cn(
-                  "h-8 w-full rounded-md border border-slate-700 bg-[#020617] px-2 text-[13px] text-slate-100",
+                  "h-8 w-full rounded-md border border-border bg-background px-2 text-[13px] text-foreground",
                   "outline-none transition-colors duration-150",
                   "hover:border-slate-500 focus-visible:ring-2 focus-visible:ring-[#5CA9FF] focus-visible:ring-offset-0"
                 )}
@@ -235,8 +235,8 @@ export function CreateTeamDialog(props: CreateTeamDialogProps) {
                 ))}
               </select>
             ) : (
-              <div className="space-y-2 rounded-lg bg-slate-900/30 border border-slate-800/50 p-3">
-                <div className="text-[11px] text-slate-400">
+              <div className="space-y-2 rounded-lg bg-card/30 border border-border/50 p-3">
+                <div className="text-[11px] text-muted-foreground">
                   No departments yet. Create a department first before creating a team.
                 </div>
                 <Link
@@ -250,9 +250,9 @@ export function CreateTeamDialog(props: CreateTeamDialogProps) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-medium text-slate-300">
+            <label className="block text-[11px] font-medium text-muted-foreground">
               Description
-              <span className="ml-1 text-[11px] font-normal text-slate-500">
+              <span className="ml-1 text-[11px] font-normal text-muted-foreground">
                 (optional)
               </span>
             </label>
@@ -262,7 +262,7 @@ export function CreateTeamDialog(props: CreateTeamDialogProps) {
                 setValues((prev) => ({ ...prev, description: e.target.value }))
               }
               placeholder="Short description of what this team is responsible for."
-              className="min-h-[72px] rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100 placeholder:text-slate-500"
+              className="min-h-[72px] rounded-md border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
@@ -277,7 +277,7 @@ export function CreateTeamDialog(props: CreateTeamDialogProps) {
               type="button"
               variant="ghost"
               size="sm"
-              className="text-[13px] text-slate-400 hover:text-slate-100"
+              className="text-[13px] text-muted-foreground hover:text-foreground"
               onClick={() => handleOpenChange(false)}
               disabled={submitting}
             >

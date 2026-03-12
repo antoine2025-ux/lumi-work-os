@@ -13,10 +13,11 @@
 
 import { prisma, prismaUnscoped } from '@/lib/db'
 import { sendSlackMessage, getSlackUserEmail, getSlackIntegration } from '@/lib/integrations/slack-service'
-import { runLoopbrainQuery } from '@/lib/loopbrain/orchestrator'
 import { executeAgentPlan } from '@/lib/loopbrain/agent/executor'
 import { toolRegistry } from '@/lib/loopbrain/agent/tool-registry'
 import type { AgentPlan } from '@/lib/loopbrain/agent/types'
+import { enrichAgentContext } from '@/lib/loopbrain/permissions'
+import { getMemberRole } from '@/lib/loopbrain/context/getMemberRole'
 import { logger } from '@/lib/logger'
 import { IntegrationType, Prisma } from '@prisma/client'
 
@@ -126,39 +127,19 @@ export async function handleSlackLoopbrainMessage(
       return
     }
 
-    // 4. Call Loopbrain orchestrator
-    const response = await runLoopbrainQuery({
-      workspaceId: resolved.workspaceId,
-      userId: resolved.userId,
-      mode: 'dashboard',
-      query: cleanedText,
-      requestId: `slack-${messageTs}`,
-    })
-
-    // 5. Handle ACTION responses with pending plans
-    if (response.pendingPlan) {
-      await handlePendingPlan(
-        resolved.workspaceId,
-        resolved.userId,
-        channelId,
-        threadTs ?? messageTs,
-        response.pendingPlan,
-        response.answer
-      )
-      return
-    }
-
-    // 6. Post response back to Slack
-    const formattedAnswer = formatForSlack(response.answer)
-    const blocks = buildResponseBlocks(formattedAnswer, response.suggestions)
-
+    // 4. Slack → Loopbrain integration is temporarily disabled
+    // TODO: Migrate to agent loop (runAgentLoop) when Slack integration is re-enabled
+    // The orchestrator was deleted March 11, 2026 — this needs to be updated to use the agent loop
     await sendSlackMessage(workspaceId, {
       channel: channelId,
-      text: formattedAnswer.slice(0, 3000),
-      blocks,
+      text: "Slack integration is temporarily unavailable. Please use the Loopwell web app to ask Loopbrain questions.",
       threadTs: threadTs ?? messageTs,
     })
-  } catch (error) {
+    logger.warn('[SlackInteractive] Slack integration disabled — orchestrator deleted', {
+      workspaceId: resolved.workspaceId,
+      userId: resolved.userId,
+    })
+  } catch (error: unknown) {
     logger.error('[SlackInteractive] Processing failed', {
       slackUserId,
       messageTs,
@@ -213,7 +194,7 @@ async function resolveWorkspace(slackTeamId: string): Promise<string | null> {
     }
 
     return integration.workspaceId
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[SlackInteractive] Workspace resolution failed', {
       slackTeamId,
       error: error instanceof Error ? error.message : String(error),
@@ -275,7 +256,7 @@ async function resolveUser(
     const resolved: ResolvedUser = { userId: user.id, workspaceId }
     cacheUser(slackUserId, slackTeamId, resolved)
     return resolved
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[SlackInteractive] User resolution failed', {
       slackUserId,
       error: error instanceof Error ? error.message : String(error),
@@ -338,9 +319,11 @@ async function handlePendingPlan(
   if (isSingleStep) {
     // Auto-execute single-step plans
     try {
+      const slackRole = await getMemberRole(workspaceId, userId)
+      const slackCtx = await enrichAgentContext(workspaceId, userId, slackRole)
       const result = await executeAgentPlan(
         plan,
-        { workspaceId, userId, workspaceSlug: '' },
+        slackCtx,
         toolRegistry
       )
 
@@ -355,7 +338,7 @@ async function handlePendingPlan(
         text: successText.slice(0, 3000),
         threadTs,
       })
-    } catch (err) {
+    } catch (err: unknown) {
       await sendSlackMessage(workspaceId, {
         channel: channelId,
         text: `I understood what you wanted but ran into an error: ${err instanceof Error ? err.message : 'Unknown error'}`,
@@ -424,7 +407,7 @@ async function handlePendingPlan(
           status: 'AWAITING_RESPONSE',
         },
       })
-    } catch (err) {
+    } catch (err: unknown) {
       logger.warn('[SlackInteractive] Failed to store pending action', {
         error: err instanceof Error ? err.message : String(err),
       })

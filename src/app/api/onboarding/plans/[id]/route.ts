@@ -48,7 +48,7 @@ export async function GET(
     }
 
     return NextResponse.json(plan)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -109,7 +109,7 @@ export async function PATCH(
     }
 
     return NextResponse.json(plan)
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: { code: 'VALIDATION_ERROR', message: 'Invalid input data', details: error.issues } },
@@ -152,7 +152,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

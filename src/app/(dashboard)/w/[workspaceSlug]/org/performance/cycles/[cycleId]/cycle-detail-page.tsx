@@ -78,7 +78,7 @@ export function CycleDetailPage({ cycle, workspaceSlug }: Props) {
       }
 
       router.refresh()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsLaunching(false)
@@ -102,7 +102,7 @@ export function CycleDetailPage({ cycle, workspaceSlug }: Props) {
       }
 
       router.refresh()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsClosing(false)
@@ -164,7 +164,7 @@ export function CycleDetailPage({ cycle, workspaceSlug }: Props) {
                   <button
                     onClick={() => handleStatusTransition('CLOSED')}
                     disabled={isClosing}
-                    className="inline-flex items-center px-3 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-500 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center px-3 py-2 bg-orange-600 text-foreground text-sm font-medium rounded-lg hover:bg-orange-500 transition-colors disabled:opacity-50"
                   >
                     <Lock className="w-4 h-4 mr-1.5" />
                     {isClosing ? 'Closing...' : 'Close Cycle'}
@@ -174,7 +174,7 @@ export function CycleDetailPage({ cycle, workspaceSlug }: Props) {
                   <button
                     onClick={() => handleStatusTransition('FINALIZED')}
                     disabled={isClosing}
-                    className="inline-flex items-center px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-500 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center px-3 py-2 bg-green-600 text-foreground text-sm font-medium rounded-lg hover:bg-green-500 transition-colors disabled:opacity-50"
                   >
                     {isClosing ? 'Finalizing...' : 'Finalize Cycle'}
                   </button>

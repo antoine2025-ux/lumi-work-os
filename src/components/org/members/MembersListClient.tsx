@@ -89,7 +89,7 @@ export function MembersListClient({ members, customRoles, currentUserId }: Props
                 <button
                   type="button"
                   onClick={() => openInspectorForMember(member)}
-                  className="focus-ring rounded-full border border-slate-800 px-2 py-1 text-[10px] text-slate-300 transition-colors hover:bg-slate-800"
+                  className="focus-ring rounded-full border border-border px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-muted"
                   aria-label={`View permissions for ${member.user?.name || member.user?.email || "this member"}`}
                 >
                   View permissions

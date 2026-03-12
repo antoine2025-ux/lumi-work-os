@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from '@/lib/unified-auth';
 import { assertAccess } from '@/lib/auth/assertAccess';
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
+import { handleApiError } from '@/lib/api-errors';
+import { UpdateRoleSchema } from '@/lib/validations/org';
 
 type RouteParams = {
   params: Promise<{
@@ -57,12 +59,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         })),
       },
     });
-  } catch (error) {
-    console.error("Failed to fetch role:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to fetch role" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -78,15 +76,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const workspaceId = auth.workspaceId;
 
     const { id } = await params;
-    const body = await request.json();
+    const body = UpdateRoleSchema.parse(await request.json());
     const { name, description, responsibilities } = body;
-
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json(
-        { ok: false, error: "Role name is required" },
-        { status: 400 }
-      );
-    }
 
     // Verify role exists and belongs to org
     const existingRole = await prisma.role.findUnique({
@@ -117,9 +108,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         responsibilities: {
           deleteMany: {}, // Delete all existing responsibilities
           create: (responsibilities || [])
-            .filter((r: any) => r.target && r.target.trim().length > 0)
-            .map((r: any) => ({
-              scope: r.scope,
+            .filter((r) => r.target && r.target.trim().length > 0)
+            .map((r) => ({
+              scope: (r.scope ?? 'EXECUTION') as import('@prisma/client').ResponsibilityScope,
               target: r.target.trim(),
             })),
         },
@@ -148,12 +139,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         })),
       },
     });
-  } catch (error) {
-    console.error("Failed to update role:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to update role" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -196,12 +183,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error("Failed to delete role:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to delete role" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

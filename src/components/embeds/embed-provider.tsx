@@ -57,7 +57,7 @@ export function EmbedProvider({ provider, onEmbed, children }: EmbedProviderProp
       
       setIsOpen(false)
       setUrl("")
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create embed')
     } finally {
       setIsLoading(false)

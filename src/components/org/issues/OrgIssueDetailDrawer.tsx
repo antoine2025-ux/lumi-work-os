@@ -47,7 +47,7 @@ function ResolutionBadge({ resolution }: { resolution: Resolution }) {
   switch (resolution) {
     case "PENDING":
       return (
-        <Badge variant="outline" className="text-[10px] border-slate-500 text-slate-400">
+        <Badge variant="outline" className="text-[10px] border-slate-500 text-muted-foreground">
           Pending
         </Badge>
       );
@@ -93,10 +93,10 @@ export function OrgIssueDetailDrawer({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[420px] bg-[#0a0f1a] border-l border-slate-800 shadow-xl z-50 overflow-y-auto">
+    <div className="fixed inset-y-0 right-0 w-[420px] bg-[#0a0f1a] border-l border-border shadow-xl z-50 overflow-y-auto">
       {/* Header */}
-      <div className="sticky top-0 bg-[#0a0f1a] border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-100">Issue Details</h3>
+      <div className="sticky top-0 bg-[#0a0f1a] border-b border-border px-6 py-4 flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-foreground">Issue Details</h3>
         <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
           <X className="h-4 w-4" />
         </Button>
@@ -105,9 +105,9 @@ export function OrgIssueDetailDrawer({
       <div className="p-6 space-y-6">
         {/* Entity info */}
         <div>
-          <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">Entity</div>
-          <div className="text-slate-100 font-medium">{issue.entityName}</div>
-          <div className="text-xs text-slate-500 mt-1 capitalize">
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Entity</div>
+          <div className="text-foreground font-medium">{issue.entityName}</div>
+          <div className="text-xs text-muted-foreground mt-1 capitalize">
             {typeof issue.entityType === "string" ? issue.entityType.toLowerCase() : ""}
           </div>
         </div>
@@ -115,11 +115,11 @@ export function OrgIssueDetailDrawer({
         {/* Issue type and severity */}
         <div className="flex items-start gap-4">
           <div className="flex-1">
-            <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">Issue Type</div>
-            <div className="text-slate-200">{getIssueTypeLabel(issue.type)}</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Issue Type</div>
+            <div className="text-foreground">{getIssueTypeLabel(issue.type)}</div>
           </div>
           <div>
-            <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">Severity</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Severity</div>
             <SeverityBadge severity={issue.severity as "error" | "warning"} />
           </div>
         </div>
@@ -133,14 +133,14 @@ export function OrgIssueDetailDrawer({
           />
         ) : (
           <div>
-            <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">Detected Because</div>
-            <div className="text-sm text-slate-300 bg-slate-800/50 rounded-lg px-3 py-2">
+            <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Detected Because</div>
+            <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
               {"message" in issue ? issue.message : getIssueExplanation(issue.type)}
             </div>
             {"fixAction" in issue && issue.fixAction && (
               <div className="mt-3">
-                <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">What Changes It</div>
-                <div className="text-sm text-slate-300 bg-slate-800/50 rounded-lg px-3 py-2">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">What Changes It</div>
+                <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
                   {issue.fixAction}
                 </div>
               </div>
@@ -149,22 +149,22 @@ export function OrgIssueDetailDrawer({
         )}
 
         {/* Resolution status */}
-        <div className="border-t border-slate-800 pt-6">
-          <div className="text-xs text-slate-500 uppercase tracking-wide mb-3">Resolution Status</div>
+        <div className="border-t border-border pt-6">
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Resolution Status</div>
           <div className="flex items-center gap-3 mb-4">
             <ResolutionBadge resolution={("resolution" in issue ? issue.resolution : "PENDING") as Resolution} />
           </div>
 
           {/* Resolution explanation - only shown when not PENDING */}
           {"resolution" in issue && issue.resolution !== "PENDING" && (
-            <div className="bg-slate-800/30 rounded-lg px-3 py-2 mt-3">
-              <div className="text-xs text-slate-500 mb-1">Resolved because</div>
-              <div className="text-sm text-slate-300">
+            <div className="bg-muted/30 rounded-lg px-3 py-2 mt-3">
+              <div className="text-xs text-muted-foreground mb-1">Resolved because</div>
+              <div className="text-sm text-muted-foreground">
                 {getResolutionExplanation(issue.type) ?? "This issue has been addressed."}
               </div>
               {/* Resolution timestamp - micro-trust signal */}
               {"resolvedAt" in issue && issue.resolvedAt && (
-                <div className="text-[10px] text-slate-500 mt-1">
+                <div className="text-[10px] text-muted-foreground mt-1">
                   Resolved on {new Date(issue.resolvedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                 </div>
               )}
@@ -173,18 +173,18 @@ export function OrgIssueDetailDrawer({
 
           {/* Resolution audit info */}
           {"resolvedByName" in issue && issue.resolvedByName && (
-            <div className="text-xs text-slate-500 mt-3">
-              Updated by <span className="text-slate-400">{issue.resolvedByName}</span>
+            <div className="text-xs text-muted-foreground mt-3">
+              Updated by <span className="text-muted-foreground">{issue.resolvedByName}</span>
               {"resolvedAt" in issue && issue.resolvedAt && (
-                <> on <span className="text-slate-400">{formatDate(issue.resolvedAt)}</span></>
+                <> on <span className="text-muted-foreground">{formatDate(issue.resolvedAt)}</span></>
               )}
             </div>
           )}
 
           {"resolutionNote" in issue && issue.resolutionNote && (
             <div className="mt-3">
-              <div className="text-xs text-slate-500 mb-1">Note</div>
-              <div className="text-sm text-slate-300 bg-slate-800/50 rounded-lg px-3 py-2">
+              <div className="text-xs text-muted-foreground mb-1">Note</div>
+              <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
                 {issue.resolutionNote}
               </div>
             </div>
@@ -192,18 +192,18 @@ export function OrgIssueDetailDrawer({
         </div>
 
         {/* Timestamps */}
-        <div className="border-t border-slate-800 pt-6 space-y-2">
+        <div className="border-t border-border pt-6 space-y-2">
           {"firstSeenAt" in issue && issue.firstSeenAt && (
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500">First detected</span>
-              <span className="text-slate-400">{formatDate(issue.firstSeenAt)}</span>
+              <span className="text-muted-foreground">First detected</span>
+              <span className="text-muted-foreground">{formatDate(issue.firstSeenAt)}</span>
             </div>
           )}
         </div>
 
         {/* Actions */}
-        <div className="border-t border-slate-800 pt-6">
-          <div className="text-xs text-slate-500 uppercase tracking-wide mb-3">Actions</div>
+        <div className="border-t border-border pt-6">
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Actions</div>
           <div className="space-y-3">
             {issue.fixUrl && (
               <Button asChild variant="outline" size="sm" className="w-full justify-start">
@@ -215,8 +215,8 @@ export function OrgIssueDetailDrawer({
             )}
             
             {onResolutionChange && (
-              <div className="pt-2 border-t border-slate-800/50">
-                <div className="text-xs text-slate-500 mb-2">Resolution</div>
+              <div className="pt-2 border-t border-border/50">
+                <div className="text-xs text-muted-foreground mb-2">Resolution</div>
                 <OrgIssueResolutionActions
                   currentResolution={"resolution" in issue ? issue.resolution : "PENDING"}
                   onResolve={onResolutionChange}
@@ -231,7 +231,7 @@ export function OrgIssueDetailDrawer({
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="text-xs text-slate-400 mt-4 w-full"
+                className="text-xs text-muted-foreground mt-4 w-full"
               >
                 Back to issues
               </Button>

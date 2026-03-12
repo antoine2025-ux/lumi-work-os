@@ -75,7 +75,7 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
         const data = await response.json()
         setEpics(data)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading epics:', error)
     } finally {
       setIsLoading(false)
@@ -89,7 +89,7 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
         const data = await response.json()
         setTasks(data)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading tasks:', error)
     }
   }

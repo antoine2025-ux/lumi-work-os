@@ -8,6 +8,7 @@ import { assertProjectAccess } from '@/lib/pm/guards'
 import { handleApiError } from '@/lib/api-errors'
 import { generateDailySummary, saveDailySummary, getDailySummaries } from '@/lib/ai/daily-summary'
 import { prisma } from '@/lib/db'
+import { DailySummaryGenerateSchema } from '@/lib/pm/schemas'
 
 // GET /api/projects/[projectId]/daily-summaries - Get daily summaries for a project
 export async function GET(
@@ -59,12 +60,12 @@ export async function GET(
     try {
       const summaries = await getDailySummaries(projectId, limit)
       return NextResponse.json(summaries)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching daily summaries:', error)
       // Return empty array if there's an error
       return NextResponse.json([])
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -76,7 +77,7 @@ export async function POST(
 ) {
   try {
     const { projectId } = await params
-    const body = await request.json()
+    const body = DailySummaryGenerateSchema.parse(await request.json())
     const { date } = body
 
     // Get session and verify access
@@ -132,7 +133,7 @@ export async function POST(
     let summary: string
     try {
       summary = await generateDailySummary(projectId, targetDate)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('AI generation failed, creating manual summary:', error)
       // Fallback to manual summary if AI fails
       summary = `Daily summary for ${targetDate}: Project activities and task updates.`
@@ -155,7 +156,7 @@ export async function POST(
       message: 'Daily summary generated successfully',
       summary: savedSummary
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -216,7 +216,7 @@ export function OwnershipClient() {
 
   // Early returns after all hooks are called
   if (ownQ.loading || peopleQ.loading || structureQ.loading) {
-    return <div className="text-sm text-slate-400">Loading ownership…</div>;
+    return <div className="text-sm text-muted-foreground">Loading ownership…</div>;
   }
   if (ownQ.error || peopleQ.error || structureQ.error) {
     return (
@@ -341,7 +341,7 @@ export function OwnershipClient() {
         className={cn(
           "rounded-xl border p-4 transition-all duration-300",
           entity.hasOwner
-            ? "border-white/5 bg-slate-900/40"
+            ? "border-white/5 bg-card/40"
             : "border-amber-500/40 bg-amber-950/20 shadow-sm shadow-amber-900/10",
           isHighlighted && "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-950"
         )}
@@ -354,17 +354,17 @@ export function OwnershipClient() {
               )}
               <div className={cn(
                 "font-medium",
-                entity.hasOwner ? "text-slate-100" : "text-amber-50"
+                entity.hasOwner ? "text-foreground" : "text-amber-50"
               )}>{entity.name}</div>
             </div>
             {entity.departmentName && (
-              <div className="mt-1 text-xs text-slate-500">{entity.departmentName}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{entity.departmentName}</div>
             )}
           </div>
           <div className="flex items-center gap-3 min-w-[280px]">
             {/* Fallback owner label - shown only when Select can't render owner (ID mismatch) */}
             {showFallbackLabel && (
-              <span className="text-sm text-slate-400 whitespace-nowrap">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
                 {entity.ownerName}
               </span>
             )}
@@ -377,9 +377,9 @@ export function OwnershipClient() {
               }}
             >
               <SelectTrigger className={cn(
-                "text-slate-100 transition-colors",
+                "text-foreground transition-colors",
                 entity.hasOwner 
-                  ? "bg-slate-900/50 border-white/10"
+                  ? "bg-card/50 border-white/10"
                   : "bg-amber-950/30 border-amber-500/50 hover:border-amber-400/70 focus:border-amber-400"
               )}>
                 <SelectValue placeholder="Select owner…" />
@@ -387,7 +387,7 @@ export function OwnershipClient() {
               <SelectContent>
                 {entityType === "TEAM" && (
                   <SelectItem value="__none__">
-                    <span className="text-slate-500 italic">No owner</span>
+                    <span className="text-muted-foreground italic">No owner</span>
                   </SelectItem>
                 )}
                 {people.map((p) => (
@@ -403,7 +403,7 @@ export function OwnershipClient() {
           <div className="mt-2 text-xs text-red-400">{error}</div>
         )}
         {saving && (
-          <div className="mt-2 text-xs text-slate-500">Assigning…</div>
+          <div className="mt-2 text-xs text-muted-foreground">Assigning…</div>
         )}
       </div>
     );
@@ -441,7 +441,7 @@ export function OwnershipClient() {
           : "border-amber-500/20 bg-amber-950/5"
       )}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-slate-100">Coverage</CardTitle>
+          <CardTitle className="text-sm font-medium text-foreground">Coverage</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-6">
@@ -452,12 +452,12 @@ export function OwnershipClient() {
                 ? "bg-emerald-950/20 border border-emerald-500/20" 
                 : "bg-amber-950/20 border border-amber-500/20"
             )}>
-              <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Teams</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Teams</div>
               <div className={cn(
                 "text-2xl font-semibold",
                 teamsFullCoverage ? "text-emerald-400" : "text-amber-400"
               )}>
-                {teamsOwned}<span className="text-slate-500 text-lg">/{teamsTotal}</span>
+                {teamsOwned}<span className="text-muted-foreground text-lg">/{teamsTotal}</span>
               </div>
               <div className={cn(
                 "text-xs mt-1",
@@ -474,12 +474,12 @@ export function OwnershipClient() {
                 ? "bg-emerald-950/20 border border-emerald-500/20" 
                 : "bg-amber-950/20 border border-amber-500/20"
             )}>
-              <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Departments</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Departments</div>
               <div className={cn(
                 "text-2xl font-semibold",
                 deptsFullCoverage ? "text-emerald-400" : "text-amber-400"
               )}>
-                {deptsOwned}<span className="text-slate-500 text-lg">/{deptsTotal}</span>
+                {deptsOwned}<span className="text-muted-foreground text-lg">/{deptsTotal}</span>
               </div>
               <div className={cn(
                 "text-xs mt-1",
@@ -549,7 +549,7 @@ export function OwnershipClient() {
         <div className="space-y-4">
           {/* Owned Teams */}
           {teamsWithOwners.length > 0 && (
-            <Card className="border-white/5 bg-slate-900/30">
+            <Card className="border-white/5 bg-card/30">
               <CardHeader className="pb-3">
                 <button
                   type="button"
@@ -557,11 +557,11 @@ export function OwnershipClient() {
                   className="flex items-center gap-2 w-full text-left group"
                 >
                   {ownedTeamsExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-slate-500 group-hover:text-slate-400" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-muted-foreground" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-slate-400" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-muted-foreground" />
                   )}
-                  <CardTitle className="text-sm font-medium text-slate-400 group-hover:text-slate-300">
+                  <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-muted-foreground">
                     Owned teams ({teamsWithOwners.length})
                   </CardTitle>
                 </button>
@@ -578,7 +578,7 @@ export function OwnershipClient() {
 
           {/* Owned Departments */}
           {departmentsWithOwners.length > 0 && (
-            <Card className="border-white/5 bg-slate-900/30">
+            <Card className="border-white/5 bg-card/30">
               <CardHeader className="pb-3">
                 <button
                   type="button"
@@ -586,11 +586,11 @@ export function OwnershipClient() {
                   className="flex items-center gap-2 w-full text-left group"
                 >
                   {ownedDeptsExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-slate-500 group-hover:text-slate-400" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-muted-foreground" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-slate-400" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-muted-foreground" />
                   )}
-                  <CardTitle className="text-sm font-medium text-slate-400 group-hover:text-slate-300">
+                  <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-muted-foreground">
                     Owned departments ({departmentsWithOwners.length})
                   </CardTitle>
                 </button>

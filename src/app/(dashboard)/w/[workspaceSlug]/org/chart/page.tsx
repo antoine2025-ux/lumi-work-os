@@ -58,7 +58,7 @@ export default async function WorkspaceOrgChartPage({ params }: PageProps) {
       />
       <div className="px-10 pb-10">
         <OrgChartClient 
-          orgId={context.workspaceId} 
+          workspaceId={context.workspaceId} 
           chartData={chartData}
           chartTree={chartTree}
         />

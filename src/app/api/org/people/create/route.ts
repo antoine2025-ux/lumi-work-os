@@ -48,11 +48,10 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     // Step 4: Parse and validate request body (Zod)
-    const { fullName, email, title, departmentId, teamId, managerId } =
+    const { fullName, email, title, departmentId, teamId, managerId, jobDescriptionId, startDate, employmentType, location, timezone, autoCreateRoleCard } =
       OrgPersonCreateSchema.parse(await request.json());
 
     // Step 5: Create person (explicitly pass workspaceId for database truth compliance)
-    console.log("[POST /api/org/people/create] Creating person with workspaceId:", workspaceId, { fullName, email, title });
     const created = await createOrgPerson({
       workspaceId,
       fullName,
@@ -61,9 +60,14 @@ export async function POST(request: NextRequest) {
       departmentId: departmentId ?? null,
       teamId: teamId ?? null,
       managerId: managerId || null,
+      jobDescriptionId: jobDescriptionId ?? null,
+      startDate: startDate ?? null,
+      employmentType: employmentType ?? null,
+      location: location ?? null,
+      timezone: timezone ?? null,
+      autoCreateRoleCard,
+      actorUserId: userId,
     });
-    console.log("[POST /api/org/people/create] Person created successfully:", created.id);
-
     // Step 6: Emit Loopbrain context (persist + trigger indexing non-blocking)
     // Wrap in try-catch to handle cases where context_items table doesn't exist yet
     // This is non-blocking, so errors should not fail the person creation
@@ -97,7 +101,7 @@ export async function POST(request: NextRequest) {
     }).catch((e) => console.error("[POST /api/org/people/create] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ id: created.id }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

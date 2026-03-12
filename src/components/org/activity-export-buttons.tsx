@@ -40,7 +40,7 @@ export function ActivityExportButtons({
       setTimeout(() => {
         setExporting(null);
       }, 1000);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
       toast({
         variant: "destructive",

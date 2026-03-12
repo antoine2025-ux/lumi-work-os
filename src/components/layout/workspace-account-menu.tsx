@@ -84,7 +84,7 @@ export function WorkspaceAccountMenu({ className }: WorkspaceAccountMenuProps) {
         setMembersLoaded(true)
       }
       // Silently fail for other errors - don't break dropdown
-    } catch (error) {
+    } catch (error: unknown) {
       // Silently fail - don't break dropdown
       console.error('Failed to load members:', error)
       setMembers([])
@@ -124,7 +124,7 @@ export function WorkspaceAccountMenu({ className }: WorkspaceAccountMenuProps) {
     // STEP 2: Sign out from NextAuth first (this clears server-side session)
     try {
       await signOut({ redirect: false })
-    } catch (e) {
+    } catch (e: unknown) {
       console.log('Sign out error (continuing anyway):', e)
     }
     
@@ -171,7 +171,7 @@ export function WorkspaceAccountMenu({ className }: WorkspaceAccountMenuProps) {
           }).catch(() => {})
         }
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.log('Could not clear indexedDB:', e)
     }
     

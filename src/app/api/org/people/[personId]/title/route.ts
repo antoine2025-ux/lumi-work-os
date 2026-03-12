@@ -10,7 +10,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
-import { optionalString } from "@/server/org/validate";
+import { OrgPersonTitleUpdateSchema } from "@/lib/validations/org";
 import { prisma } from "@/lib/db";
 import { handleApiError } from "@/lib/api-errors";
 import { logOrgAudit } from "@/lib/audit/org-audit";
@@ -36,11 +36,7 @@ export async function PUT(
 
     // Step 3: Parse and validate request body
     const body = await request.json();
-    const titleRaw = optionalString(body.title);
-
-    // Database has NOT NULL constraint on title, so use empty string instead of null
-    // Even though Prisma schema shows String?, the actual database requires a value
-    const title = titleRaw === null || titleRaw === undefined ? "" : titleRaw;
+    const { title } = OrgPersonTitleUpdateSchema.parse(body);
 
     // Step 4: Verify person exists (fetch before state for audit)
     const position = await prisma.orgPosition.findUnique({
@@ -68,10 +64,9 @@ export async function PUT(
     }
 
     // Step 6: Update title
-    // Use empty string (not null) to comply with database NOT NULL constraint
     const updated = await prisma.orgPosition.update({
       where: { id: personId },
-      data: { title: title || "" }, // Ensure we never use null - use empty string instead
+      data: { title },
       select: { id: true, title: true },
     });
 
@@ -98,7 +93,7 @@ export async function PUT(
         entity: { type: "person", id: updated.id },
         payload: { title },
       });
-    } catch (loopbrainError: any) {
+    } catch (loopbrainError: unknown) {
       // Log but don't fail the request if Loopbrain indexing fails
       console.error("[PUT /api/org/people/[personId]/title] Loopbrain indexing error (non-fatal):", loopbrainError);
     }
@@ -107,7 +102,7 @@ export async function PUT(
       { id: updated.id, title: updated.title },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

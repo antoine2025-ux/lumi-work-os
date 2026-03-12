@@ -22,6 +22,14 @@ export type UpsertOrgPersonInput = {
   teamId: string | null;
   managerId?: string | null;
   workspaceId: string; // Required for create operations
+  // Optional enrichment fields (create only)
+  jobDescriptionId?: string | null;
+  startDate?: string | null;       // ISO date string
+  employmentType?: string | null;
+  location?: string | null;
+  timezone?: string | null;
+  autoCreateRoleCard?: boolean;
+  actorUserId?: string;            // Admin performing the action (for RoleCard.createdById)
 };
 
 /**
@@ -142,6 +150,11 @@ export async function createOrgPerson(input: UpsertOrgPersonInput) {
         teamId: teamId,
         parentId: input.managerId || null,
         isActive: true,
+        jobDescriptionId: input.jobDescriptionId ?? null,
+        startDate: input.startDate ? new Date(input.startDate) : null,
+        employmentType: input.employmentType ?? null,
+        location: input.location ?? null,
+        timezone: input.timezone ?? null,
       },
       select: { id: true, userId: true },
     });
@@ -173,6 +186,47 @@ export async function createOrgPerson(input: UpsertOrgPersonInput) {
       }
     } else {
       throw prismaError;
+    }
+  }
+
+  // Ensure WorkspaceMember exists so the person appears in the workspace.
+  // Upsert is idempotent — no-op if already a member.
+  try {
+    await prisma.workspaceMember.upsert({
+      where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: userId! } },
+      update: {},
+      create: { workspaceId: input.workspaceId, userId: userId!, role: 'MEMBER' },
+    });
+  } catch (memberError: unknown) {
+    console.warn('[createOrgPerson] Could not upsert WorkspaceMember (non-blocking):', memberError instanceof Error ? memberError.message : String(memberError));
+  }
+
+  // Auto-create RoleCard from JobDescription if requested.
+  if (input.jobDescriptionId && input.autoCreateRoleCard !== false) {
+    try {
+      const jd = await prisma.jobDescription.findUnique({
+        where: { id: input.jobDescriptionId },
+      });
+      if (jd) {
+        const roleCardCreatedById = input.actorUserId ?? userId!;
+        await prisma.roleCard.create({
+          data: {
+            workspaceId: input.workspaceId,
+            positionId: position.id,
+            roleName: jd.title,
+            jobFamily: jd.jobFamily ?? '',
+            level: jd.level ?? '',
+            roleDescription: jd.summary ?? '',
+            responsibilities: jd.responsibilities,
+            requiredSkills: jd.requiredSkills,
+            preferredSkills: jd.preferredSkills,
+            keyMetrics: jd.keyMetrics,
+            createdById: roleCardCreatedById,
+          },
+        });
+      }
+    } catch (rcError: unknown) {
+      console.warn('[createOrgPerson] Could not auto-create RoleCard (non-blocking):', rcError instanceof Error ? rcError.message : String(rcError));
     }
   }
 

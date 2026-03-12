@@ -153,7 +153,7 @@ export async function PUT(
     }).catch((e) => console.error("[PUT /api/org/positions/[id]/employment] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ position: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

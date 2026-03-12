@@ -61,7 +61,14 @@ export async function loadRoleContexts(
           responsibilities: true,
           requiredSkills: true,
           preferredSkills: true,
+          // Manager-authored person-specific context
+          roleInOrg: true,
+          focusArea: true,
+          managerNotes: true,
         },
+      },
+      jobDescription: {
+        select: { id: true, title: true, summary: true, level: true },
       },
       team: {
         select: {
@@ -299,6 +306,22 @@ export async function loadRoleContexts(
     };
 
     const contextObject = buildRoleContext(input);
+
+    // Enrich meta with manager-authored context and JobDescription data
+    const jd = pos.jobDescription;
+    const metaExtras: Record<string, unknown> = {};
+    if (jd) {
+      metaExtras.jobDescriptionTitle = jd.title;
+      if (jd.summary) metaExtras.jobDescriptionSummary = jd.summary;
+      if (jd.level) metaExtras.jobDescriptionLevel = jd.level;
+    }
+    if (roleCard?.roleInOrg) metaExtras.roleInOrg = roleCard.roleInOrg;
+    if (roleCard?.focusArea) metaExtras.focusArea = roleCard.focusArea;
+    if (roleCard?.managerNotes) metaExtras.managerNotes = roleCard.managerNotes;
+    if (Object.keys(metaExtras).length > 0) {
+      contextObject.data.meta = { ...contextObject.data.meta, ...metaExtras };
+    }
+
     results.push(contextObject);
   }
 

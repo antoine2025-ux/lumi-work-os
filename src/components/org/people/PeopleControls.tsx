@@ -62,21 +62,21 @@ export function PeopleControls({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search people by name, email, role…"
             className={cn(
-              "w-full rounded-full border border-slate-800/70 bg-slate-900/60",
+              "w-full rounded-full border border-border/70 bg-card/60",
               "px-4 py-2 pl-9 pr-20",
-              "text-sm text-white/90 placeholder:text-white/40",
+              "text-sm text-foreground/90 placeholder:text-foreground/40",
               "focus:border-primary/70 focus:outline-none focus:ring-1 focus:ring-primary/60",
               "transition-colors"
             )}
           />
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
           
           {/* Clear button */}
           {search && (
             <button
               type="button"
               onClick={handleClearSearch}
-              className="absolute right-12 top-1/2 -translate-y-1/2 rounded p-1 text-white/40 hover:text-white/60 transition-colors"
+              className="absolute right-12 top-1/2 -translate-y-1/2 rounded p-1 text-foreground/40 hover:text-foreground/60 transition-colors"
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
@@ -84,7 +84,7 @@ export function PeopleControls({
           )}
 
           {/* Keyboard shortcut hint */}
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-white/30">
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-foreground/30">
             {shortcutHint}
           </span>
         </div>
@@ -99,8 +99,8 @@ export function PeopleControls({
             onChange={(e) => onTeamChange(e.target.value || "")}
             disabled={isLoading}
             className={cn(
-              "h-9 rounded-full border border-slate-800/70 bg-slate-900/60",
-              "px-3 pr-8 text-sm text-white/90",
+              "h-9 rounded-full border border-border/70 bg-card/60",
+              "px-3 pr-8 text-sm text-foreground/90",
               "focus:border-primary/70 focus:outline-none focus:ring-1 focus:ring-primary/60",
               "transition-colors",
               "disabled:cursor-not-allowed disabled:opacity-50"
@@ -122,8 +122,8 @@ export function PeopleControls({
             onChange={(e) => onDepartmentChange(e.target.value || "")}
             disabled={isLoading}
             className={cn(
-              "h-9 rounded-full border border-slate-800/70 bg-slate-900/60",
-              "px-3 pr-8 text-sm text-white/90",
+              "h-9 rounded-full border border-border/70 bg-card/60",
+              "px-3 pr-8 text-sm text-foreground/90",
               "focus:border-primary/70 focus:outline-none focus:ring-1 focus:ring-primary/60",
               "transition-colors",
               "disabled:cursor-not-allowed disabled:opacity-50"
@@ -145,8 +145,8 @@ export function PeopleControls({
             onChange={(e) => onRoleChange(e.target.value || "")}
             disabled={isLoading}
             className={cn(
-              "h-9 rounded-full border border-slate-800/70 bg-slate-900/60",
-              "px-3 pr-8 text-sm text-white/90",
+              "h-9 rounded-full border border-border/70 bg-card/60",
+              "px-3 pr-8 text-sm text-foreground/90",
               "focus:border-primary/70 focus:outline-none focus:ring-1 focus:ring-primary/60",
               "transition-colors",
               "disabled:cursor-not-allowed disabled:opacity-50"
@@ -169,8 +169,8 @@ export function PeopleControls({
               onSortChange(e.target.value);
             }}
             className={cn(
-              "h-9 rounded-full border border-slate-800/70 bg-slate-900/60",
-              "px-3 pr-8 text-sm text-white/90",
+              "h-9 rounded-full border border-border/70 bg-card/60",
+              "px-3 pr-8 text-sm text-foreground/90",
               "focus:border-primary/70 focus:outline-none focus:ring-1 focus:ring-primary/60",
               "transition-colors"
             )}

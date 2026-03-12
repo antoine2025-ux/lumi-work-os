@@ -50,7 +50,7 @@ export async function GET(
     }
 
     return NextResponse.json({ ok: true, template });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }
@@ -93,11 +93,14 @@ export async function PUT(
         ...(body.preferredSkills !== undefined && { preferredSkills: body.preferredSkills }),
         ...(body.keyMetrics !== undefined && { keyMetrics: body.keyMetrics }),
         ...(body.positionId !== undefined && { positionId: body.positionId }),
+        ...(body.roleInOrg !== undefined && { roleInOrg: body.roleInOrg }),
+        ...(body.focusArea !== undefined && { focusArea: body.focusArea }),
+        ...(body.managerNotes !== undefined && { managerNotes: body.managerNotes }),
       },
     });
 
     return NextResponse.json({ ok: true, template: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }
@@ -129,7 +132,7 @@ export async function DELETE(
     await prisma.roleCard.delete({ where: { id } });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

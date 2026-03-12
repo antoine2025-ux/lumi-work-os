@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json({ ok: true, people });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

@@ -83,7 +83,7 @@ export function TeamForm({
         setName("")
         setDescription("")
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsLoading(false)
@@ -119,7 +119,7 @@ export function TeamForm({
               </SelectContent>
             </Select>
             {departments.length === 0 && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Please create a department first
               </p>
             )}

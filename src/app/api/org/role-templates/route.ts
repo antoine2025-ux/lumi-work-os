@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         updatedAt: t.updatedAt.toISOString(),
       })),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }
@@ -108,11 +108,14 @@ export async function POST(request: NextRequest) {
         preferredSkills: body.preferredSkills,
         keyMetrics: body.keyMetrics,
         ...(body.positionId ? { positionId: body.positionId } : {}),
+        ...(body.roleInOrg !== undefined && { roleInOrg: body.roleInOrg }),
+        ...(body.focusArea !== undefined && { focusArea: body.focusArea }),
+        ...(body.managerNotes !== undefined && { managerNotes: body.managerNotes }),
       },
     });
 
     return NextResponse.json({ ok: true, template }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

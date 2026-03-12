@@ -137,7 +137,37 @@ export async function clearPendingPlan(conversationId: string): Promise<void> {
   })
 }
 
-// Get all messages formatted for OpenAI API
+// Get all messages formatted for provider-agnostic tool calling
+export function formatMessagesForProvider(
+  messages: LoopbrainMessage[]
+): import('@/lib/ai/providers').ToolCallChatMessage[] {
+  return messages.map((msg) => {
+    if (msg.role === 'tool' && msg.toolResults?.[0]) {
+      return {
+        role: 'tool' as const,
+        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+        toolCallId: msg.toolResults[0].toolCallId,
+      }
+    }
+    if (msg.role === 'assistant' && msg.toolCalls?.length) {
+      return {
+        role: 'assistant' as const,
+        content: msg.content || null,
+        toolCalls: msg.toolCalls.map((tc) => ({
+          id: tc.id,
+          name: tc.name,
+          arguments: JSON.stringify(tc.arguments),
+        })),
+      }
+    }
+    return {
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content || '',
+    }
+  })
+}
+
+// Get all messages formatted for OpenAI API (legacy)
 export function formatMessagesForLLM(
   messages: LoopbrainMessage[]
 ): Array<{

@@ -1,38 +1,26 @@
-import OpenAI from 'openai'
 import {
   loadSession,
   appendMessage,
   appendMessages,
   storePendingPlan,
   clearPendingPlan,
-  formatMessagesForLLM,
+  formatMessagesForProvider,
   type LoopbrainMessage,
   type ToolCallRecord,
   type PendingPlan,
 } from './session-store'
-import { getOpenAIToolsForRole, isWriteTool } from './tool-schemas'
-import { prisma, prismaUnscoped } from '@/lib/db'
-import { IntegrationType } from '@prisma/client'
-import { isGmailConnected } from './context-sources/gmail'
-import { searchGmailForContext } from './context-sources/gmail-search'
-import { loadCalendarEvents } from './context-sources/calendar'
-import { createCalendarEvent } from '@/lib/integrations/calendar-events'
-import { isSlackAvailable } from './slack-helper'
-import { searchSlackMessages } from './context-sources/slack-search'
-import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { searchSimilarContextItems } from './embedding-service'
-import { ContextType } from './context-types'
-import { PrismaContextEngine } from './context-engine'
-import { buildWorkloadAnalysis } from './workload-analysis'
+import { getToolDefinitionsForRole, isWriteTool } from './tool-schemas'
+import { getProvider, type ToolCallChatMessage, type ToolDefinition, type ToolCallResponse } from '@/lib/ai/providers'
 import { toolRegistry } from './agent/tool-registry'
-import { executeAction } from './actions/executor'
 import { formatActionForUser } from './format-action'
 import type { AgentContext } from './agent/types'
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy-key' })
+import type { LoopbrainClientAction } from './orchestrator-types'
+import { enrichAgentContext } from './permissions'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import * as Sentry from '@sentry/nextjs'
 
 const MAX_TOOL_ITERATIONS = 10
-const LOOPBRAIN_MODEL = process.env.LOOPBRAIN_MODEL || 'gpt-4-turbo'
+const LOOPBRAIN_MODEL = process.env.LOOPBRAIN_MODEL || 'claude-sonnet-4-6'
 
 export interface AgentLoopParams {
   workspaceId: string
@@ -53,6 +41,8 @@ export interface AgentLoopResult {
   toolCallsMade: ToolCallRecord[]
   pendingPlan?: PendingPlan
   conversationId: string
+  /** Client-side navigation action to execute after rendering the response */
+  clientAction?: LoopbrainClientAction
 }
 
 export interface ExecutionProgressEvent {
@@ -63,10 +53,15 @@ export interface ExecutionProgressEvent {
   error?: string
   result?: unknown
   summary?: string
+  /** Client-side navigation action extracted from tool results (sent on 'complete' event) */
+  clientAction?: LoopbrainClientAction
 }
 
 export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopResult> {
   const { workspaceId, userId, conversationId: incomingConversationId, userMessage, userRole, userContext } = params
+
+  // Enrich agent context with role and org person ID (one DB query)
+  const agentCtx = await enrichAgentContext(workspaceId, userId, userRole)
 
   // 1. Load session (workspaceId is verified inside — cross-workspace IDs get a fresh session)
   const session = await loadSession(workspaceId, userId, incomingConversationId)
@@ -76,7 +71,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
   // 2. Check if this is a confirmation of a pending plan
   if (session.pendingPlan && isAffirmative(userMessage)) {
-    return await executePendingPlan(session, { ...params, conversationId })
+    return await executePendingPlan(session, { ...params, conversationId }, agentCtx)
   }
 
   // Clear any stale pending plan on new message
@@ -93,7 +88,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
   // 4. Build system prompt and get role-filtered tools
   const systemPrompt = buildSystemPrompt(userContext)
-  const tools = getOpenAIToolsForRole(userRole)
+  const tools = getToolDefinitionsForRole(userRole)
 
   // 5. Agent loop
   const allToolCalls: ToolCallRecord[] = []
@@ -101,7 +96,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
   // Reload session messages (now includes the new user message)
   let currentSession = await loadSession(workspaceId, userId, conversationId)
-  let messages = formatMessagesForLLM(currentSession.messages)
+  let messages = formatMessagesForProvider(currentSession.messages)
 
   while (iterations < MAX_TOOL_ITERATIONS) {
     iterations++
@@ -145,7 +140,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
         const readResults: LoopbrainMessage[] = []
         for (const readCall of readCalls) {
-          const result = await executeReadTool(readCall, workspaceId, userId)
+          const result = await executeReadTool(readCall, workspaceId, userId, agentCtx)
           readResults.push({
             role: 'tool',
             content: JSON.stringify(result),
@@ -207,7 +202,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
         arguments: toolCall.arguments,
       })
 
-      const result = await executeReadTool(toolCall, workspaceId, userId)
+      const result = await executeReadTool(toolCall, workspaceId, userId, agentCtx)
       toolResults.push({
         role: 'tool',
         content: JSON.stringify(result),
@@ -219,7 +214,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
     // Reload messages for next iteration
     currentSession = await loadSession(workspaceId, userId, conversationId)
-    messages = formatMessagesForLLM(currentSession.messages)
+    messages = formatMessagesForProvider(currentSession.messages)
   }
 
   // Circuit breaker: max iterations reached
@@ -255,6 +250,7 @@ Timezone: ${userContext.timezone}
 
 IMPORTANT RULES:
 - Use tools to look up information rather than guessing. When the user asks about emails, calendar, projects, people, or documents, call the appropriate tool.
+- When the user asks to search Drive, find meeting notes, or read a Drive document, use searchDriveFiles then readDriveDocument. You have full access to their Google Drive.
 - For write operations (creating tasks, events, sending emails), always explain what you plan to do BEFORE calling the tool. The user will need to confirm.
 - Be concise and actionable. This is a workplace tool, not a general chatbot.
 - If a tool returns an error, explain what went wrong and suggest alternatives.
@@ -289,7 +285,8 @@ function isAffirmative(message: string): boolean {
 
 async function executePendingPlan(
   session: { id: string; messages: LoopbrainMessage[]; pendingPlan: PendingPlan | null },
-  params: AgentLoopParams
+  params: AgentLoopParams,
+  agentCtx: AgentContext,
 ): Promise<AgentLoopResult> {
   if (!session.pendingPlan) throw new Error('No pending plan')
 
@@ -316,12 +313,19 @@ async function executePendingPlan(
 
   // Execute each write tool
   const results: LoopbrainMessage[] = []
-  console.log('[PendingPlan] executing', session.pendingPlan.toolCalls.length, 'tool(s):', session.pendingPlan.toolCalls.map(tc => tc.name).join(', '))
+  let clientAction: LoopbrainClientAction | undefined
   for (const toolCall of session.pendingPlan.toolCalls) {
-    console.log('[PendingPlan] calling executeWriteTool for:', toolCall.name)
-    const result = await executeWriteTool(toolCall, params.workspaceId, params.userId)
+    const result = await executeWriteTool(toolCall, params.workspaceId, params.userId, agentCtx)
     const isError = typeof result === 'object' && result !== null && 'error' in result
-    console.log('[PendingPlan] tool result for', toolCall.name, '— isError:', isError, JSON.stringify(result))
+
+    // Extract clientAction from tool results (e.g. draftWikiPage redirect)
+    if (!isError && typeof result === 'object' && result !== null && 'clientAction' in result) {
+      const ca = (result as Record<string, unknown>).clientAction
+      if (ca && typeof ca === 'object' && 'type' in ca && 'url' in ca) {
+        clientAction = ca as LoopbrainClientAction
+      }
+    }
+
     results.push({
       role: 'tool',
       content: JSON.stringify(result),
@@ -340,7 +344,7 @@ async function executePendingPlan(
     params.userId,
     params.conversationId
   )
-  const messages = formatMessagesForLLM(updatedSession.messages)
+  const messages = formatMessagesForProvider(updatedSession.messages)
   const systemPrompt = buildSystemPrompt(params.userContext)
 
   const finalResponse = await callLLMWithTools(systemPrompt, messages, [])
@@ -354,6 +358,7 @@ async function executePendingPlan(
     response: finalResponse.content,
     toolCallsMade: session.pendingPlan.toolCalls,
     conversationId: params.conversationId,
+    clientAction,
   }
 }
 
@@ -374,6 +379,10 @@ export async function executePlanWithProgress(
   const { conversationId } = params
   const toolCalls = session.pendingPlan.toolCalls
   const results: LoopbrainMessage[] = []
+  let clientAction: LoopbrainClientAction | undefined
+
+  // Enrich context for permission checks during tool execution
+  const agentCtx = await enrichAgentContext(params.workspaceId, params.userId, params.userRole)
 
   for (let i = 0; i < toolCalls.length; i++) {
     const toolCall = toolCalls[i]
@@ -386,7 +395,7 @@ export async function executePlanWithProgress(
       description,
     })
 
-    const result = await executeWriteTool(toolCall, params.workspaceId, params.userId)
+    const result = await executeWriteTool(toolCall, params.workspaceId, params.userId, agentCtx)
     const isError = typeof result === 'object' && result !== null && 'error' in result
 
     if (isError) {
@@ -400,6 +409,14 @@ export async function executePlanWithProgress(
       })
       await onEvent({ type: 'error', stepIndex: i, error: errorMsg })
       return { success: false, failedStepIndex: i, error: errorMsg }
+    }
+
+    // Extract clientAction from tool results (e.g. draftWikiPage returns a redirect)
+    if (!clientAction && !isError && typeof result === 'object' && result !== null && 'clientAction' in result) {
+      const ca = (result as Record<string, unknown>).clientAction
+      if (ca && typeof ca === 'object' && 'type' in ca && 'url' in ca) {
+        clientAction = ca as LoopbrainClientAction
+      }
     }
 
     results.push({
@@ -437,7 +454,7 @@ export async function executePlanWithProgress(
     params.userId,
     conversationId
   )
-  const messages = formatMessagesForLLM(updatedSession.messages)
+  const messages = formatMessagesForProvider(updatedSession.messages)
   const systemPrompt = buildSystemPrompt(params.userContext)
   const finalResponse = await callLLMWithTools(systemPrompt, messages, [])
   await appendMessage(conversationId, {
@@ -446,7 +463,7 @@ export async function executePlanWithProgress(
     timestamp: new Date().toISOString(),
   })
 
-  await onEvent({ type: 'complete', summary: finalResponse.content })
+  await onEvent({ type: 'complete', summary: finalResponse.content, clientAction })
   return {
     success: true,
     response: finalResponse.content,
@@ -460,712 +477,97 @@ function buildConfirmationMessage(writeCalls: ToolCallRecord[]): string {
   return `I'd like to perform the following actions:\n\n${actions}\n\nShall I proceed?`
 }
 
-// LLM call with function calling support
 async function callLLMWithTools(
   systemPrompt: string,
-  messages: ReturnType<typeof formatMessagesForLLM>,
-  tools: ReturnType<typeof getOpenAIToolsForRole>
-): Promise<{
-  content: string
-  toolCalls?: Array<{ id: string; name: string; arguments: Record<string, unknown> }>
-}> {
-  const response = await openai.chat.completions.create({
-    model: LOOPBRAIN_MODEL,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      ...(messages as unknown as OpenAI.ChatCompletionMessageParam[]),
-    ],
-    tools: tools.length > 0 ? (tools as OpenAI.ChatCompletionTool[]) : undefined,
-    temperature: 0.7,
-    max_tokens: 4000,
-  })
+  messages: ToolCallChatMessage[],
+  tools: ToolDefinition[]
+): Promise<ToolCallResponse> {
+  const provider = getProvider(LOOPBRAIN_MODEL)
+  if (!provider.generateWithTools) {
+    throw new Error(`Provider ${provider.name} does not support tool calling`)
+  }
 
-  const choice = response.choices[0]
-  const message = choice.message
+  try {
+    const response = await provider.generateWithTools({
+      model: LOOPBRAIN_MODEL,
+      systemPrompt,
+      messages,
+      tools,
+      temperature: 0.7,
+      maxTokens: 4000,
+    })
 
-  type RawToolCall = { id: string; function: { name: string; arguments: string } }
-  const rawToolCalls = message.tool_calls as unknown as RawToolCall[] | undefined
-
-  return {
-    content: message.content || '',
-    toolCalls: rawToolCalls?.map((tc) => ({
-      id: tc.id,
-      name: tc.function.name,
-      arguments: JSON.parse(tc.function.arguments) as Record<string, unknown>,
-    })),
+    return response
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Unknown error'
+    if (msg.includes('invalid model') || msg.includes('not found')) {
+      const modelError = new Error(
+        `Model "${LOOPBRAIN_MODEL}" is not supported by provider ${provider.name}. ` +
+        `Check LOOPBRAIN_MODEL env var.`
+      )
+      Sentry.captureException(modelError, {
+        tags: { component: 'loopbrain', errorType: 'invalid_model' },
+        extra: { model: LOOPBRAIN_MODEL, provider: provider.name },
+      })
+      throw modelError
+    }
+    // Capture LLM API failures
+    Sentry.captureException(error, {
+      tags: { component: 'loopbrain', errorType: 'llm_api_failure' },
+      extra: { model: LOOPBRAIN_MODEL, provider: provider.name },
+    })
+    throw error
   }
 }
 
-// Read tool execution — real Prisma implementations
+// Read tool execution — auto-dispatch from registry
 async function executeReadTool(
   toolCall: { id: string; name: string; arguments: Record<string, unknown> },
   workspaceId: string,
-  userId: string
+  userId: string,
+  agentCtx?: AgentContext,
 ): Promise<unknown> {
   setWorkspaceContext(workspaceId)
-
-  switch (toolCall.name) {
-    // ---- external OAuth tools ----
-    case 'searchEmail': {
-      try {
-        const args = toolCall.arguments as { query?: string }
-        if (!args.query) return { error: 'query is required' }
-
-        const connected = await isGmailConnected(userId, workspaceId)
-        if (!connected) {
-          return {
-            error:
-              'Gmail is not connected for this workspace. Ask the user to connect Gmail in Settings > Integrations.',
-          }
-        }
-
-        const result = await searchGmailForContext(userId, workspaceId, args.query)
-        return {
-          emails: result.threads.slice(0, 10).map((t) => ({
-            id: t.id,
-            threadId: t.threadId,
-            subject: t.subject,
-            from: t.from,
-            date: t.date.toISOString(),
-            snippet: (t.snippet || t.bodyPreview).slice(0, 200),
-          })),
-        }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'getCalendarEvents': {
-      try {
-        const args = toolCall.arguments as { startDate?: string; endDate?: string }
-        const start = args.startDate ? new Date(args.startDate) : new Date()
-        const end = args.endDate
-          ? new Date(args.endDate)
-          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-
-        type CalTokens = { accessToken?: string; refreshToken?: string | null }
-        const calIntegrations = await prismaUnscoped.integration.findMany({
-          where: { type: IntegrationType.GMAIL },
-          select: { config: true },
-        })
-        let calTokens: CalTokens | undefined
-        for (const integ of calIntegrations) {
-          const config = integ.config as { users?: Record<string, CalTokens> }
-          const tokens = config?.users?.[userId]
-          if (tokens?.accessToken || tokens?.refreshToken) {
-            calTokens = tokens
-            break
-          }
-        }
-        if (!calTokens?.accessToken && !calTokens?.refreshToken) {
-          return {
-            error:
-              'Google Calendar is not connected. Ask the user to sign in with Google or connect it in Settings > Integrations.',
-          }
-        }
-
-        const events = await loadCalendarEvents(workspaceId, userId, start, end)
-        return {
-          events: events.slice(0, 20).map((e) => ({
-            id: e.id,
-            title: e.title,
-            startTime: e.startTime.toISOString(),
-            endTime: e.endTime.toISOString(),
-            isAllDay: e.isAllDay,
-            status: e.status,
-          })),
-        }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'searchSlackMessages': {
-      try {
-        const args = toolCall.arguments as { query?: string }
-        if (!args.query) return { error: 'query is required' }
-
-        const slackConnected = await isSlackAvailable(workspaceId)
-        if (!slackConnected) {
-          return {
-            error:
-              'Slack is not connected to this workspace. An admin can connect it in Settings > Integrations.',
-          }
-        }
-
-        const result = await searchSlackMessages(workspaceId, args.query)
-        return {
-          messages: result.messages.slice(0, 20).map((m) => ({
-            channelName: m.channelName,
-            userName: m.userName,
-            text: m.text.slice(0, 500),
-            timestamp: m.timestamp,
-            threadTs: m.threadTs,
-          })),
-        }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    // ---- real Prisma implementations ----
-
-    case 'listProjects': {
-      try {
-        const args = toolCall.arguments as { status?: string }
-        const statusVal =
-          args.status && args.status !== 'ALL'
-            ? (args.status as 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED')
-            : undefined
-        const projects = await prisma.project.findMany({
-          where: { workspaceId, isArchived: false, ...(statusVal ? { status: statusVal } : {}) },
-          select: { id: true, name: true, status: true, description: true },
-          orderBy: { updatedAt: 'desc' },
-          take: 20,
-        })
-        return { projects }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'listPeople': {
-      try {
-        const args = toolCall.arguments as { teamId?: string; departmentId?: string }
-
-        if (args.teamId || args.departmentId) {
-          // Filter via org positions when team/dept filter present
-          const positions = await prisma.orgPosition.findMany({
-            where: {
-              workspaceId,
-              isActive: true,
-              userId: { not: null },
-              ...(args.teamId ? { teamId: args.teamId } : {}),
-              ...(args.departmentId ? { team: { departmentId: args.departmentId } } : {}),
-            },
-            select: {
-              userId: true,
-              title: true,
-              team: { select: { name: true, department: { select: { name: true } } } },
-              user: { select: { name: true, email: true } },
-            },
-            take: 50,
-          })
-          const people = positions
-            .filter((p): p is typeof p & { userId: string; user: NonNullable<typeof p.user> } =>
-              p.userId !== null && p.user !== null
-            )
-            .map((p) => ({
-              id: p.userId,
-              name: p.user.name,
-              email: p.user.email,
-              title: p.title,
-              teamName: p.team?.name ?? null,
-              departmentName: p.team?.department?.name ?? null,
-            }))
-          return { people }
-        }
-
-        // No filter — all workspace members with their org position data
-        const members = await prisma.workspaceMember.findMany({
-          where: { workspaceId },
-          select: {
-            userId: true,
-            role: true,
-            user: { select: { name: true, email: true } },
-          },
-          take: 50,
-        })
-        const userIds = members.map((m) => m.userId)
-        const positions = await prisma.orgPosition.findMany({
-          where: { workspaceId, userId: { in: userIds }, isActive: true },
-          select: {
-            userId: true,
-            title: true,
-            team: { select: { name: true, department: { select: { name: true } } } },
-          },
-        })
-        const posMap = new Map(positions.map((p) => [p.userId, p]))
-        const people = members.map((m) => {
-          const pos = posMap.get(m.userId)
-          return {
-            id: m.userId,
-            name: m.user.name,
-            email: m.user.email,
-            workspaceRole: m.role,
-            title: pos?.title ?? null,
-            teamName: pos?.team?.name ?? null,
-            departmentName: pos?.team?.department?.name ?? null,
-          }
-        })
-        return { people }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'getPersonProfile': {
-      try {
-        const args = toolCall.arguments as { personId?: string }
-        if (!args.personId) return { error: 'personId is required' }
-
-        const [member, position, projectMemberships] = await Promise.all([
-          prisma.workspaceMember.findFirst({
-            where: { workspaceId, userId: args.personId },
-            select: {
-              userId: true,
-              role: true,
-              user: { select: { name: true, email: true } },
-            },
-          }),
-          prisma.orgPosition.findFirst({
-            where: { workspaceId, userId: args.personId, isActive: true },
-            select: {
-              title: true,
-              level: true,
-              team: { select: { name: true, department: { select: { name: true } } } },
-              parent: { select: { title: true, user: { select: { name: true } } } },
-            },
-          }),
-          prisma.projectMember.findMany({
-            where: { workspaceId, userId: args.personId },
-            select: {
-              role: true,
-              project: { select: { id: true, name: true, status: true } },
-            },
-            take: 10,
-          }),
-        ])
-
-        if (!member) return { error: `Person ${args.personId} not found in workspace` }
-
-        return {
-          id: args.personId,
-          name: member.user.name,
-          email: member.user.email,
-          workspaceRole: member.role,
-          title: position?.title ?? null,
-          level: position?.level ?? null,
-          team: position?.team?.name ?? null,
-          department: position?.team?.department?.name ?? null,
-          manager: position?.parent?.user?.name ?? position?.parent?.title ?? null,
-          projects: projectMemberships.map((pm) => ({
-            id: pm.project.id,
-            name: pm.project.name,
-            status: pm.project.status,
-            role: pm.role,
-          })),
-        }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'searchWiki': {
-      try {
-        const args = toolCall.arguments as { query?: string; limit?: number }
-        if (!args.query) return { error: 'query is required' }
-        const limit = Math.min((args.limit as number) ?? 5, 10)
-
-        // Try semantic search via embedding service first
-        try {
-          const semanticResults = await searchSimilarContextItems({
-            workspaceId,
-            query: args.query,
-            type: ContextType.PAGE,
-            limit,
-          })
-          if (semanticResults.length > 0) {
-            const pageIds = semanticResults.map((r) => r.contextId)
-            const pages = await prisma.wikiPage.findMany({
-              where: { workspaceId, id: { in: pageIds } },
-              select: { id: true, title: true, slug: true },
-            })
-            const pageMap = new Map(pages.map((p) => [p.id, p]))
-            return {
-              pages: semanticResults.map((r) => ({
-                pageId: r.contextId,
-                title: pageMap.get(r.contextId)?.title ?? r.title,
-                slug: pageMap.get(r.contextId)?.slug,
-                score: r.score,
-              })),
-            }
-          }
-        } catch {
-          // fall through to keyword search
-        }
-
-        // Fallback: title keyword search
-        const pages = await prisma.wikiPage.findMany({
-          where: {
-            workspaceId,
-            isPublished: true,
-            title: { contains: args.query, mode: 'insensitive' },
-          },
-          select: { id: true, title: true, slug: true },
-          take: limit,
-        })
-        return {
-          pages: pages.map((p) => ({ pageId: p.id, title: p.title, slug: p.slug, score: 1 })),
-        }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'queryOrg': {
-      try {
-        const engine = new PrismaContextEngine()
-        const ctx = await engine.getOrgContext(workspaceId)
-        if (!ctx) return { message: 'No org data found for this workspace' }
-        return {
-          teams: (ctx.teams ?? []).map((t) => ({
-            id: t.id,
-            name: t.name,
-            department: t.department,
-            memberCount: t.memberCount,
-          })),
-          departments: (ctx.departments ?? []).map((d) => ({
-            id: d.id,
-            name: d.name,
-            teamCount: d.teamCount,
-          })),
-          roles: (ctx.roles ?? []).slice(0, 50).map((r) => ({
-            id: r.id,
-            title: r.title,
-            teamName: r.teamName ?? null,
-            department: r.department ?? null,
-            userName: r.userName ?? null,
-          })),
-        }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'getCapacity': {
-      try {
-        const args = toolCall.arguments as { personId?: string; teamId?: string }
-
-        if (args.personId) {
-          const snapshot = await buildWorkloadAnalysis(workspaceId, args.personId)
-          return {
-            personId: snapshot.personId,
-            name: snapshot.personName,
-            assessment: snapshot.summary.assessment,
-            utilizationPct: Math.round(snapshot.capacityComparison.utilizationPct * 100),
-            hasCapacity: snapshot.capacityComparison.hasCapacity,
-            headroomHours: Math.round(snapshot.capacityComparison.headroomHours),
-            contractedHours: snapshot.capacityComparison.contractedHours,
-            taskCount: snapshot.taskLoad.totalCount,
-            overdueCount: snapshot.taskLoad.overdue.count,
-            primaryConcern: snapshot.summary.primaryConcern,
-            projects: snapshot.projectLoad.slice(0, 5).map((p) => ({
-              projectId: p.projectId,
-              name: p.projectName,
-              allocationPct: p.allocationPct,
-              taskCount: p.taskCount,
-            })),
-          }
-        }
-
-        // Workspace-wide: lightweight capacity summary per member
-        const members = await prisma.workspaceMember.findMany({
-          where: { workspaceId },
-          select: { userId: true, user: { select: { name: true } } },
-          take: 20,
-        })
-        const summaries = await Promise.all(
-          members.map(async (m) => {
-            try {
-              const s = await buildWorkloadAnalysis(workspaceId, m.userId, {
-                includeNextWeek: false,
-                includeWorkRequests: false,
-              })
-              return {
-                personId: m.userId,
-                name: m.user.name,
-                assessment: s.summary.assessment,
-                utilizationPct: Math.round(s.capacityComparison.utilizationPct * 100),
-                hasCapacity: s.capacityComparison.hasCapacity,
-              }
-            } catch {
-              return {
-                personId: m.userId,
-                name: m.user.name,
-                assessment: 'UNKNOWN',
-                utilizationPct: 0,
-                hasCapacity: null,
-              }
-            }
-          })
-        )
-        return { members: summaries }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'getProjectHealth': {
-      try {
-        const args = toolCall.arguments as { projectId?: string }
-        if (!args.projectId) return { error: 'projectId is required' }
-
-        const [project, tasks] = await Promise.all([
-          prisma.project.findFirst({
-            where: { id: args.projectId, workspaceId },
-            select: { id: true, name: true, status: true, updatedAt: true },
-          }),
-          prisma.task.findMany({
-            where: { projectId: args.projectId, workspaceId },
-            select: { id: true, title: true, status: true, priority: true, dueDate: true },
-            take: 200,
-          }),
-        ])
-
-        if (!project) return { error: `Project ${args.projectId} not found` }
-
-        const now = new Date()
-        const total = tasks.length
-        const done = tasks.filter((t) => t.status === 'DONE').length
-        const blocked = tasks.filter((t) => t.status === 'BLOCKED').length
-        const inProgress = tasks.filter((t) => t.status === 'IN_PROGRESS').length
-        const overdue = tasks.filter(
-          (t) => t.dueDate && t.dueDate < now && t.status !== 'DONE'
-        ).length
-        const completionRate = total > 0 ? Math.round((done / total) * 100) : 0
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        const isStalled = project.updatedAt < sevenDaysAgo && inProgress === 0
-        const rawHealth = 100 - blocked * 15 - overdue * 8 - (isStalled ? 20 : 0)
-
-        return {
-          projectId: project.id,
-          name: project.name,
-          status: project.status,
-          healthScore: Math.max(0, Math.min(100, rawHealth)),
-          completionRate,
-          taskSummary: { total, done, blocked, inProgress, overdue },
-          isStalled,
-          blockers: tasks
-            .filter((t) => t.status === 'BLOCKED')
-            .slice(0, 5)
-            .map((t) => ({ id: t.id, title: t.title })),
-        }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    default:
-      return { error: `Unknown tool: ${toolCall.name}` }
+  const tool = toolRegistry.get(toolCall.name)
+  if (!tool) return { error: `Unknown tool: ${toolCall.name}` }
+  const ctx: AgentContext = agentCtx ?? { workspaceId, userId, workspaceSlug: '', userRole: 'MEMBER' }
+  try {
+    const result = await tool.execute(toolCall.arguments, ctx)
+    return result.success
+      ? result.data ?? { message: result.humanReadable }
+      : { error: result.error ?? result.humanReadable }
+  } catch (err: unknown) {
+    // Capture tool execution failures
+    Sentry.captureException(err, {
+      tags: { component: 'loopbrain', errorType: 'tool_execution_failure' },
+      extra: { toolName: toolCall.name, toolArgs: toolCall.arguments },
+    })
+    return { error: String(err) }
   }
 }
 
-// Write tool execution — calls real implementations from tool-registry and executor
+// Write tool execution — auto-dispatch from registry
 async function executeWriteTool(
   toolCall: ToolCallRecord,
   workspaceId: string,
-  userId: string
+  userId: string,
+  agentCtx?: AgentContext,
 ): Promise<unknown> {
-  console.log('[WriteToolExec]', toolCall.name, JSON.stringify(toolCall.arguments))
   setWorkspaceContext(workspaceId)
-  const context: AgentContext = { workspaceId, userId, workspaceSlug: '' }
-  const args = toolCall.arguments
-
-  switch (toolCall.name) {
-    case 'createTask': {
-      try {
-        const tool = toolRegistry.get('createTask')
-        if (!tool) return { error: 'createTask tool not registered' }
-        const result = await tool.execute(args, context)
-        return result.success
-          ? { id: result.data?.id, title: result.data?.title, projectId: result.data?.projectId }
-          : { error: result.error ?? result.humanReadable }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'assignTask': {
-      try {
-        const tool = toolRegistry.get('assignTask')
-        if (!tool) return { error: 'assignTask tool not registered' }
-        const result = await tool.execute(args, context)
-        return result.success
-          ? { taskId: result.data?.taskId, assigneeId: result.data?.assigneeId }
-          : { error: result.error ?? result.humanReadable }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'createCalendarEvent': {
-      // Bypass the tool registry and call the integration directly — same token
-      // resolution path as the read tool (prismaUnscoped.account.findFirst).
-      // The LLM sends { title, startTime, endTime } (per tool-schemas.ts); we map
-      // them to the integration's { summary, startDateTime, endDateTime } shape.
-      console.log('[WriteToolExec] createCalendarEvent executing with userId:', userId, 'workspaceId:', workspaceId)
-      try {
-        const { title, startTime, endTime, description, attendees, location, timeZone } = args as {
-          title?: string
-          startTime?: string
-          endTime?: string
-          description?: string
-          attendees?: string[]
-          location?: string
-          timeZone?: string
-        }
-        if (!title || !startTime || !endTime) {
-          console.log('[WriteToolExec] createCalendarEvent missing required fields:', { title, startTime, endTime })
-          return { error: 'createCalendarEvent requires title, startTime, and endTime' }
-        }
-        const result = await createCalendarEvent({
-          userId,
-          workspaceId,
-          summary: title,
-          startDateTime: startTime,
-          endDateTime: endTime,
-          description,
-          attendees,
-          location,
-          timeZone,
-        })
-        console.log('[WriteToolExec] createCalendarEvent result:', JSON.stringify(result))
-        return result.success
-          ? { eventId: result.eventId, htmlLink: result.htmlLink }
-          : { error: result.userMessage ?? result.error }
-      } catch (err) {
-        console.error('[WriteToolExec] createCalendarEvent threw:', err)
-        return { error: String(err) }
-      }
-    }
-
-    case 'sendEmail': {
-      try {
-        const { to, subject, body } = args as { to?: string; subject?: string; body?: string }
-        const tool = toolRegistry.get('sendEmail')
-        if (!tool) return { error: 'sendEmail tool not registered' }
-        const result = await tool.execute({ to, subject, body }, context)
-        return result.success
-          ? { messageId: result.data?.messageId, threadId: result.data?.threadId }
-          : { error: result.error ?? result.humanReadable }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'createWikiPage': {
-      try {
-        const { title, content } = args as { title?: string; content?: string }
-        const tool = toolRegistry.get('createWikiPage')
-        if (!tool) return { error: 'createWikiPage tool not registered' }
-        const result = await tool.execute({ title, content }, context)
-        return result.success
-          ? { id: result.data?.id, slug: result.data?.slug, title: result.data?.title }
-          : { error: result.error ?? result.humanReadable }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'createTimeOff': {
-      try {
-        const { startDate, endDate, reason, type } = args as {
-          startDate?: string
-          endDate?: string
-          reason?: string
-          type?: string
-        }
-        const result = await executeAction({
-          action: {
-            type: 'timeoff.create',
-            userId,
-            startDate: (startDate ?? '').slice(0, 10), // Ensure YYYY-MM-DD
-            endDate: (endDate ?? '').slice(0, 10),
-            timeOffType: (type ?? 'vacation').toLowerCase(),
-            notes: reason,
-          },
-          workspaceId,
-          userId,
-        })
-        return result.ok
-          ? { id: result.result?.entityId, message: result.result?.message }
-          : { error: result.error?.message }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'assignToProject': {
-      try {
-        const { personId, projectId, role } = args as {
-          personId?: string
-          projectId?: string
-          role?: string
-        }
-        // Use addPersonToProject from tool-registry — takes userId + projectId directly
-        const tool = toolRegistry.get('addPersonToProject')
-        if (!tool) return { error: 'addPersonToProject tool not registered' }
-        const result = await tool.execute(
-          { userId: personId, projectId, role: role ?? 'MEMBER' },
-          context
-        )
-        return result.success
-          ? { personId, projectId, membershipId: result.data?.membershipId }
-          : { error: result.error ?? result.humanReadable }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'assignManager': {
-      try {
-        const { personId, managerId } = args as { personId?: string; managerId?: string }
-        const result = await executeAction({
-          action: {
-            type: 'org.assign_manager',
-            reportId: personId ?? '',
-            managerId: managerId ?? '',
-          },
-          workspaceId,
-          userId,
-        })
-        return result.ok
-          ? { personId, managerId, message: result.result?.message }
-          : { error: result.error?.message }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    case 'createPerson': {
-      try {
-        const { name, email, title, teamId } = args as {
-          name?: string
-          email?: string
-          title?: string
-          teamId?: string
-        }
-        const result = await executeAction({
-          action: {
-            type: 'org.create_person',
-            fullName: name ?? '',
-            email,
-            title,
-            teamId,
-          },
-          workspaceId,
-          userId,
-        })
-        return result.ok
-          ? { id: result.result?.entityId, name, message: result.result?.message }
-          : { error: result.error?.message }
-      } catch (err) {
-        return { error: String(err) }
-      }
-    }
-
-    default:
-      return { error: `Unknown write tool: ${toolCall.name}` }
+  const tool = toolRegistry.get(toolCall.name)
+  if (!tool) return { error: `Unknown write tool: ${toolCall.name}` }
+  const context: AgentContext = agentCtx ?? { workspaceId, userId, workspaceSlug: '', userRole: 'MEMBER' }
+  try {
+    const result = await tool.execute(toolCall.arguments, context)
+    return result.success
+      ? result.data ?? { message: result.humanReadable }
+      : { error: result.error ?? result.humanReadable }
+  } catch (err: unknown) {
+    // Capture write tool execution failures
+    Sentry.captureException(err, {
+      tags: { component: 'loopbrain', errorType: 'write_tool_failure' },
+      extra: { toolName: toolCall.name, toolArgs: toolCall.arguments },
+    })
+    return { error: String(err) }
   }
 }

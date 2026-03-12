@@ -44,14 +44,6 @@ export function ContextMenu({ children, items, className }: ContextMenuProps) {
     e.preventDefault()
     e.stopPropagation()
     
-    console.log("Context menu triggered!", {
-      target: e.target,
-      clientX: e.clientX,
-      clientY: e.clientY,
-      pageX: e.pageX,
-      pageY: e.pageY
-    })
-    
     const x = e.clientX
     const y = e.clientY
     
@@ -66,7 +58,6 @@ export function ContextMenu({ children, items, className }: ContextMenuProps) {
       ? y - menuHeight 
       : y
 
-    console.log("Menu position:", { x: adjustedX, y: adjustedY })
     setPosition({ x: adjustedX, y: adjustedY })
     setIsOpen(true)
   }
@@ -167,45 +158,45 @@ export const contextMenuItems = {
       id: "edit",
       label: "Edit",
       icon: Edit,
-      action: () => console.log("Edit project", project.id)
+      action: () => { /* TODO [BACKLOG]: Wire edit project */ }
     },
     { id: "separator-1", label: "", separator: true },
     {
       id: "assign",
       label: "Assign",
       icon: UserPlus,
-      action: () => console.log("Assign project", project.id)
+      action: () => { /* TODO [BACKLOG]: Wire assign project */ }
     },
     {
       id: "priority",
       label: "Set Priority",
       icon: Flag,
-      action: () => console.log("Set priority", project.id)
+      action: () => { /* TODO [BACKLOG]: Wire set priority */ }
     },
     {
       id: "status",
       label: "Change Status",
       icon: MoreHorizontal,
-      action: () => console.log("Change status", project.id)
+      action: () => { /* TODO [BACKLOG]: Wire change status */ }
     },
     { id: "separator-2", label: "", separator: true },
     {
       id: "duplicate",
       label: "Duplicate",
       icon: Copy,
-      action: () => console.log("Duplicate project", project.id)
+      action: () => { /* TODO [BACKLOG]: Wire duplicate project */ }
     },
     {
       id: "move",
       label: "Move",
       icon: Move,
-      action: () => console.log("Move project", project.id)
+      action: () => { /* TODO [BACKLOG]: Wire move project */ }
     },
     {
       id: "archive",
       label: "Archive",
       icon: Archive,
-      action: () => console.log("Archive project", project.id)
+      action: () => { /* TODO [BACKLOG]: Wire archive project */ }
     },
     {
       id: "delete",
@@ -214,7 +205,6 @@ export const contextMenuItems = {
       action: () => {
         if (confirm(`Are you sure you want to delete "${project.name}"?`)) {
           // TODO [BACKLOG]: Wire project deletion API call
-          console.log("Delete project", project.id)
         }
       },
       destructive: true
@@ -228,70 +218,69 @@ export const contextMenuItems = {
       icon: Eye,
       action: () => {
         // TODO [BACKLOG]: Open task detail via TaskSidebar or route navigation
-        console.log("Open task", task.id)
       }
     },
     {
       id: "edit",
       label: "Edit",
       icon: Edit,
-      action: () => console.log("Edit task", task.id)
+      action: () => { /* TODO [BACKLOG]: Wire edit task */ }
     },
     { id: "separator-1", label: "", separator: true },
     {
       id: "assign",
       label: "Assign",
       icon: UserPlus,
-      action: () => console.log("Assign task", task.id)
+      action: () => { /* TODO [BACKLOG]: Wire assign task */ }
     },
     {
       id: "status",
       label: "Change Status",
       icon: Flag,
-      action: () => console.log("Change status", task.id)
+      action: () => { /* TODO [BACKLOG]: Wire change status */ }
     },
     {
       id: "priority",
       label: "Set Priority",
       icon: Star,
-      action: () => console.log("Set priority", task.id)
+      action: () => { /* TODO [BACKLOG]: Wire set priority */ }
     },
     {
       id: "due-date",
       label: "Set Due Date",
       icon: Calendar,
-      action: () => console.log("Set due date", task.id)
+      action: () => { /* TODO [BACKLOG]: Wire set due date */ }
     },
     {
       id: "tags",
       label: "Add Tags",
       icon: Tag,
-      action: () => console.log("Add tags", task.id)
+      action: () => { /* TODO [BACKLOG]: Wire add tags */ }
     },
     { id: "separator-2", label: "", separator: true },
     {
       id: "duplicate",
       label: "Duplicate",
       icon: Copy,
-      action: () => console.log("Duplicate task", task.id)
+      action: () => { /* TODO [BACKLOG]: Wire duplicate task */ }
     },
     {
       id: "move",
       label: "Move",
       icon: Move,
-      action: () => console.log("Move task", task.id)
+      action: () => { /* TODO [BACKLOG]: Wire move task */ }
     },
     {
       id: "archive",
       label: "Archive",
       icon: Archive,
-      action: () => console.log("Archive task", task.id)
+      action: () => { /* TODO [BACKLOG]: Wire archive task */ }
     },
     {
       id: "delete",
       label: "Delete",
       icon: Trash2,
-      action: () => console.log("Delete task", task.id),
+      action: () => { /* TODO [BACKLOG]: Wire delete task */ },
       destructive: true
     }
   ],
@@ -309,45 +298,45 @@ export const contextMenuItems = {
       id: "edit",
       label: "Edit",
       icon: Edit,
-      action: () => console.log("Edit wiki page", page.id)
+      action: () => { /* TODO [BACKLOG]: Wire edit wiki page */ }
     },
     { id: "separator-1", label: "", separator: true },
     {
       id: "comment",
       label: "Add Comment",
       icon: MessageSquare,
-      action: () => console.log("Add comment", page.id)
+      action: () => { /* TODO [BACKLOG]: Wire add comment */ }
     },
     {
       id: "tags",
       label: "Add Tags",
       icon: Tag,
-      action: () => console.log("Add tags", page.id)
+      action: () => { /* TODO [BACKLOG]: Wire add tags */ }
     },
     { id: "separator-2", label: "", separator: true },
     {
       id: "duplicate",
       label: "Duplicate",
       icon: Copy,
-      action: () => console.log("Duplicate wiki page", page.id)
+      action: () => { /* TODO [BACKLOG]: Wire duplicate wiki page */ }
     },
     {
       id: "move",
       label: "Move",
       icon: Move,
-      action: () => console.log("Move wiki page", page.id)
+      action: () => { /* TODO [BACKLOG]: Wire move wiki page */ }
     },
     {
       id: "archive",
       label: "Archive",
       icon: Archive,
-      action: () => console.log("Archive wiki page", page.id)
+      action: () => { /* TODO [BACKLOG]: Wire archive wiki page */ }
     },
     {
       id: "delete",
       label: "Delete",
       icon: Trash2,
-      action: () => console.log("Delete wiki page", page.id),
+      action: () => { /* TODO [BACKLOG]: Wire delete wiki page */ },
       destructive: true
     }
   ]

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { CreateEpicSchema } from '@/lib/pm/schemas'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { z } from 'zod'
@@ -67,27 +68,7 @@ export async function GET(
 
     return NextResponse.json(epics)
   } catch (error: unknown) {
-    console.error('Error fetching epics:', error)
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    
-    // Handle auth errors
-    if (errorMessage.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (errorMessage.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    if (errorMessage.includes('Project not found')) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to fetch epics',
-      details: errorMessage 
-    }, { status: 500 })
+    return handleApiError(error, request);
   }
 }
 
@@ -189,41 +170,12 @@ export async function POST(
       }
     )
 
-    // Asynchronously upsert epic context for Loopbrain
-    // Log errors but don't block the main response
-    console.log('[LB-EPIC] upsertEpicContext called after create:', epic.id)
+    // Asynchronously upsert epic context for Loopbrain (non-blocking)
     upsertEpicContext(epic.id)
       .catch((error) => logger.error('Failed to upsert epic context after creation', { epicId: epic.id, error }))
 
     return NextResponse.json(epic, { status: 201 })
   } catch (error: unknown) {
-    console.error('Error creating epic:', error)
-    
-    // Handle Zod validation errors
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ 
-        error: 'Validation error',
-        details: error.issues 
-      }, { status: 400 })
-    }
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    
-    // Handle auth errors
-    if (errorMessage.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (errorMessage.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    if (errorMessage.includes('Project not found')) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to create epic' 
-    }, { status: 500 })
+    return handleApiError(error, request);
   }
 }

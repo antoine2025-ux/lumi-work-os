@@ -59,7 +59,7 @@ export function ProjectLinker({ goalId, linkedProjects, workspaceSlug }: Props) 
         const filtered = projectsList.filter((p: AvailableProject) => !idsSet.has(p.id))
         setAvailableProjects(filtered)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to load projects:', error)
     } finally {
       setIsLoadingProjects(false)
@@ -96,7 +96,7 @@ export function ProjectLinker({ goalId, linkedProjects, workspaceSlug }: Props) 
         setExpectedImpact(50)
         setAutoUpdate(true)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to link project:', error)
     } finally {
       setLinkingProject(false)
@@ -116,7 +116,7 @@ export function ProjectLinker({ goalId, linkedProjects, workspaceSlug }: Props) 
       if (response.ok) {
         router.refresh()
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to unlink project:', error)
     } finally {
       setUnlinkingProject(null)

@@ -5,6 +5,7 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { logOrgAudit } from "@/lib/orgAudit";
 import { handleApiError } from "@/lib/api-errors";
+import { AssignCustomRoleSchema } from "@/lib/validations/org";
 
 type Params = {
   params: Promise<{ memberId: string }>;
@@ -25,11 +26,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     setWorkspaceContext(auth.workspaceId);
 
     const { memberId } = await params;
-    const body = await req.json().catch(() => ({} as Record<string, unknown>));
-    const requestedCustomRoleId =
-      typeof body.customRoleId === "string" && body.customRoleId.trim().length > 0
-        ? body.customRoleId.trim()
-        : null;
+    const body = AssignCustomRoleSchema.parse(await req.json());
+    const requestedCustomRoleId = body.customRoleId;
 
     const workspaceId = auth.workspaceId;
 
@@ -174,7 +172,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     );
 
     return NextResponse.json({ membership: updatedMembership }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

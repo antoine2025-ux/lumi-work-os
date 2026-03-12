@@ -11,7 +11,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { AlertTriangle, X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrgPrimaryCta } from "@/components/org/ui/OrgCtaButton";
@@ -21,6 +21,7 @@ import { IssueAttentionRow } from "@/components/org/issues/IssueAttentionRow";
 
 export function IntegrityBanner() {
   const router = useRouter();
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>() ?? {};
   const [isExpanded, setIsExpanded] = useState(false);
   const { data, isLoading, error } = useOrgIssuesSummary();
 
@@ -36,9 +37,10 @@ export function IntegrityBanner() {
   const { total, countsBySeverity, topIssues } = data;
   const errorCount = countsBySeverity.error;
   const warningCount = countsBySeverity.warning;
+  const issuesHref = workspaceSlug ? `/w/${workspaceSlug}/org/issues` : "/org/issues";
 
   const handleViewAll = () => {
-    router.push("/org/issues");
+    router.push(issuesHref);
   };
 
   return (

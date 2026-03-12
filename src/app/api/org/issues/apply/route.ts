@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
@@ -7,6 +6,9 @@ import { measureOrgHealth } from "@/server/orgHealth";
 import { getUnifiedAuth } from '@/lib/unified-auth';
 import { assertAccess } from '@/lib/auth/assertAccess';
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
+import { handleApiError } from '@/lib/api-errors';
+import type { Prisma } from '@prisma/client'
+import { ApplyIssuesSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,23 +19,18 @@ export async function POST(req: NextRequest) {
 
     const workspaceId = auth.workspaceId;
 
-    const body = (await req.json()) as {
-      actions: Array<{ personId: string; patch: any }>;
-      suggestionRunId?: string;
-    };
-
-    const actions = Array.isArray(body.actions) ? body.actions : [];
-    if (!actions.length) return NextResponse.json({ ok: false, error: "actions required" }, { status: 400 });
+    const body = ApplyIssuesSchema.parse(await req.json());
+    const actions = body.actions;
 
     // Capture baseline health snapshot before applying changes
     const beforeSnapshot = await prisma.orgHealthSnapshot.findFirst({
-      where: { orgId: workspaceId }, // orgId is a Prisma field
+      where: { workspaceId },
       orderBy: { createdAt: "desc" },
     });
 
     await prisma.$transaction(async (tx) => {
       for (const a of actions) {
-        const patch: any = {};
+        const patch: Record<string, string | null> = {};
         if (a.patch.managerId !== undefined) {
           if (a.patch.managerId) {
             const managerPos = await tx.orgPosition.findFirst({
@@ -61,7 +58,7 @@ export async function POST(req: NextRequest) {
 
       await tx.auditLogEntry.create({
         data: {
-          orgId: workspaceId, // orgId is a Prisma field
+          workspaceId,
           actorUserId: auth.user.userId,
           actorLabel: auth.user.userId,
           action: "apply_issue_suggestions",
@@ -73,18 +70,18 @@ export async function POST(req: NextRequest) {
 
     if (body.suggestionRunId) {
       await prisma.loopBrainFeedback.create({
-        data: { orgId: workspaceId, scope: "people_issues", suggestionRunId: body.suggestionRunId, accepted: true },
+        data: { workspaceId, scope: "people_issues", suggestionRunId: body.suggestionRunId, accepted: true },
       });
 
-      const afterSnapshot = await measureOrgHealth(workspaceId);
+      const afterResult = await measureOrgHealth(workspaceId);
       await prisma.loopBrainOutcome.create({
         data: {
-          orgId: workspaceId, // orgId is a Prisma field
+          workspaceId,
           scope: "people_issues",
           suggestionRunId: body.suggestionRunId,
-          beforeMetrics: beforeSnapshot?.metrics || {},
-          afterMetrics: afterSnapshot.snapshot.metrics as any,
-          improved: (afterSnapshot.snapshot.score || 0) > ((beforeSnapshot?.score as number) || 0),
+          beforeMetrics: (beforeSnapshot?.capacityScore != null ? { capacityScore: beforeSnapshot.capacityScore } : {}) as Prisma.InputJsonValue,
+          afterMetrics: (afterResult.metrics as unknown) as Prisma.InputJsonValue,
+          improved: (afterResult.score || 0) > ((beforeSnapshot?.capacityScore ?? 0) / 100),
         },
       }).catch(() => null);
     } else {
@@ -95,7 +92,7 @@ export async function POST(req: NextRequest) {
     revalidateTag(`org:${workspaceId}:audit`, "default");
 
     return NextResponse.json({ ok: true, applied: actions.length });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (error: unknown) {
+    return handleApiError(error, req);
   }
 }

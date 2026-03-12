@@ -63,7 +63,7 @@ export async function GET(
       },
       onboardingState: workspace.onboardingState || null,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }
@@ -130,7 +130,7 @@ export async function POST(
       workspace,
       onboardingState,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation failed', details: error.issues },

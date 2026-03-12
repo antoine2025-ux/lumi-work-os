@@ -61,7 +61,7 @@ export function AIWorkspaceSelectDialog({
       await onSelect(selectedWorkspaceId)
       onOpenChange(false)
       setSelectedWorkspaceId("")
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create page")
     }
   }

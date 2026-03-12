@@ -6,6 +6,8 @@ import { handleSlackLoopbrainMessage } from '@/lib/integrations/slack/interactiv
 import { sendSlackMessage } from '@/lib/integrations/slack-service'
 import { executeAgentPlan } from '@/lib/loopbrain/agent/executor'
 import { toolRegistry } from '@/lib/loopbrain/agent/tool-registry'
+import { enrichAgentContext } from '@/lib/loopbrain/permissions'
+import { getMemberRole } from '@/lib/loopbrain/context/getMemberRole'
 
 /**
  * Slack Webhook Handler
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ ok: true })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Slack Webhook] Error processing event', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
@@ -275,9 +277,11 @@ async function handleLoopbrainPlanAction(
       throw new Error('No plan data found in pending action')
     }
 
+    const slackUserRole = await getMemberRole(workspaceId, pendingAction.createdBy)
+    const slackAgentCtx = await enrichAgentContext(workspaceId, pendingAction.createdBy, slackUserRole)
     const result = await executeAgentPlan(
       plan,
-      { workspaceId, userId: pendingAction.createdBy, workspaceSlug: '' },
+      slackAgentCtx,
       toolRegistry
     )
 
@@ -298,7 +302,7 @@ async function handleLoopbrainPlanAction(
         threadTs: messageTs,
       })
     }
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[Slack Interactive] Plan execution failed', {
       pendingActionId: pendingAction.id,
       error: err instanceof Error ? err.message : String(err),
@@ -369,7 +373,7 @@ async function handleTimeOffApprovalAction(
     logger.info(`[Slack Interactive] Time off ${actionValue}d successfully`, {
       leaveRequestId: contextId,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[Slack Interactive] Error executing approval action', {
       error: error instanceof Error ? error.message : String(error),
       leaveRequestId: contextId,

@@ -2,22 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { syncGoalProjects } from '@/lib/goals/project-sync'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const LinkProjectSchema = z.object({
-  projectId: z.string(),
-  contributionType: z.enum(['REQUIRED', 'CONTRIBUTING', 'SUPPORTING']).default('CONTRIBUTING'),
-  expectedImpact: z.number().min(0).max(100).default(50),
-  autoUpdate: z.boolean().default(true),
-  syncRules: z.record(z.string(), z.unknown()).nullable().optional(),
-})
+import { LinkProjectSchema } from '@/lib/validations/goals'
 
 // ============================================================================
 // POST /api/goals/[goalId]/link-project - Link a project to goal
@@ -141,7 +129,7 @@ export async function POST(
     })
 
     return NextResponse.json(link, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -236,7 +224,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

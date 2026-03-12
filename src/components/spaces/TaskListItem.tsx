@@ -44,9 +44,9 @@ export function TaskListItem({
         className="rounded border-input"
       />
       <span className={cn("w-2 h-2 rounded-full flex-shrink-0", color)} />
-      <span className="flex-1 min-w-0 truncate">{title}</span>
+      <span className="flex-1 min-w-0 truncate text-sm">{title}</span>
       {dueDate && (
-        <span className="text-sm text-muted-foreground flex-shrink-0">
+        <span className="text-xs text-muted-foreground flex-shrink-0">
           {formatDueDate(dueDate)}
         </span>
       )}

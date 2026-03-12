@@ -2,10 +2,14 @@
 -- Spaces Architecture: TEAM | WIKI (company wiki), WikiPage type for scoping
 
 -- ── 1. Enums ─────────────────────────────────────────────────────────────────
+-- Create SpaceType enum or add WIKI if it exists with only TEAM (schema drift)
 DO $$ BEGIN
   CREATE TYPE "SpaceType" AS ENUM ('TEAM', 'WIKI');
 EXCEPTION
-  WHEN duplicate_object THEN NULL;
+  WHEN duplicate_object THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid WHERE t.typname = 'SpaceType' AND e.enumlabel = 'WIKI') THEN
+      ALTER TYPE "SpaceType" ADD VALUE 'WIKI';
+    END IF;
 END $$;
 
 DO $$ BEGIN
@@ -15,6 +19,18 @@ EXCEPTION
 END $$;
 
 -- ── 2. Add type to spaces ───────────────────────────────────────────────────
+-- Guard: add missing columns if spaces table has schema drift from alternate migration history
+ALTER TABLE "spaces" ADD COLUMN IF NOT EXISTS "isPersonal" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "spaces" ADD COLUMN IF NOT EXISTS "slug" TEXT;
+ALTER TABLE "spaces" ADD COLUMN IF NOT EXISTS "description" TEXT;
+ALTER TABLE "spaces" ADD COLUMN IF NOT EXISTS "color" TEXT DEFAULT '#3b82f6';
+ALTER TABLE "spaces" ADD COLUMN IF NOT EXISTS "icon" TEXT DEFAULT 'folder';
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'spaces' AND column_name = 'visibility') THEN
+    ALTER TABLE "spaces" ADD COLUMN "visibility" TEXT DEFAULT 'PUBLIC';
+  END IF;
+END $$;
+
 ALTER TABLE "spaces" ADD COLUMN IF NOT EXISTS "type" "SpaceType" DEFAULT 'TEAM';
 
 -- Personal spaces: type stays null

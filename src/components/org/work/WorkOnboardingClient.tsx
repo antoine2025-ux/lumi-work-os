@@ -80,13 +80,13 @@ export function WorkOnboardingClient() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#020617] px-4">
-      <Card className="w-full max-w-lg border-slate-800 bg-slate-950/60">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+      <Card className="w-full max-w-lg border-border bg-background/60">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-lg font-semibold text-slate-50">
+          <CardTitle className="text-lg font-semibold text-foreground">
             What do you want to work on?
           </CardTitle>
-          <CardDescription className="text-[12px] text-slate-400">
+          <CardDescription className="text-[12px] text-muted-foreground">
             Describe the work and we&apos;ll tell you if your team can handle it.
           </CardDescription>
         </CardHeader>
@@ -95,7 +95,7 @@ export function WorkOnboardingClient() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Title */}
             <div className="space-y-1.5">
-              <Label htmlFor="title" className="text-[12px] text-slate-300">
+              <Label htmlFor="title" className="text-[12px] text-muted-foreground">
                 Title
               </Label>
               <Input
@@ -105,10 +105,10 @@ export function WorkOnboardingClient() {
                 onChange={(e) => setTitle(e.target.value.slice(0, TITLE_MAX_LENGTH))}
                 maxLength={TITLE_MAX_LENGTH}
                 required
-                className="border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-600"
+                className="border-border bg-card text-foreground placeholder:text-slate-600"
               />
               {title.trim().length > 0 && title.trim().length > TITLE_MAX_LENGTH - 20 && (
-                <p className="text-[10px] text-slate-500">
+                <p className="text-[10px] text-muted-foreground">
                   {title.trim().length}/{TITLE_MAX_LENGTH}
                 </p>
               )}
@@ -116,7 +116,7 @@ export function WorkOnboardingClient() {
 
             {/* Required role */}
             <div className="space-y-1.5">
-              <Label htmlFor="role" className="text-[12px] text-slate-300">
+              <Label htmlFor="role" className="text-[12px] text-muted-foreground">
                 Required role
               </Label>
               <Input
@@ -125,13 +125,13 @@ export function WorkOnboardingClient() {
                 value={requiredRole}
                 onChange={(e) => setRequiredRole(e.target.value)}
                 required
-                className="border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-600"
+                className="border-border bg-card text-foreground placeholder:text-slate-600"
               />
             </div>
 
             {/* Estimated weekly hours */}
             <div className="space-y-1.5">
-              <Label htmlFor="hours" className="text-[12px] text-slate-300">
+              <Label htmlFor="hours" className="text-[12px] text-muted-foreground">
                 Estimated weekly hours
               </Label>
               <Input
@@ -145,14 +145,14 @@ export function WorkOnboardingClient() {
                   if (!isNaN(val)) setWeeklyHours(val);
                 }}
                 required
-                className="border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-600"
+                className="border-border bg-card text-foreground placeholder:text-slate-600"
               />
             </div>
 
             {/* Optional timeframe */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="start" className="text-[10px] text-slate-500">
+                <Label htmlFor="start" className="text-[10px] text-muted-foreground">
                   Start (optional)
                 </Label>
                 <Input
@@ -160,11 +160,11 @@ export function WorkOnboardingClient() {
                   type="date"
                   value={desiredStart}
                   onChange={(e) => setDesiredStart(e.target.value)}
-                  className="border-slate-700 bg-slate-900 text-slate-100 text-[12px]"
+                  className="border-border bg-card text-foreground text-[12px]"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="end" className="text-[10px] text-slate-500">
+                <Label htmlFor="end" className="text-[10px] text-muted-foreground">
                   End (optional)
                 </Label>
                 <Input
@@ -172,7 +172,7 @@ export function WorkOnboardingClient() {
                   type="date"
                   value={desiredEnd}
                   onChange={(e) => setDesiredEnd(e.target.value)}
-                  className="border-slate-700 bg-slate-900 text-slate-100 text-[12px]"
+                  className="border-border bg-card text-foreground text-[12px]"
                 />
               </div>
             </div>
@@ -199,7 +199,7 @@ export function WorkOnboardingClient() {
             <div className="text-center space-y-1">
               <Link
                 href="/org?skipOnboarding=true"
-                className="text-[11px] text-slate-500 hover:text-slate-400 transition-colors"
+                className="text-[11px] text-muted-foreground hover:text-muted-foreground transition-colors"
               >
                 Skip for now
               </Link>

@@ -20,11 +20,11 @@ export function WorkingOnCard({
   return (
     <Link
       href={href}
-      className="block p-4 bg-card rounded-lg border hover:border-primary/50 transition-colors"
+      className="block p-4 bg-card rounded-md border border-border hover:border-primary/50 transition-colors"
     >
-      <h3 className="font-medium mb-1">{title}</h3>
+      <h3 className="text-sm font-medium text-foreground mb-1">{title}</h3>
       {subtitle && (
-        <p className="text-sm text-amber-500 mb-2">{subtitle}</p>
+        <p className="text-xs text-muted-foreground mb-2">{subtitle}</p>
       )}
       {meta && (
         <p className="text-sm text-muted-foreground">{meta}</p>

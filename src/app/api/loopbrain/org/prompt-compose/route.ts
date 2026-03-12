@@ -4,6 +4,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { LoopbrainOrgPromptComposeSchema } from "@/lib/validations/loopbrain";
 
 type PromptComposeRequest = {
   question?: string;
@@ -19,20 +20,8 @@ export async function POST(request: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
     setWorkspaceContext(workspaceId);
 
-    const body = (await request.json()) as PromptComposeRequest | null;
-
-    const questionRaw = body?.question ?? "";
-    const question = String(questionRaw).trim();
-
-    if (!question) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Missing 'question' in request body",
-        },
-        { status: 400 }
-      );
-    }
+    const body = LoopbrainOrgPromptComposeSchema.parse(await request.json());
+    const question = body.question;
 
     // Build the Org preamble using the existing helper
     const orgPreamble = await buildOrgSummaryPreambleForCurrentWorkspace(
@@ -59,7 +48,7 @@ export async function POST(request: NextRequest) {
       combinedPrompt,
       metadata: body?.metadata ?? null,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

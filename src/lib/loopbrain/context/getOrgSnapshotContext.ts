@@ -8,6 +8,8 @@
  * SAFETY CONTRACT:
  * - Filtering happens here, NOT in the org snapshot builder.
  * - MEMBER sees aggregate metrics only (no issue IDs, no work breakdowns).
+ * - MEMBER with manager role: same aggregate view (person-level data is
+ *   filtered at the read-tool level via permissions/hierarchy.ts).
  * - ADMIN/OWNER sees the full snapshot.
  * - If snapshot.readiness.isAnswerable is false, returns a blockers-only section.
  */
@@ -165,11 +167,15 @@ function formatBlockersOnlySection(snapshot: OrgSemanticSnapshotV0): string {
  *
  * @param workspaceId - Workspace to build the snapshot for.
  * @param role - The caller's workspace role (determines filtering).
+ * @param personId - Optional org position ID of the caller (for future
+ *   hierarchy-aware filtering). Person-level data filtering is currently
+ *   handled at the read-tool level via permissions/hierarchy.ts.
  * @returns Prompt section + snapshot, or null if the snapshot cannot be built.
  */
 export async function getOrgSnapshotContext(params: {
   workspaceId: string;
   role: WorkspaceRole;
+  personId?: string;
 }): Promise<OrgSnapshotContextResult> {
   const raw = await buildOrgSemanticSnapshotV0({ workspaceId: params.workspaceId });
   const filtered = filterSnapshotForRole(raw, params.role);

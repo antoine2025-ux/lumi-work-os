@@ -71,7 +71,7 @@ export function DecisionDomainListClient() {
       const data = await response.json();
       setDomains(data.domains ?? []);
       setError(null);
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
@@ -124,7 +124,7 @@ export function DecisionDomainListClient() {
       setNewName("");
       setNewScope("WORKSPACE");
       fetchDomains();
-    } catch (err) {
+    } catch (err: unknown) {
       setCreateError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setCreateLoading(false);

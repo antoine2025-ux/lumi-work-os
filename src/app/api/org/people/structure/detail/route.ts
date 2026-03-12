@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     let ctx;
     try {
       ctx = await getOrgContext(req);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[GET /api/org/people/structure/detail] Error getting org context:", error);
       return NextResponse.json({ ok: false, error: "Failed to get organization context" }, { status: 500 });
     }
@@ -126,7 +126,7 @@ export async function GET(req: NextRequest) {
       }),
       invalidEdges,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

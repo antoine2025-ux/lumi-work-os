@@ -8,6 +8,7 @@ import type { OrgChartNode } from "@/lib/org/projections/buildOrgChartTree";
 type OrgChartNodeCardProps = {
   node: OrgChartNode;
   isHovered: boolean;
+  isCurrentUser?: boolean;
   onHover: (hovered: boolean) => void;
   onClick: () => void;
 };
@@ -58,7 +59,7 @@ function hashString(str: string): number {
  * - Direct report count badge
  * - Vacant position handling
  */
-export function OrgChartNodeCard({ node, isHovered, onHover, onClick }: OrgChartNodeCardProps) {
+export function OrgChartNodeCard({ node, isHovered, isCurrentUser, onHover, onClick }: OrgChartNodeCardProps) {
   const isRoot = !node.parentId;
   const isVacant = node.isVacant;
   const accent = getDepartmentAccent(getDepartmentIndex(node.departmentName));
@@ -79,18 +80,20 @@ export function OrgChartNodeCard({ node, isHovered, onHover, onClick }: OrgChart
   return (
     <div
       className={cn(
-        "group flex flex-col rounded-2xl border bg-slate-900/80 p-3.5 cursor-pointer",
+        "group relative flex flex-col rounded-2xl border bg-card/80 p-3.5 cursor-pointer",
         "transition-all duration-150",
         "shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
         // Hover effects
-        isHovered && "bg-slate-900/90 -translate-y-[1px]",
+        isHovered && "bg-card/90 -translate-y-[1px]",
         isHovered && "shadow-[0_12px_32px_rgba(0,0,0,0.5)]",
-        // Root node gets amber border and glow
-        isRoot && "border-amber-400/30 shadow-[0_0_24px_rgba(251,146,60,0.15)]",
-        isRoot && isHovered && "border-amber-400/40 shadow-[0_0_32px_rgba(251,146,60,0.2)]",
+        // Current user: primary border and glow
+        isCurrentUser && "border-2 border-primary ring-2 ring-primary/20",
+        // Root node gets amber border and glow (unless current user)
+        !isCurrentUser && isRoot && "border-amber-400/30 shadow-[0_0_24px_rgba(251,146,60,0.15)]",
+        !isCurrentUser && isRoot && isHovered && "border-amber-400/40 shadow-[0_0_32px_rgba(251,146,60,0.2)]",
         // Regular nodes get subtle white border
-        !isRoot && "border-white/5",
-        !isRoot && isHovered && "border-white/10",
+        !isCurrentUser && !isRoot && "border-white/5",
+        !isCurrentUser && !isRoot && isHovered && "border-white/10",
         // Vacant positions are slightly dimmed
         isVacant && "opacity-80"
       )}
@@ -99,6 +102,12 @@ export function OrgChartNodeCard({ node, isHovered, onHover, onClick }: OrgChart
       onClick={onClick}
       style={{ width: '200px', minHeight: '120px' }}
     >
+      {/* "You" badge for current user */}
+      {isCurrentUser && (
+        <span className="absolute -top-1.5 -right-1.5 inline-flex items-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground shadow-sm">
+          You
+        </span>
+      )}
       {/* Header: Icon + Name */}
       <div className="flex items-center gap-2.5 mb-2">
         <div
@@ -106,19 +115,19 @@ export function OrgChartNodeCard({ node, isHovered, onHover, onClick }: OrgChart
             "flex h-9 w-9 items-center justify-center rounded-xl flex-shrink-0",
             "transition-all",
             isRoot ? "bg-gradient-to-br from-amber-500/30 via-yellow-500/25 to-orange-500/30" : accent.iconBg,
-            isRoot ? "border border-amber-400/40" : "border border-slate-700/50",
+            isRoot ? "border border-amber-400/40" : "border border-border/50",
             "shadow-[0_4px_12px_rgba(0,0,0,0.3)]",
             isHovered && "shadow-[0_6px_16px_rgba(0,0,0,0.4)]"
           )}
         >
-          <User className="h-4 w-4 text-slate-200" />
+          <User className="h-4 w-4 text-foreground" />
         </div>
         
         <div className="flex-1 min-w-0">
           <div
             className={cn(
               "text-sm font-semibold leading-snug truncate",
-              isVacant ? "text-slate-300" : "text-slate-50"
+              isVacant ? "text-muted-foreground" : "text-foreground"
             )}
             title={displayName}
           >
@@ -130,7 +139,7 @@ export function OrgChartNodeCard({ node, isHovered, onHover, onClick }: OrgChart
       {/* Secondary text: Position title or team/dept */}
       {secondaryText && (
         <div
-          className="text-xs text-slate-400 truncate mb-1"
+          className="text-xs text-muted-foreground truncate mb-1"
           title={secondaryText}
         >
           {secondaryText}
@@ -140,7 +149,7 @@ export function OrgChartNodeCard({ node, isHovered, onHover, onClick }: OrgChart
       {/* Tertiary text: Team/dept when person has position */}
       {tertiaryText && (
         <div
-          className="text-[11px] text-slate-500 truncate"
+          className="text-[11px] text-muted-foreground truncate"
           title={tertiaryText}
         >
           {tertiaryText}
@@ -157,7 +166,7 @@ export function OrgChartNodeCard({ node, isHovered, onHover, onClick }: OrgChart
             className={cn(
               "inline-flex items-center justify-center rounded-full px-2.5 py-0.5",
               "text-xs font-medium",
-              "bg-slate-800/70 border border-slate-700/50 text-slate-300"
+              "bg-muted/70 border border-border/50 text-muted-foreground"
             )}
           >
             {node.childCount} {node.childCount === 1 ? 'report' : 'reports'}

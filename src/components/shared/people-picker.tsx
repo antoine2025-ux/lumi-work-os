@@ -46,7 +46,7 @@ export function PeoplePicker({
           const data = await response.json()
           setMembers(data.members || [])
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to load members:', error)
       } finally {
         setLoading(false)

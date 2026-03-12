@@ -342,7 +342,7 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
           message: `${socket.data.userName} updated a task`,
           data: { taskId: data.taskId, taskTitle: updatedTask.title }
         })
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error updating task:', error)
       }
     })
@@ -389,7 +389,7 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
           message: `${socket.data.userName} created a new task`,
           data: { taskId: newTask.id, taskTitle: newTask.title }
         })
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error creating task:', error)
       }
     })
@@ -415,7 +415,7 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
           message: `${socket.data.userName} deleted a task`,
           data: { taskId: data.taskId }
         })
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error deleting task:', error)
       }
     })
@@ -484,7 +484,7 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
           updates: data.updates,
           userId: socket.data.userId
         })
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error updating wiki page:', error)
       }
     })
@@ -540,7 +540,7 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
             projectId
           })
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error adding comment:', error)
       }
     })

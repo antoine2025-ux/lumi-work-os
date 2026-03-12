@@ -53,7 +53,7 @@ export function CreateSectionDialog({
       setTitle('')
       setDescription('')
       onSuccess?.()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create section')
     } finally {
       setSubmitting(false)

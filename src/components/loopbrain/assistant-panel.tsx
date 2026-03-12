@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { AILogo } from "@/components/ai-logo"
@@ -31,7 +32,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { callLoopbrainAssistant, executeLoopbrainPlanStream } from "@/lib/loopbrain/client"
 import { useLoopbrainAssistant } from "./assistant-context"
-import type { LoopbrainResponse, LoopbrainMode, MeetingTaskExtractionResult, OnboardingBriefing, DailyBriefing, MeetingPrepBrief as MeetingPrepBriefType } from "@/lib/loopbrain/orchestrator-types"
+import type { LoopbrainResponse, LoopbrainMode, MeetingTaskExtractionResult, OnboardingBriefing, DailyBriefing, MeetingPrepBrief as MeetingPrepBriefType, LoopbrainClientAction } from "@/lib/loopbrain/orchestrator-types"
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from "@/lib/loopbrain/agent/types"
 import { PlanConfirmation } from "./plan-confirmation"
 import { MeetingTaskReview } from "./MeetingTaskReview"
@@ -83,6 +84,8 @@ export function LoopbrainAssistantPanel({
   displayMode: propDisplayMode,
   onDisplayModeChange
 }: LoopbrainAssistantPanelProps) {
+  const router = useRouter()
+
   // Use context for persistent state
   const { state, setIsOpen, setIsMinimized, addMessage, clearMessages, pendingQuery, setPendingQuery } = useLoopbrainAssistant()
   const { currentWorkspace } = useWorkspace()
@@ -128,10 +131,23 @@ export function LoopbrainAssistantPanel({
   const [isCreatingMeetingTasks, setIsCreatingMeetingTasks] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [loadingStatusLabel, setLoadingStatusLabel] = useState<string>('Analyzing request...')
+  const [pendingClientAction, setPendingClientAction] = useState<LoopbrainClientAction | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   // Track previous workspace to detect workspace switches (undefined = not yet initialized)
   const prevWorkspaceIdRef = useRef<string | null | undefined>(undefined)
+
+  // Execute a client action after a 500ms delay so the user sees the message first
+  const executeClientAction = useCallback((action: LoopbrainClientAction) => {
+    setTimeout(() => {
+      if (action.type === 'navigate') {
+        router.push(action.url)
+      } else {
+        window.location.href = action.url
+      }
+      setPendingClientAction(null)
+    }, 500)
+  }, [router])
 
   // Send feedback to the API and track locally
   const handleFeedback = async (messageId: string, rating: "up" | "down", signal?: "too_long" | "too_short") => {
@@ -143,7 +159,7 @@ export function LoopbrainAssistantPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messageId, rating, signal }),
       })
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to send feedback", err)
     }
   }
@@ -218,7 +234,7 @@ export function LoopbrainAssistantPanel({
     setExecutionResult(null)
     setExecutionError(null)
     setStepProgress(
-      planToExecute.steps.map((s) => ({
+      (planToExecute.steps ?? []).map((s) => ({
         description: s.description,
         status: 'pending' as const,
       }))
@@ -253,16 +269,21 @@ export function LoopbrainAssistantPanel({
               })
             }
           },
-          onComplete: (summary) => {
+          onComplete: (summary, clientAction) => {
             setExecutionResult(summary)
             setExecutionError(null)
+            // Handle client action (e.g. redirect to newly created wiki page)
+            if (clientAction) {
+              setPendingClientAction(clientAction)
+              executeClientAction(clientAction)
+            }
           },
           onError: (err) => {
             setExecutionError(err)
           },
         }
       )
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error executing plan:', error)
       const msg =
         error instanceof Error ? error.message : 'Plan execution failed. Please try again.'
@@ -367,7 +388,7 @@ export function LoopbrainAssistantPanel({
         timestamp: new Date(),
       }
       addMessage(assistantMessage)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error after clarification:', error)
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -437,7 +458,7 @@ export function LoopbrainAssistantPanel({
         timestamp: new Date(),
       }
       addMessage(assistantMessage)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error approving advisory:', error)
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -613,7 +634,13 @@ export function LoopbrainAssistantPanel({
         timestamp: new Date()
       }
       addMessage(assistantMessage)
-    } catch (error) {
+
+      // Handle client action (navigation) after rendering the response
+      if (result.clientAction) {
+        setPendingClientAction(result.clientAction)
+        executeClientAction(result.clientAction)
+      }
+    } catch (error: unknown) {
       console.error('Error calling Loopbrain:', error)
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -1115,7 +1142,7 @@ export function LoopbrainAssistantPanel({
                                           timestamp: new Date(),
                                         }
                                         addMessage(successMsg)
-                                      } catch (err) {
+                                      } catch (err: unknown) {
                                         console.error('Meeting task creation failed', err)
                                         const errMsg: Message = {
                                           id: (Date.now() + 1).toString(),

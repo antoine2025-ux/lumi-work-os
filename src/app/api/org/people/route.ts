@@ -22,18 +22,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { listOrgPeople } from "@/server/org/people/read";
 import { getOrgIntelligenceSnapshot } from "@/lib/org/intelligence";
-import {
-  isPrismaError,
-  classifyAuthError,
-  unauthorizedResponse,
-  forbiddenResponse,
-  serviceUnavailableResponse,
-  internalErrorResponse,
-  logApiError,
-  shouldLogVerbose,
-} from "@/lib/api/errors";
+import { shouldLogVerbose } from "@/lib/api/errors";
 
 const ROUTE = "GET /api/org/people";
 
@@ -49,7 +41,10 @@ export async function GET(request: NextRequest) {
       if (shouldLogVerbose()) {
         console.error(`[${ROUTE}] Missing userId or workspaceId`);
       }
-      return unauthorizedResponse("Authentication required. Please log in.");
+      return NextResponse.json(
+        { ok: false, error: { code: "UNAUTHORIZED", message: "Authentication required. Please log in." } },
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     // Step 2: Assert access (verifies workspace membership and role)
@@ -106,27 +101,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    logApiError(ROUTE, error);
-
-    // Classify auth errors: 401 vs 403
-    const authType = classifyAuthError(error);
-    if (authType === "unauthorized") {
-      return unauthorizedResponse("Authentication failed. Please log in again.");
-    }
-    if (authType === "forbidden") {
-      return forbiddenResponse("You don't have permission to access this resource.");
-    }
-
-    // Database errors: 503 Service Unavailable (not 200 with empty data)
-    // This ensures clients know data is unavailable vs actually empty
-    if (isPrismaError(error)) {
-      return serviceUnavailableResponse(
-        "Unable to load people data. Please try again later.",
-        { retryable: true }
-      );
-    }
-
-    // Other errors: 500 Internal Server Error
-    return internalErrorResponse("Failed to load people. Please try again.");
+    return handleApiError(error, request);
   }
 }

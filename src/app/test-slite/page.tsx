@@ -48,7 +48,7 @@ export default function TestSlitePage() {
       } else {
         setError(data.error || 'Test failed')
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError('Network error: ' + (err as Error).message)
     } finally {
       setIsLoading(false)

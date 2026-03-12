@@ -5,6 +5,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { DismissDuplicateSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
     setWorkspaceContext(workspaceId);
 
-    const body = (await req.json()) as { id: string };
+    const body = DismissDuplicateSchema.parse(await req.json());
 
     const updated = await prisma.orgDuplicateCandidate.update({
       where: { id: body.id },
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, candidate: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

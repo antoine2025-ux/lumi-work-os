@@ -113,7 +113,7 @@ export async function deriveWorkStaffingIssues(
     let result;
     try {
       result = await resolveWorkFeasibility(workspaceId, wr);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn(
         `[deriveWorkStaffingIssues] Feasibility failed for ${wr.id}:`,
         err

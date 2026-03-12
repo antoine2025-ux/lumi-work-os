@@ -65,7 +65,7 @@ export async function GET(
     }
 
     return NextResponse.json(customField)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -149,7 +149,7 @@ export async function PATCH(
     })
 
     return NextResponse.json(customField)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -205,7 +205,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: 'Custom field deleted successfully' })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

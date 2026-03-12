@@ -48,7 +48,7 @@ async function ActivityDataLoader({ context }: ActivityContentProps) {
 
   return (
     <ActivityExportsClient
-      orgId={context.workspaceId}
+      workspaceId={context.workspaceId}
       initialAdminActivity={adminActivityData}
       initialOrgActivity={orgActivityData}
       role={context.role}

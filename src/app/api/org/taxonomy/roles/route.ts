@@ -5,6 +5,7 @@ import { ensureDefaultTaxonomy } from "@/server/org/taxonomy/seed"
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 export const revalidate = 60
 
@@ -25,15 +26,15 @@ export async function GET(req: NextRequest) {
     const take = Math.max(1, Math.min(20, Number(url.searchParams.get("take") ?? 10)))
 
     const rows = await prisma.orgRoleTaxonomy.findMany({
-      where: { orgId: workspaceId, ...(q ? { label: { contains: q, mode: "insensitive" } as any } : {}) } as any,
-      select: { label: true } as any,
-      orderBy: { label: "asc" } as any,
+      where: { workspaceId, ...(q ? { label: { contains: q, mode: "insensitive" } } : {}) },
+      select: { label: true },
+      orderBy: { label: "asc" },
       take,
-    } as any)
+    })
 
-    return NextResponse.json({ ok: true, roles: rows.map((r: any) => String(r.label)) })
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ ok: true, roles: rows.map((r) => String(r.label)) })
+  } catch (error: unknown) {
+    return handleApiError(error, req)
   }
 }
 

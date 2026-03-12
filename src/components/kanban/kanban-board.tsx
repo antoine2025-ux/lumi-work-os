@@ -131,7 +131,6 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
   // Initialize tasks from filteredTasks prop if provided, otherwise load from API
   useEffect(() => {
     if (filteredTasks && filteredTasks.length > 0) {
-      console.log('[Kanban] initializing tasks from filteredTasks prop', filteredTasks.length)
       const enrichedTasks = enrichTasksWithEpicData(filteredTasks, epics)
       setTasks(enrichedTasks)
       setIsLoading(false)
@@ -151,12 +150,10 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
   useEffect(() => {
     // Skip sync entirely if we have optimistic updates in progress
     if (hasOptimisticUpdateRef.current) {
-      console.log('[Kanban] Skipping filteredTasks sync (optimistic update in progress)')
       return
     }
-    
+
     if (filteredTasks && filteredTasks.length > 0) {
-      console.log('[Kanban] filteredTasks prop changed, syncing to state', filteredTasks.length)
       setTasks(prevTasks => {
         // If we have no tasks, use filteredTasks
         if (prevTasks.length === 0) {
@@ -249,10 +246,8 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
 
   const loadTasks = async (force = false) => {
     try {
-      console.log('[Kanban] loadTasks called', 'force:', force, 'hasOptimisticUpdate:', hasOptimisticUpdateRef.current)
       // Don't overwrite state if we have optimistic updates in progress (unless forced)
       if (!force && hasOptimisticUpdateRef.current) {
-        console.log('[Kanban] Skipping loadTasks - optimistic update in progress')
         return
       }
       setIsLoading(true)
@@ -263,12 +258,11 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
         const data = await response.json()
         // Tasks should already include epic data from API, but enrich if needed as fallback
         const enrichedTasks = enrichTasksWithEpicData(data, epics)
-        console.log('[Kanban] tasks set from loadTasks', enrichedTasks.length)
         setTasks(enrichedTasks)
       } else {
         console.error('[Kanban] Failed to load tasks:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Kanban] Error loading tasks:', error)
     } finally {
       setIsLoading(false)
@@ -300,7 +294,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
       } else {
         console.error('Failed to load epics:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading epics:', error)
     }
   }
@@ -314,7 +308,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
       } else {
         console.error('Failed to load milestones:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading milestones:', error)
     }
   }
@@ -344,32 +338,24 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
       } else {
         console.error('Failed to create epic:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating epic:', error)
     }
   }
 
   const handleTaskMove = async (taskId: string, newStatus: string, _newOrder?: number) => {
-    const task = tasks.find(t => t.id === taskId)
-    const fromStatus = task?.status
-    console.log('[Kanban] handleTaskMove start', { taskId, fromStatus, toStatus: newStatus })
-    console.log('[Kanban] tasks length before update', tasks.length)
-    
     // Mark that we're making an optimistic update to prevent prop sync from overwriting it
     // Set this BEFORE the state update to ensure it's active immediately
     hasOptimisticUpdateRef.current = true
-    
+
     try {
       // Optimistically update UI immediately before API call
       // Use functional update to avoid stale closure
-      setTasks(prevTasks => {
-        const updated = prevTasks.map(task =>
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
           task.id === taskId ? { ...task, status: newStatus as Task['status'] } : task
         )
-        console.log('[Kanban] tasks length after optimistic update', updated.length)
-        console.log('[Kanban] Updated task status:', updated.find(t => t.id === taskId)?.status)
-        return updated
-      })
+      )
 
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PUT',
@@ -382,18 +368,14 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
       if (response.ok) {
         // Update with full task data from API response to ensure consistency
         const updatedTask = await response.json()
-        console.log('[Kanban] API response received, updating task', updatedTask.id, 'status:', updatedTask.status)
-        setTasks(prevTasks => {
-          const final = prevTasks.map(task =>
+        setTasks(prevTasks =>
+          prevTasks.map(task =>
             task.id === taskId ? { ...task, ...updatedTask } : task
           )
-          console.log('[Kanban] Final task status after API update:', final.find(t => t.id === taskId)?.status)
-          return final
-        })
+        )
         // Keep the flag set for a bit longer to prevent any late-arriving prop updates
         setTimeout(() => {
           hasOptimisticUpdateRef.current = false
-          console.log('[Kanban] Optimistic update flag reset')
         }, 2000) // Increased delay to prevent overwrites
         // Don't call onTasksUpdated for status changes - we handle it optimistically
         // onTasksUpdated?.() // Commented out to prevent parent reload from overwriting state
@@ -403,7 +385,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
         hasOptimisticUpdateRef.current = false
         loadTasks(true)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Kanban] Error moving task:', error)
       // Revert optimistic update and reload tasks on error (force reload)
       hasOptimisticUpdateRef.current = false
@@ -425,7 +407,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
         // Reload tasks to get updated order (force reload since this is not a status change)
         loadTasks(true)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error reordering task:', error)
     }
   }
@@ -435,17 +417,14 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
   }
 
   const handleTaskUpdate = (updatedTask: Task) => {
-    console.log('[Kanban] handleTaskUpdate', updatedTask.id, 'new status:', updatedTask.status)
     // Mark that we're making an optimistic update
     hasOptimisticUpdateRef.current = true
     // Update local state immediately with the updated task
-    setTasks(prevTasks => {
-      const updated = prevTasks.map(task =>
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
         task.id === updatedTask.id ? { ...task, ...updatedTask, status: updatedTask.status } : task
       )
-      console.log('[Kanban] tasks updated in handleTaskUpdate', updated.length)
-      return updated
-    })
+    )
     // Reset the optimistic update flag after a delay
     setTimeout(() => {
       hasOptimisticUpdateRef.current = false
@@ -538,7 +517,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
     try {
       const collapsedArray = Array.from(collapsedSet)
       localStorage.setItem(`epic-collapse-${projectId}`, JSON.stringify(collapsedArray))
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to save collapse state to localStorage:', error)
     }
   }
@@ -550,7 +529,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
         const collapsedArray = JSON.parse(saved)
         return new Set(collapsedArray)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to load collapse state from localStorage:', error)
     }
     return new Set()

@@ -44,11 +44,11 @@ export default async function WorkspaceOrgActivityPage({ params }: PageProps) {
   if (!canView) {
     return (
       <div className="px-10 pt-10">
-        <div className="rounded-xl border border-slate-800 bg-[#020617] px-6 py-8 text-[13px] text-slate-200">
-          <div className="mb-1 text-sm font-semibold text-slate-50">
+        <div className="rounded-xl border border-border bg-background px-6 py-8 text-[13px] text-foreground">
+          <div className="mb-1 text-sm font-semibold text-foreground">
             You don&apos;t have access to activity
           </div>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-muted-foreground">
             Ask an owner or admin to grant you access.
           </p>
         </div>

@@ -40,7 +40,7 @@ export function ConnectionStatus() {
       const workspaceId = 'workspace-1' // This should come from workspace context
       
       await connect(userId, userName, workspaceId)
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Manual retry failed:', err)
     } finally {
       setIsManualRetry(false)

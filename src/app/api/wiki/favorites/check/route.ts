@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       favoriteId: favorite?.id || null
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

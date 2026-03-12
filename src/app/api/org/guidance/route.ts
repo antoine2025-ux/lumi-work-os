@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
     const guidance = await computeOrgGuidance(workspaceId);
     return NextResponse.json({ ok: true, guidance });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

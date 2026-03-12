@@ -2,14 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
-
-const Schema = z.object({
-  escalateTo: z.string(),
-  reason: z.string().min(1),
-})
+import { EscalateGoalSchema } from '@/lib/validations/goals'
 
 export async function POST(
   request: NextRequest,
@@ -29,7 +24,7 @@ export async function POST(
     setWorkspaceContext(auth.workspaceId)
 
     const body = await request.json()
-    const data = Schema.parse(body)
+    const data = EscalateGoalSchema.parse(body)
 
     // Verify goal exists
     const goal = await prisma.goal.findFirst({
@@ -148,7 +143,7 @@ export async function POST(
         { type: 'user', id: data.escalateTo },
       ],
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

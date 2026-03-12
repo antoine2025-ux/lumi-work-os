@@ -69,7 +69,7 @@ export function ComposeModal({
       setBody('')
       onOpenChange(false)
       onSent?.()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to send email')
     } finally {
       setSending(false)

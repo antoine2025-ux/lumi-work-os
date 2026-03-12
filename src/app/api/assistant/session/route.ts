@@ -4,6 +4,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
+import { AssistantUpdateSessionAltSchema } from '@/lib/validations/assistant'
 
 export async function PUT(request: NextRequest) {
   try {
@@ -14,11 +15,8 @@ export async function PUT(request: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
     setWorkspaceContext(workspaceId)
 
-    const { sessionId, draftBody, draftTitle, phase } = await request.json()
-
-    if (!sessionId) {
-      return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
-    }
+    const body = AssistantUpdateSessionAltSchema.parse(await request.json())
+    const { sessionId, draftBody, draftTitle, phase } = body
 
     const updateData: any = {}
     if (draftBody !== undefined) updateData.draftBody = draftBody
@@ -32,7 +30,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(updatedSession)
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

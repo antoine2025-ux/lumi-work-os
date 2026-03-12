@@ -87,6 +87,7 @@ export async function POST(
           dailySummaryEnabled: sourceProject.dailySummaryEnabled,
           createdById: auth.user.userId,
           ownerId: auth.user.userId,
+          spaceId: sourceProject.spaceId, // Preserve space from source project
         }
       })
 
@@ -227,7 +228,7 @@ export async function POST(
 
     return NextResponse.json(newProject, { status: 201 })
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

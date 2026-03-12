@@ -148,7 +148,7 @@ export async function buildContextObjectForPerson(
     })
 
     return contextObject
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to build person context object', {
       workspaceId,
       entityId,
@@ -212,7 +212,7 @@ export async function buildContextObjectForTeam(
       ...contextObject,
       workspaceId,
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to build team context object', {
       workspaceId,
       entityId,
@@ -272,7 +272,7 @@ export async function buildContextObjectForRole(
       ...contextObject,
       workspaceId,
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to build role context object', {
       workspaceId,
       entityId,

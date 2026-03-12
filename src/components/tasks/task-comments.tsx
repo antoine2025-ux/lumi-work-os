@@ -55,7 +55,7 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
       } else {
         console.error('Failed to load comments:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading comments:', error)
     } finally {
       setIsLoading(false)
@@ -69,7 +69,7 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
         const data = await response.json()
         setProjectMembers(data.map((member: { user: User }) => member.user))
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading project members:', error)
     }
   }
@@ -155,7 +155,7 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
       } else {
         console.error('Failed to create comment:', response.status, response.statusText)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating comment:', error)
     } finally {
       setIsSubmitting(false)

@@ -8,19 +8,57 @@ import {
   Globe,
   FileText,
   Folder,
-  FolderOpen,
   Plus,
   Loader2,
-  ChevronRight,
-  ChevronDown,
   FolderPlus,
+  BookOpen,
+  Code,
+  Calendar,
+  Palette,
+  Rocket,
 } from "lucide-react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CreateSectionDialog } from "./CreateSectionDialog"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
 import { ErrorState } from "@/components/ui/error-state"
 import { WikiPageSkeleton } from "@/components/ui/skeletons"
 import { EmptyState } from "@/components/ui/empty-state"
+
+const SECTION_COLORS = [
+  "bg-blue-500/10 text-blue-500",
+  "bg-rose-500/10 text-rose-500",
+  "bg-emerald-500/10 text-emerald-500",
+  "bg-amber-500/10 text-amber-500",
+  "bg-violet-500/10 text-violet-500",
+  "bg-cyan-500/10 text-cyan-500",
+  "bg-orange-500/10 text-orange-500",
+  "bg-pink-500/10 text-pink-500",
+] as const
+
+function getSectionIcon(
+  folder: { title: string; slug: string }
+): React.ComponentType<{ className?: string }> {
+  const t = `${folder.title} ${folder.slug}`.toLowerCase()
+  if (t.includes("handbook")) return BookOpen
+  if (t.includes("engineering") || t.includes("engineer")) return Code
+  if (t.includes("spec")) return FileText
+  if (t.includes("meeting") || t.includes("notes")) return Calendar
+  if (t.includes("design")) return Palette
+  if (t.includes("go-to-market") || t.includes("gtm") || t.includes("marketing"))
+    return Rocket
+  return Folder
+}
+
+function getInitials(name: string | null): string {
+  if (!name) return "?"
+  return name
+    .split(/\s+/)
+    .map((s) => s[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2)
+}
 
 interface WikiChildPage {
   id: string
@@ -69,7 +107,6 @@ async function fetchCompanyWiki(): Promise<CompanyWikiData> {
 export function CompanyWikiView() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [isCreatingPage, setIsCreatingPage] = useState(false)
   const [createSectionOpen, setCreateSectionOpen] = useState(false)
 
@@ -83,15 +120,6 @@ export function CompanyWikiView() {
     () => queryClient.invalidateQueries({ queryKey: ["wiki", "company-wiki"] }),
     [queryClient],
   )
-
-  const toggleSection = useCallback((id: string) => {
-    setExpandedSections((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
 
   const createPageDirectly = useCallback(
     async (spaceId: string, parentId?: string) => {
@@ -150,47 +178,41 @@ export function CompanyWikiView() {
 
   return (
     <div className="flex-1 p-6 overflow-y-auto">
-      {/* Header */}
+      {/* Header — same style as Team Spaces */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Globe className="w-5 h-5" />
-            <h1 className="text-2xl font-semibold">Company Wiki</h1>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Company-wide documentation and knowledge base
-          </p>
+          <h1 className="text-lg font-semibold text-foreground tracking-tight">Company Wiki</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Spaces / Company Wiki</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
-            variant="outline"
-            size="sm"
+            variant="ghostMuted"
+            size="xs"
             onClick={() => setCreateSectionOpen(true)}
           >
-            <FolderPlus className="w-4 h-4 mr-1.5" />
+            <FolderPlus className="w-3.5 h-3.5 mr-1" />
             New Section
           </Button>
           <Button
-            variant="outline"
-            size="sm"
+            variant="ghostMuted"
+            size="xs"
             onClick={() => createPageDirectly(companyWikiSpaceId)}
             disabled={isCreatingPage || !companyWikiSpaceId}
           >
             {isCreatingPage ? (
-              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
             ) : (
-              <Plus className="w-4 h-4 mr-1.5" />
+              <Plus className="w-3.5 h-3.5 mr-1" />
             )}
             New Page
           </Button>
         </div>
       </div>
 
-      {/* Sections (expandable folders) */}
-      <section className="mb-8">
-        <h2 className="text-xs font-medium text-muted-foreground mb-4 flex items-center gap-2 uppercase tracking-wider">
-          <Folder className="w-4 h-4" />
-          Sections
+      {/* Sections — category card grid */}
+      <section className="mb-6">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+          BROWSE BY CATEGORY
         </h2>
 
         {folders.length === 0 ? (
@@ -201,176 +223,163 @@ export function CompanyWikiView() {
               Create sections to organize your wiki pages into topics.
             </p>
             <Button
-              variant="outline"
-              size="sm"
+              variant="ghostMuted"
+              size="xs"
               onClick={() => setCreateSectionOpen(true)}
             >
-              <FolderPlus className="w-4 h-4 mr-1.5" />
+              <FolderPlus className="w-3.5 h-3.5 mr-1" />
               Create First Section
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
-            {folders.map((folder) => {
-              const isExpanded = expandedSections.has(folder.id)
-              const pageCount = folder._count.children
-
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            {folders.map((folder, index) => {
+              const Icon = getSectionIcon(folder)
+              const colorClass = SECTION_COLORS[index % SECTION_COLORS.length]
               return (
-                <div
+                <Link
                   key={folder.id}
-                  className="rounded-lg border bg-card overflow-hidden"
+                  href={`/wiki/${folder.slug}`}
+                  className="bg-card/50 hover:bg-card rounded-md p-4 transition-colors group"
                 >
-                  {/* Section header — click body to expand, click title to navigate */}
                   <div
-                    className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => toggleSection(folder.id)}
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${colorClass}`}
                   >
-                    <button
-                      className="flex-shrink-0"
-                      aria-label={isExpanded ? "Collapse section" : "Expand section"}
-                    >
-                      {isExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      )}
-                    </button>
-
-                    {isExpanded ? (
-                      <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                    ) : (
-                      <Folder className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                    )}
-
-                    <div className="flex-1 min-w-0">
-                      <Link
-                        href={`/wiki/${folder.slug}`}
-                        className="font-medium hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {folder.title}
-                      </Link>
-                      <p className="text-sm text-muted-foreground">
-                        {pageCount} {pageCount === 1 ? "page" : "pages"}
-                      </p>
-                    </div>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex-shrink-0 text-muted-foreground hover:text-foreground"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        createPageDirectly(companyWikiSpaceId, folder.id)
-                      }}
-                      disabled={isCreatingPage}
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      <span className="hidden sm:inline">Add Page</span>
-                    </Button>
+                    <Icon className="w-4 h-4" />
                   </div>
-
-                  {/* Expanded child pages */}
-                  {isExpanded && (
-                    <div className="border-t bg-muted/30">
-                      {folder.children.length === 0 ? (
-                        <div className="px-4 py-6 text-center">
-                          <p className="text-sm text-muted-foreground mb-3">
-                            This section is empty.
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => createPageDirectly(companyWikiSpaceId, folder.id)}
-                            disabled={isCreatingPage}
-                          >
-                            <Plus className="w-4 h-4 mr-1.5" />
-                            Add a page
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="divide-y">
-                          {folder.children.map((child) => (
-                            <Link
-                              key={child.id}
-                              href={`/wiki/${child.slug}`}
-                              className="flex items-center justify-between px-4 py-2.5 hover:bg-muted/50 transition-colors"
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                                <span className="truncate text-sm">
-                                  {child.title}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0 ml-4">
-                                <span className="hidden sm:inline">
-                                  {child.createdBy?.name ?? "Unknown"}
-                                </span>
-                                <span>
-                                  {formatDistanceToNow(new Date(child.updatedAt), {
-                                    addSuffix: true,
-                                  })}
-                                </span>
-                              </div>
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <h3 className="text-sm font-medium text-foreground group-hover:text-primary">
+                  {folder.title}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                  {folder.excerpt ?? ""}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {folder._count.children} docs
+                </p>
+              </Link>
               )
             })}
           </div>
         )}
       </section>
 
-      {/* Recent Updates — activity feed across all sections */}
+      {/* Recent Updates — 2-column layout (always show structure) */}
       <section>
-        <h2 className="text-xs font-medium text-muted-foreground mb-4 flex items-center gap-2 uppercase tracking-wider">
-          <FileText className="w-4 h-4" />
-          Recent Updates
-        </h2>
-        <div className="space-y-1">
-          {recentPages.length === 0 ? (
-            <EmptyState
-              icon={<FileText className="h-12 w-12" />}
-              title="Start documenting"
-              description="Create your first wiki page to share knowledge with your team."
-              action={{
-                label: "Create Page",
-                onClick: () => createPageDirectly(companyWikiSpaceId),
-              }}
-            />
-          ) : (
-            recentPages.map((page) => (
-              <Link
-                key={page.id}
-                href={`/wiki/${page.slug}`}
-                className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted transition-colors"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className="truncate">{page.title}</span>
-                  {page.parent && (
-                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded flex-shrink-0">
-                      in {page.parent.title}
-                    </span>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Left: RECENTLY UPDATED (limit 5) */}
+          <div className="lg:col-span-2 max-w-md">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                RECENTLY UPDATED
+              </h2>
+              {recentPages.length > 0 && (
+                <Link
+                  href="/wiki/search"
+                  className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  View all →
+                </Link>
+              )}
+            </div>
+            {recentPages.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border bg-muted/30 py-8 px-4 text-center">
+                <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm font-medium text-foreground mb-1">No recent updates</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Create your first wiki page to share knowledge with your team.
+                </p>
+                <Button
+                  variant="ghostMuted"
+                  size="xs"
+                  onClick={() => createPageDirectly(companyWikiSpaceId)}
+                  disabled={isCreatingPage || !companyWikiSpaceId}
+                >
+                  {isCreatingPage ? (
+                    <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                  ) : (
+                    <Plus className="w-3.5 h-3.5 mr-1" />
                   )}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground flex-shrink-0">
-                  <span className="hidden sm:inline">
-                    {page.createdBy?.name ?? "Unknown"}
-                  </span>
-                  <span>
-                    {formatDistanceToNow(new Date(page.updatedAt), {
-                      addSuffix: true,
-                    })}
-                  </span>
-                </div>
-              </Link>
-            ))
-          )}
+                  Create Page
+                </Button>
+              </div>
+            ) : (
+              <div>
+                {recentPages.slice(0, 5).map((page) => (
+                  <Link
+                    key={page.id}
+                    href={`/wiki/${page.slug}`}
+                    className="flex items-start gap-4 border-b border-border last:border-b-0 py-3 transition-colors hover:bg-muted/30"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-foreground truncate">
+                          {page.title}
+                        </span>
+                        {page.parent && (
+                          <span className="text-xs bg-accent text-accent-foreground px-1.5 py-0.5 rounded flex-shrink-0">
+                            {page.parent.title}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {page.parent?.title ?? "Uncategorized"} ·{" "}
+                        {formatDistanceToNow(new Date(page.updatedAt), {
+                          addSuffix: true,
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
+                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                        {page.createdBy?.name ?? "Unknown"}
+                      </span>
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback className="text-[10px] bg-muted">
+                          {getInitials(page.createdBy?.name ?? null)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right: POPULAR THIS MONTH (same pages, sorted by title — view count not available) */}
+          <div className="lg:col-span-3">
+            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+              POPULAR THIS MONTH
+            </h2>
+            {recentPages.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">
+                No pages yet. Create your first page to see it here.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {[...recentPages]
+                  .sort((a, b) => a.title.localeCompare(b.title))
+                  .slice(0, 5)
+                  .map((page, i) => (
+                    <Link
+                      key={page.id}
+                      href={`/wiki/${page.slug}`}
+                      className="flex gap-3 items-start group"
+                    >
+                      <span className="text-sm font-medium text-muted-foreground/30 flex-shrink-0 w-6">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium text-foreground group-hover:text-primary block truncate">
+                          {page.title}
+                        </span>
+                        <span className="text-xs text-muted-foreground block">
+                          {page.parent?.title ?? "Uncategorized"}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

@@ -19,7 +19,10 @@ import { prismaUnscoped } from "@/lib/db";
 import { IntegrationType } from "@prisma/client";
 import { syncGmailContext } from "@/lib/loopbrain/context-sources/gmail";
 import { logger } from "@/lib/logger";
+import { emitEvent } from "@/lib/events/emit";
+import { POLICY_EVENTS } from "@/lib/loopbrain/policies/listeners";
 import type { GmailIntegrationConfig } from "@/lib/gmail";
+import type { EmailReceivedEvent } from "@/lib/loopbrain/policies/event-matcher";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -106,7 +109,11 @@ async function runGmailSync(
           );
           result.totalSynced += syncResult.synced;
           result.totalSkipped += syncResult.skipped;
-        } catch (err) {
+
+          if (syncResult.synced > 0) {
+            await emitEmailEventsForNewThreads(integration.workspaceId, userId);
+          }
+        } catch (err: unknown) {
           const msg =
             err instanceof Error ? err.message : String(err);
           result.errors.push(
@@ -117,11 +124,56 @@ async function runGmailSync(
     }
 
     logger.info("[gmail-sync] Cron complete", { ...result });
-  } catch (err) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push(`Fatal: ${msg}`);
     logger.error("[gmail-sync] Cron failed", { error: err });
   }
 
   return result;
+}
+
+/**
+ * Emit policy events for recently synced Gmail threads so email-triggered
+ * policies can pick them up. Queries ContextItems created in the last hour.
+ */
+async function emitEmailEventsForNewThreads(
+  workspaceId: string,
+  userId: string,
+): Promise<void> {
+  try {
+    const recentItems = await prismaUnscoped.contextItem.findMany({
+      where: {
+        workspaceId,
+        type: "gmail_thread",
+        data: { path: ["metadata", "userId"], equals: userId },
+        createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+      },
+      select: { data: true, contextId: true },
+      take: 20,
+    });
+
+    for (const item of recentItems) {
+      const data = item.data as Record<string, unknown> | null;
+      const metadata = data?.metadata as Record<string, unknown> | null;
+      const event: EmailReceivedEvent = {
+        workspaceId,
+        userId,
+        subject: (metadata?.subject as string) ?? "",
+        from: (metadata?.from as string) ?? "",
+        snippet: (data?.content as string)?.slice(0, 500) ?? "",
+        threadId: item.contextId ?? "",
+      };
+
+      if (event.threadId) {
+        await emitEvent(POLICY_EVENTS.EMAIL_RECEIVED, event);
+      }
+    }
+  } catch (err: unknown) {
+    logger.warn("[gmail-sync] Failed to emit policy events", {
+      workspaceId,
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }

@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
       health,
       roleRisks,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

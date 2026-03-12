@@ -86,7 +86,7 @@ export async function createExtractedTasks(
         select: { id: true },
       })
       taskIds.push(created.id)
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to create extracted task', {
         workspaceId,
         taskTitle: task.title,

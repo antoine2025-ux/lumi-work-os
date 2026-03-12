@@ -9,19 +9,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
-
-const ALLOWED_TYPES = ["AVAILABLE", "UNAVAILABLE", "PARTIAL"] as const;
-const ALLOWED_REASONS = [
-  "VACATION",
-  "SICK_LEAVE",
-  "PARENTAL_LEAVE",
-  "SABBATICAL",
-  "JURY_DUTY",
-  "BEREAVEMENT",
-  "TRAINING",
-  "OTHER",
-] as const;
+import { UpdateAvailabilityWindowSchema } from "@/lib/validations/org";
 
 
 export async function PATCH(
@@ -96,99 +86,34 @@ export async function PATCH(
     }
 
     // Step 6: Parse and validate request body
-    const body = await request.json();
+    const body = UpdateAvailabilityWindowSchema.parse(await request.json());
     
     const updateData: Record<string, unknown> = {};
 
-    // Validate and set startDate
     if (body.startDate !== undefined) {
-      const startDate = new Date(body.startDate);
-      if (isNaN(startDate.getTime())) {
-        return NextResponse.json({ error: "Invalid startDate format" }, { status: 400 });
-      }
-      updateData.startDate = startDate;
+      updateData.startDate = new Date(body.startDate);
     }
 
-    // Validate and set endDate
     if (body.endDate !== undefined) {
-      if (body.endDate === null) {
-        updateData.endDate = null;
-      } else {
-        const endDate = new Date(body.endDate);
-        if (isNaN(endDate.getTime())) {
-          return NextResponse.json({ error: "Invalid endDate format" }, { status: 400 });
-        }
-        updateData.endDate = endDate;
-      }
+      updateData.endDate = body.endDate ? new Date(body.endDate) : null;
     }
 
-    // Validate startDate < endDate if both are being set or one is changing
-    const effectiveStart = (updateData.startDate as Date) ?? existing.startDate;
-    const effectiveEnd = updateData.endDate !== undefined 
-      ? (updateData.endDate as Date | null)
-      : existing.endDate;
-    if (effectiveEnd && effectiveStart >= effectiveEnd) {
-      return NextResponse.json({ error: "startDate must be before endDate" }, { status: 400 });
-    }
-
-    // Validate type
     if (body.type !== undefined) {
-      if (!ALLOWED_TYPES.includes(body.type)) {
-        return NextResponse.json(
-          { error: `Invalid type. Must be one of: ${ALLOWED_TYPES.join(", ")}` },
-          { status: 400 }
-        );
-      }
       updateData.type = body.type;
     }
 
-    // Validate fraction
     if (body.fraction !== undefined) {
-      if (body.fraction === null) {
-        updateData.fraction = null;
-      } else {
-        const fraction = Number(body.fraction);
-        if (isNaN(fraction) || fraction < 0 || fraction > 1) {
-          return NextResponse.json({ error: "fraction must be between 0 and 1" }, { status: 400 });
-        }
-        updateData.fraction = fraction;
-      }
+      updateData.fraction = body.fraction;
     }
 
-    // Validate reason
     if (body.reason !== undefined) {
-      if (body.reason === null) {
-        updateData.reason = null;
-      } else if (!ALLOWED_REASONS.includes(body.reason)) {
-        return NextResponse.json(
-          { error: `Invalid reason. Must be one of: ${ALLOWED_REASONS.join(", ")}` },
-          { status: 400 }
-        );
-      } else {
-        updateData.reason = body.reason;
-      }
+      updateData.reason = body.reason;
     }
 
-    // Validate expectedReturnDate
     if (body.expectedReturnDate !== undefined) {
-      if (body.expectedReturnDate === null) {
-        updateData.expectedReturnDate = null;
-      } else {
-        const expectedReturnDate = new Date(body.expectedReturnDate);
-        if (isNaN(expectedReturnDate.getTime())) {
-          return NextResponse.json({ error: "Invalid expectedReturnDate format" }, { status: 400 });
-        }
-        if (expectedReturnDate < effectiveStart) {
-          return NextResponse.json(
-            { error: "expectedReturnDate must be on or after startDate" },
-            { status: 400 }
-          );
-        }
-        updateData.expectedReturnDate = expectedReturnDate;
-      }
+      updateData.expectedReturnDate = body.expectedReturnDate ? new Date(body.expectedReturnDate) : null;
     }
 
-    // Note
     if (body.note !== undefined) {
       updateData.note = body.note;
     }
@@ -227,8 +152,7 @@ export async function PATCH(
       },
     });
   } catch (error: unknown) {
-    console.error("[PATCH /api/org/people/[personId]/availability-windows/[windowId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -310,8 +234,7 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
-    console.error("[DELETE /api/org/people/[personId]/availability-windows/[windowId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 

@@ -15,6 +15,7 @@ interface ProjectHeaderProps {
   project: {
     id: string
     name: string
+    excerpt?: string | null
     description?: string
     color?: string
     projectSpace?: {
@@ -60,27 +61,9 @@ export function ProjectHeader({
   onDelete,
   onDuplicate
 }: ProjectHeaderProps) {
-  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
-
   const getTaskStatusCount = (status: string) => {
     if (!tasks) return 0
     return tasks.filter(task => task.status === status).length
-  }
-
-  const getDescriptionDisplay = () => {
-    const description = project.description || 'No description available'
-    const maxLength = 350
-    
-    if (description.length <= maxLength || descriptionExpanded) {
-      return description
-    }
-    
-    return description.substring(0, maxLength) + '...'
-  }
-
-  const shouldShowExpandButton = () => {
-    const description = project.description || 'No description available'
-    return description.length > 350
   }
 
   return (
@@ -102,21 +85,12 @@ export function ProjectHeader({
                 <ProjectSpaceBadge visibility={project.projectSpace.visibility} />
               )}
             </div>
-            {/* Description moved here */}
-            <div className="mb-3">
-              <p className="text-sm leading-relaxed" style={{ color: colors.textMuted }}>
-                {getDescriptionDisplay()}
+            {/* Excerpt (short tagline) — full description in card below */}
+            {project.excerpt && project.excerpt.trim() && (
+              <p className="text-sm leading-snug mb-3" style={{ color: colors.textMuted }}>
+                {project.excerpt.trim()}
               </p>
-              {shouldShowExpandButton() && (
-                <button
-                  onClick={() => setDescriptionExpanded(!descriptionExpanded)}
-                  className="text-xs mt-1 hover:underline font-medium"
-                  style={{ color: colors.primary }}
-                >
-                  {descriptionExpanded ? 'Show less' : 'Show more'}
-                </button>
-              )}
-            </div>
+            )}
             
             {/* Channel Hints */}
             {channelHints && channelHints.length > 0 && (

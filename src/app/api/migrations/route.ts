@@ -1,15 +1,22 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
+<<<<<<< HEAD
 import { prisma } from '@/lib/db'
+=======
+import { handleApiError } from '@/lib/api-errors'
+>>>>>>> integration/merge-stabilized
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { SliteAdapter } from '@/lib/migrations/adapters/slite-adapter'
 import { ClickUpAdapter } from '@/lib/migrations/adapters/clickup-adapter'
+import { StartMigrationSchema } from '@/lib/validations/workspace'
+import { IntegrationType } from '@prisma/client'
 
 // POST /api/migrations - Start a new migration
 export async function POST(request: NextRequest) {
   try {
+<<<<<<< HEAD
     console.log('=== MIGRATION API CALLED ===')
 
     const auth = await getUnifiedAuth(request)
@@ -36,6 +43,13 @@ export async function POST(request: NextRequest) {
 
     console.log('🔐 Authenticated user:', auth.user.email, auth.isDevelopment ? '(dev mode)' : '(production)')
 
+=======
+    // Get authenticated user with development fallback
+    const auth = await getUnifiedAuth(request)
+    const body = StartMigrationSchema.parse(await request.json())
+    const { platform, apiKey, workspaceId, additionalConfig } = body
+
+>>>>>>> integration/merge-stabilized
     // Use authenticated user instead of creating default user
     const userId = auth.user.id
 
@@ -44,12 +58,9 @@ export async function POST(request: NextRequest) {
     
     switch (platform.toLowerCase()) {
       case 'slite':
-        console.log('Starting Slite migration with API key:', apiKey.substring(0, 10) + '...')
         const sliteAdapter = new SliteAdapter(apiKey)
         const sliteDocs = await sliteAdapter.fetchAllDocuments()
-        console.log('Fetched Slite documents:', sliteDocs.length)
         migrationItems = await sliteAdapter.convertToMigrationItems(sliteDocs)
-        console.log('Converted migration items:', migrationItems.length)
         break
         
       case 'clickup':
@@ -82,7 +93,7 @@ export async function POST(request: NextRequest) {
     const migrationSession = await prisma.integration.create({
       data: {
         workspaceId: workspace.id,
-        type: platform.toUpperCase() as any,
+        type: platform.toUpperCase() as IntegrationType,
         name: `${platform} Migration Session`,
         config: {
           status: 'preview',
@@ -103,14 +114,8 @@ export async function POST(request: NextRequest) {
       previewUrl: `/migrations/review`
     })
 
-  } catch (error) {
-    console.error('Migration error:', error)
-    console.error('Error stack:', error.stack)
-    return NextResponse.json({ 
-      error: 'Migration failed', 
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }
 
@@ -150,10 +155,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(migrations)
 
-  } catch (error) {
-    console.error('Error fetching migrations:', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch migrations' 
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }

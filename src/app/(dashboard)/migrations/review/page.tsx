@@ -78,7 +78,7 @@ export default function MigrationReviewPage() {
           setSelectedSession(sessions[0])
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading migration sessions:', error)
     } finally {
       setIsLoading(false)
@@ -135,7 +135,7 @@ export default function MigrationReviewPage() {
         const error = await response.json()
         alert(`Import failed: ${error.error}`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error importing items:', error)
       alert('Import failed. Please try again.')
     } finally {

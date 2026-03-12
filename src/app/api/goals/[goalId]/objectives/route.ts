@@ -2,37 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { updateGoalProgress } from '@/lib/goals/progress'
 import { syncGoalContext } from '@/lib/goals/loopbrain-integration'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const CreateObjectiveSchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().optional(),
-  weight: z.number().min(0).max(10).default(1),
-  keyResults: z.array(z.object({
-    title: z.string().min(1),
-    description: z.string().optional(),
-    metricType: z.enum(['PERCENT', 'NUMBER', 'BOOLEAN', 'CURRENCY']),
-    currentValue: z.number().default(0),
-    targetValue: z.number(),
-    unit: z.string().optional(),
-    dueDate: z.string().transform(str => new Date(str)).optional(),
-  })).min(1, 'At least one key result is required'),
-})
-
-const UpdateObjectiveSchema = z.object({
-  objectiveId: z.string(),
-  title: z.string().min(1).max(200).optional(),
-  description: z.string().optional(),
-  weight: z.number().min(0).max(10).optional(),
-})
+import { CreateObjectiveSchema, UpdateObjectiveSchema } from '@/lib/validations/goals'
 
 // ============================================================================
 // POST /api/goals/[goalId]/objectives - Create objective with key results
@@ -139,7 +113,7 @@ export async function POST(
     )
 
     return NextResponse.json(objective, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }
@@ -225,7 +199,7 @@ export async function PATCH(
     })
 
     return NextResponse.json(objective)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }
@@ -312,7 +286,7 @@ export async function DELETE(
     await updateGoalProgress(goalId)
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

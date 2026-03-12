@@ -20,6 +20,7 @@ import { assertProjectAccess } from '@/lib/pm/guards'
 import { ProjectRole } from '@prisma/client'
 import type { User as NextAuthUser } from 'next-auth'
 import { upsertIntegrationAllocation } from '@/lib/org/capacity/project-capacity'
+import { getDefaultSpaceForUser } from '@/lib/spaces/get-default-space'
 import {
   processLeaveRequest,
   LeaveRequestError,
@@ -74,7 +75,7 @@ export async function executeAction(
       default:
         throw new LoopbrainError('BAD_REQUEST', 400, `Unknown action type: ${(action as { type: string }).type}`)
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Preserve the actual error cause
     let finalError: LoopbrainError
     
@@ -534,6 +535,16 @@ async function executeCapacityRequest(
   })
 
   if (!requestsProject) {
+    // Get default space for system project
+    const defaultSpaceId = await getDefaultSpaceForUser(userId, workspaceId)
+    if (!defaultSpaceId) {
+      throw new LoopbrainError(
+        'BAD_REQUEST',
+        400,
+        'Cannot create Requests project: no default space found'
+      )
+    }
+
     // Create a "Requests" project
     requestsProject = await prisma.project.create({
       data: {
@@ -543,7 +554,8 @@ async function executeCapacityRequest(
         status: 'ACTIVE',
         priority: 'MEDIUM',
         isArchived: false,
-        createdById: userId, // Required field
+        createdById: userId,
+        spaceId: defaultSpaceId
       },
     })
 
@@ -764,7 +776,7 @@ async function executeOrgApproveLeave(
       action: action.action,
       denialReason: action.denialReason,
     })
-  } catch (err) {
+  } catch (err: unknown) {
     if (err instanceof LeaveRequestError) {
       const codeMap = {
         NOT_FOUND: 'BAD_REQUEST',

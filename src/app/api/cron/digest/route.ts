@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
           recipientCount: recipientEmails.length,
         })
         sent++
-      } catch (error) {
+      } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : 'Unknown error'
         errors.push(`${workspace.id}: ${msg}`)
         logger.error('[CronDigest] Failed for workspace', {
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
       errors,
       durationMs,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CronDigest] Cron job failed', { error })
     return NextResponse.json(
       {

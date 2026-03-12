@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     revalidateTag(`org:${auth.workspaceId}:audit`, "default");
 
     return NextResponse.json({ ok: true, position: updated });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error);
   }
 }

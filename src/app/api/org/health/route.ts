@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
         resolvedAt: null,
       })),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
         capturedAt: computed.snapshot.capturedAt.toISOString(),
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

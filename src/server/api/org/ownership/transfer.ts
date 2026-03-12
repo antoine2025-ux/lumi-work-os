@@ -5,11 +5,7 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { logOrgAuditEventStandalone } from "@/server/audit/orgAudit";
 import { createErrorResponse, createSuccessResponse } from "@/server/api/responses";
-
-type Body = {
-  workspaceId?: string;
-  targetMembershipId?: string;
-};
+import { TransferOwnershipSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,17 +18,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = (await req.json().catch(() => ({}))) as Body;
-    const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : null;
-    const targetMembershipId =
-      typeof body.targetMembershipId === "string" ? body.targetMembershipId : null;
-
-    if (!workspaceId || !targetMembershipId) {
-      return createErrorResponse(
-        "VALIDATION_ERROR",
-        "Missing workspaceId or targetMembershipId."
-      );
-    }
+    const body = TransferOwnershipSchema.parse(await req.json());
+    const { workspaceId, targetMembershipId } = body;
 
     await assertAccess({ 
       userId: auth.user.userId, 
@@ -100,7 +87,7 @@ export async function POST(req: NextRequest) {
     });
 
     return createSuccessResponse<Record<string, never>>({});
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("[ORG_OWNERSHIP_TRANSFER_ERROR]", err);
     return createErrorResponse(
       "INTERNAL_SERVER_ERROR",

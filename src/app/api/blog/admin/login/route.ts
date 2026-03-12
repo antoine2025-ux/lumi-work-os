@@ -4,6 +4,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
+import { BlogAdminLoginSchema } from "@/lib/validations/admin"
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,14 +20,8 @@ export async function POST(request: NextRequest) {
     })
     setWorkspaceContext(auth.workspaceId)
 
-    const { password } = await request.json()
-
-    if (!password) {
-      return NextResponse.json(
-        { error: "Password is required" },
-        { status: 400 }
-      )
-    }
+    const body = BlogAdminLoginSchema.parse(await request.json())
+    const { password } = body
 
     const adminPassword = process.env.BLOG_ADMIN_PASSWORD
 
@@ -59,7 +54,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

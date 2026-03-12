@@ -93,7 +93,7 @@ export function EditRoleCardSkillDialog({
       });
 
       onSaved();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[EditRoleCardSkillDialog] Save error:", err);
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -103,15 +103,15 @@ export function EditRoleCardSkillDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-md bg-slate-900 border-slate-800">
+      <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-slate-100">Add Skill Requirement</DialogTitle>
+          <DialogTitle className="text-foreground">Add Skill Requirement</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Skill picker */}
           <div className="space-y-2">
-            <Label className="text-slate-300">Skill</Label>
+            <Label className="text-muted-foreground">Skill</Label>
             <NormalizedSkillPicker
               value={selectedSkill}
               onSelect={handleSkillSelect}
@@ -123,11 +123,11 @@ export function EditRoleCardSkillDialog({
 
           {/* Type */}
           <div className="space-y-2">
-            <Label className="text-slate-300">Requirement Type</Label>
+            <Label className="text-muted-foreground">Requirement Type</Label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as "REQUIRED" | "PREFERRED")}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -139,11 +139,11 @@ export function EditRoleCardSkillDialog({
 
           {/* Minimum Proficiency */}
           <div className="space-y-2">
-            <Label className="text-slate-300">Minimum Proficiency</Label>
+            <Label className="text-muted-foreground">Minimum Proficiency</Label>
             <select
               value={minProficiency}
               onChange={(e) => setMinProficiency(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {PROFICIENCY_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -151,7 +151,7 @@ export function EditRoleCardSkillDialog({
                 </option>
               ))}
             </select>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Optional: Set a minimum proficiency level for this skill.
             </p>
           </div>

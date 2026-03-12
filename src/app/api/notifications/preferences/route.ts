@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     }))
 
     return NextResponse.json({ preferences: allPreferences })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }
@@ -94,7 +94,7 @@ export async function PUT(request: NextRequest) {
     clearNotificationCache(auth.user.userId, auth.workspaceId, notificationType)
 
     return NextResponse.json({ preference })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error)
   }
 }

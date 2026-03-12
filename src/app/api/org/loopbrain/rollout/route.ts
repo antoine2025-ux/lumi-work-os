@@ -5,6 +5,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { LoopbrainRolloutSchema } from "@/lib/validations/loopbrain";
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, config: cfg });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }
@@ -35,11 +36,7 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
     setWorkspaceContext(workspaceId);
 
-    const body = (await req.json()) as {
-      mode: string;
-      teamName?: string;
-      enabled: boolean;
-    };
+    const body = LoopbrainRolloutSchema.parse(await req.json());
 
     const cfg = await prisma.orgLoopBrainRollout.upsert({
       where: { workspaceId_scope: { workspaceId, scope: "people_issues" } },
@@ -69,7 +66,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, config: cfg });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

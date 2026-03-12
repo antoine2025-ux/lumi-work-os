@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       data: department,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

@@ -37,7 +37,7 @@ export async function logOrgLoopbrainQuery(
         metadata: metadata as Prisma.InputJsonValue | undefined,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     // Intentionally swallow errors – logging must never block answers.
     console.error("[OrgLoopbrainQueryLog] Failed to log Org Loopbrain query", error);
   }

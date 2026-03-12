@@ -9,15 +9,23 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['@prisma/client'],
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Force single Yjs instance to prevent dual import issue
+      // (Yjs was already imported warning + instanceof check failures)
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'yjs': require.resolve('yjs'),
+      }
+    }
+    return config
+  },
   images: {
     domains: ['localhost', 'lh3.googleusercontent.com', 'vercel.app', 'via.placeholder.com'],
     formats: ['image/webp', 'image/avif'],
     minimumCacheTTL: 60,
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-  },
-  typescript: {
-    ignoreBuildErrors: true,
   },
   // Performance optimizations
   experimental: {

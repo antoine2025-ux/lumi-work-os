@@ -101,7 +101,7 @@ export function WorkRequestListClient() {
       const data = await response.json();
       setRequests(data.requests ?? []);
       setError(null);
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);

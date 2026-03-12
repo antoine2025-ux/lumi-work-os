@@ -135,7 +135,7 @@ export async function sendSlackNotification(
 
     logger.warn('[SlackNotify] Send failed', { workspaceId, error: result.error })
     return false
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('[SlackNotify] Send error', {
       workspaceId,
       error: err instanceof Error ? err.message : String(err),

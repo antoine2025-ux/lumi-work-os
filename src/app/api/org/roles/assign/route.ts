@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     // Note: Role-gap signals will be recomputed on next refresh for accuracy
 
     return NextResponse.json({ ok: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

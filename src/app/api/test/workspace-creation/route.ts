@@ -100,7 +100,7 @@ export async function GET(_request: NextRequest) {
       }
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error testing workspace creation:', error)
     return NextResponse.json({
       success: false,
@@ -157,7 +157,7 @@ export async function POST(_request: NextRequest) {
       }
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating workspace:', error)
     return NextResponse.json({
       success: false,

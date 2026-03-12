@@ -66,7 +66,7 @@ export async function GET(
     }
 
     return NextResponse.json(person, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -200,13 +200,11 @@ export async function DELETE(
       `;
     });
 
-    console.log(`[DELETE /api/org/people/[personId]] Deleted person ${personId} by user ${userId}`);
-
     return NextResponse.json(
       { ok: true },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

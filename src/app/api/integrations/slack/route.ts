@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import {
   getSlackIntegration,
@@ -67,14 +68,8 @@ export async function GET(request: NextRequest) {
         meetingPrepReminders: false,
       },
     })
-  } catch (error) {
-    logger.error('Error fetching Slack integration:', {
-      error: error instanceof Error ? error.message : String(error)
-    })
-    return NextResponse.json(
-      { error: 'Failed to fetch Slack integration' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -105,14 +100,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Slack integration configured successfully'
     })
-  } catch (error) {
-    logger.error('Error storing Slack integration:', {
-      error: error instanceof Error ? error.message : String(error)
-    })
-    return NextResponse.json(
-      { error: 'Failed to store Slack integration' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -181,14 +170,8 @@ export async function PATCH(request: NextRequest) {
       success: true,
       message: 'Notification settings updated',
     })
-  } catch (error) {
-    logger.error('Error updating Slack notification config:', {
-      error: error instanceof Error ? error.message : String(error),
-    })
-    return NextResponse.json(
-      { error: 'Failed to update notification settings' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -219,14 +202,8 @@ export async function DELETE(request: NextRequest) {
       success: true,
       message: 'Slack integration deactivated'
     })
-  } catch (error) {
-    logger.error('Error deactivating Slack integration:', {
-      error: error instanceof Error ? error.message : String(error)
-    })
-    return NextResponse.json(
-      { error: 'Failed to deactivate Slack integration' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

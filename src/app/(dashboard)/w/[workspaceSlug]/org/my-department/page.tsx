@@ -22,7 +22,7 @@ export default async function MyDepartmentPage({ params }: PageProps) {
   if (!context) {
     return (
       <div className="p-10">
-        <p className="text-slate-500">You need to be in a workspace to view your department.</p>
+        <p className="text-muted-foreground">You need to be in a workspace to view your department.</p>
       </div>
     );
   }
@@ -63,11 +63,11 @@ export default async function MyDepartmentPage({ params }: PageProps) {
           description="Your department overview"
         />
         <div className="p-10">
-          <Card className="border-[#1e293b] bg-[#0B1220] max-w-md">
+          <Card className="border-border bg-card max-w-md">
             <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-3">
-              <Building2 className="h-10 w-10 text-slate-500" />
-              <p className="text-slate-300 font-medium">No department assigned</p>
-              <p className="text-sm text-slate-500">
+              <Building2 className="h-10 w-10 text-muted-foreground" />
+              <p className="text-muted-foreground font-medium">No department assigned</p>
+              <p className="text-sm text-muted-foreground">
                 {"You haven't been assigned to a department yet. Ask your admin to assign you."}
               </p>
             </CardContent>
@@ -91,35 +91,35 @@ export default async function MyDepartmentPage({ params }: PageProps) {
       />
       <div className="p-10 pb-10 max-w-6xl">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-slate-50">
+          <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
             <Building2 className="h-8 w-8" />
             {department.name}
           </h1>
           {department.description && (
-            <p className="text-slate-400 mt-2">{department.description}</p>
+            <p className="text-muted-foreground mt-2">{department.description}</p>
           )}
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <Card className="border-[#1e293b] bg-[#0B1220]">
+          <Card className="border-border bg-card">
             <CardHeader>
-              <CardTitle className="text-slate-50">Department Overview</CardTitle>
+              <CardTitle className="text-foreground">Department Overview</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-500">Teams</span>
-                <span className="font-medium text-slate-200">{department.teams.length}</span>
+                <span className="text-muted-foreground">Teams</span>
+                <span className="font-medium text-foreground">{department.teams.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Total members</span>
-                <span className="font-medium text-slate-200">{totalMembers}</span>
+                <span className="text-muted-foreground">Total members</span>
+                <span className="font-medium text-foreground">{totalMembers}</span>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-[#1e293b] bg-[#0B1220]">
+          <Card className="border-border bg-card">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-50">
+              <CardTitle className="flex items-center gap-2 text-foreground">
                 <Users className="h-5 w-5" />
                 Teams
               </CardTitle>
@@ -130,10 +130,10 @@ export default async function MyDepartmentPage({ params }: PageProps) {
                   <Link
                     key={team.id}
                     href={`/w/${workspaceSlug}/org/structure/teams/${team.id}`}
-                    className="block p-3 rounded-lg bg-[#020617] border border-[#1e293b] hover:bg-[#0f172a] hover:border-slate-600 transition-colors"
+                    className="block p-3 rounded-lg bg-background border border-border hover:bg-[#0f172a] hover:border-slate-600 transition-colors"
                   >
-                    <p className="font-medium text-slate-200">{team.name}</p>
-                    <p className="text-sm text-slate-500">{team._count.positions} members</p>
+                    <p className="font-medium text-foreground">{team.name}</p>
+                    <p className="text-sm text-muted-foreground">{team._count.positions} members</p>
                   </Link>
                 ))}
               </div>

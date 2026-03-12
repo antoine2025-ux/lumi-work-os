@@ -42,7 +42,7 @@ async function tryListMemberships(delegate: PrismaDelegate, workspaceId: string,
       return rows.map((r) => ({ id: String(r.id), userId: String(r.userId) }))
     }
     if (Array.isArray(rows) && rows.length === 0) return []
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn(`[membershipDelegate] Delegate ${name} attempt 1 failed:`, err)
   }
 
@@ -59,7 +59,7 @@ async function tryListMemberships(delegate: PrismaDelegate, workspaceId: string,
         .map((r) => ({ id: String(r.id), userId: String((r.user as Record<string, unknown>).id) }))
       return mapped
     }
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn(`[membershipDelegate] Delegate ${name} attempt 2 failed:`, err)
   }
 
@@ -73,7 +73,7 @@ async function tryResolveMembership(delegate: PrismaDelegate, workspaceId: strin
   try {
     const row = await delegate.findFirst({ where, select: { id: true, userId: true } })
     if (row?.id && row?.userId) return { id: String(row.id), userId: String(row.userId) }
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn(`[membershipDelegate] Delegate ${name} resolve attempt 1 failed:`, err)
   }
 
@@ -81,7 +81,7 @@ async function tryResolveMembership(delegate: PrismaDelegate, workspaceId: strin
   try {
     const row = await delegate.findFirst({ where, select: { id: true, user: { select: { id: true } } } })
     if (row?.id && (row?.user as Record<string, unknown>)?.id) return { id: String(row.id), userId: String((row.user as Record<string, unknown>).id) }
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn(`[membershipDelegate] Delegate ${name} resolve attempt 2 failed:`, err)
   }
 
@@ -95,7 +95,7 @@ export async function listWorkspaceMemberships(workspaceId: string) {
       if (!delegate) continue
       const rows = await tryListMemberships(delegate, workspaceId, name)
       if (rows !== null) return { delegateName: name, rows }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn(`[membershipDelegate] Delegate ${name} failed:`, err)
       continue
     }
@@ -110,7 +110,7 @@ export async function resolveWorkspaceMembership(workspaceId: string, personKey:
       if (!delegate) continue
       const row = await tryResolveMembership(delegate, workspaceId, personKey, name)
       if (row) return { delegateName: name, row }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn(`[membershipDelegate] Delegate ${name} resolve failed:`, err)
       continue
     }

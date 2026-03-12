@@ -92,7 +92,7 @@ export async function POST(
     
     try {
       conversionResult = convertHtmlToTipTap(htmlContent)
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('HTML conversion failed', { pageId, error: error instanceof Error ? error.message : String(error) })
       return NextResponse.json({ 
         error: 'Failed to convert HTML to JSON format',
@@ -189,7 +189,7 @@ export async function POST(
       warnings: conversionResult.warnings.length > 0 ? conversionResult.warnings : undefined
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error upgrading wiki page', { 
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined

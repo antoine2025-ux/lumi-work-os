@@ -2,40 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { GoalLevel, GoalStatus } from '@prisma/client'
 import { syncGoalContext } from '@/lib/goals/loopbrain-integration'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const CreateGoalSchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().optional(),
-  level: z.enum(['COMPANY', 'DEPARTMENT', 'TEAM', 'INDIVIDUAL']),
-  ownerId: z.string().optional(),
-  parentId: z.string().optional(),
-  period: z.enum(['QUARTERLY', 'ANNUAL', 'CUSTOM']),
-  startDate: z.string().transform(str => new Date(str)),
-  endDate: z.string().transform(str => new Date(str)),
-  quarter: z.string().optional(),
-  objectives: z.array(z.object({
-    title: z.string().min(1),
-    description: z.string().optional(),
-    weight: z.number().min(0).max(10).default(1),
-    keyResults: z.array(z.object({
-      title: z.string().min(1),
-      description: z.string().optional(),
-      metricType: z.enum(['PERCENT', 'NUMBER', 'BOOLEAN', 'CURRENCY']),
-      targetValue: z.number(),
-      unit: z.string().optional(),
-      dueDate: z.string().transform(str => new Date(str)).optional(),
-    })).optional(),
-  })).optional(),
-})
+import { CreateGoalSchema } from '@/lib/validations/goals'
 
 // ============================================================================
 // GET /api/goals - List goals with filters
@@ -104,7 +75,7 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json(goals)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -226,7 +197,7 @@ export async function POST(request: NextRequest) {
     )
 
     return NextResponse.json(goal, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

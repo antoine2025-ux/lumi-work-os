@@ -8,6 +8,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { LoopbrainOrgQnaSchema } from "@/lib/validations/loopbrain";
 
 type OrgQnaRequest = {
   question?: string;
@@ -23,20 +24,8 @@ export async function POST(request: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["MEMBER"] });
     setWorkspaceContext(workspaceId);
 
-    const body = (await request.json()) as OrgQnaRequest | null;
-
-    const questionRaw = body?.question ?? "";
-    const question = String(questionRaw).trim();
-
-    if (!question) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Missing 'question' in request body",
-        },
-        { status: 400 }
-      );
-    }
+    const body = LoopbrainOrgQnaSchema.parse(await request.json());
+    const question = body.question;
 
     // 1) Build the Org preamble (same helper as composer)
     const orgPreamble = await buildOrgSummaryPreambleForCurrentWorkspace(
@@ -74,8 +63,8 @@ export async function POST(request: NextRequest) {
       await logOrgQna({
         workspaceId,
         question,
-        location: body?.metadata?.location ?? null,
-        metadata: body?.metadata ?? null,
+        location: (body.metadata?.location as string | undefined) ?? null,
+        metadata: body.metadata ?? null,
       });
     } catch (logError) {
       // Logging failures should not affect the Q&A response
@@ -94,7 +83,7 @@ export async function POST(request: NextRequest) {
         source: "org-qna-llm",
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

@@ -32,12 +32,12 @@ export function QuickQuestionChips({ questions, className }: QuickQuestionChipsP
             "rounded-full",
             "px-3 py-1.5",
             "text-xs font-medium",
-            "bg-slate-800/50",
-            "text-slate-300",
-            "hover:bg-slate-800/70",
-            "hover:text-slate-200",
+            "bg-muted/50",
+            "text-muted-foreground",
+            "hover:bg-muted/70",
+            "hover:text-foreground",
             "transition-colors",
-            "border border-slate-700/50"
+            "border border-border/50"
           )}
         >
           {question.label}

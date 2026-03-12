@@ -39,7 +39,7 @@ export function OrgChartLoopbrainPanel({
   selectedDeptName,
 }: OrgChartLoopbrainPanelProps) {
   const { currentWorkspace, userRole } = useWorkspace()
-  const [isOpen, setIsOpen] = useState(true)
+  const [isOpen, setIsOpen] = useState(false)
 
   // Workspace-level insights (loaded once)
   const [insights, setInsights] = useState<ProactiveInsightV0[]>([])
@@ -120,7 +120,7 @@ export function OrgChartLoopbrainPanel({
       })
       responseCache.current.set(cacheKey, response)
       setCachedResponse(response)
-    } catch (err) {
+    } catch (err: unknown) {
       setQuickAskError(err instanceof Error ? err.message : "Loopbrain couldn't answer right now.")
     } finally {
       setQuickAskLoading(false)

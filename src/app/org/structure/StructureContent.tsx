@@ -44,7 +44,7 @@ async function StructureDataLoader({ context }: StructureContentProps) {
       if (topDepartmentsInsights.length === 0) {
         topDepartmentsInsights = null;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[StructurePage] Failed to load insights:", error);
       // Continue without insights
     }
@@ -59,7 +59,7 @@ async function StructureDataLoader({ context }: StructureContentProps) {
 
   return (
     <StructurePageClient
-      orgId={context.workspaceId}
+      workspaceId={context.workspaceId}
       role={context.role}
       initialTeams={structure.teams}
       initialDepartments={structure.departments}

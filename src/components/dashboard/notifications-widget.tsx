@@ -1,7 +1,6 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { Card } from "@/components/ui/card"
 import { Activity, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useWorkspace } from "@/lib/workspace-context"
@@ -69,21 +68,21 @@ export function NotificationsWidget({ className }: NotificationsWidgetProps) {
   const items = data ?? []
 
   return (
-    <Card className={cn("widget-card", className)}>
-      <div className="widget-header">
-        <div className="widget-header-start">
-          <Activity className="h-4 w-4 flex-shrink-0" aria-hidden />
-          <span className="widget-title">RECENT ACTIVITY</span>
+    <div className={cn("bg-card rounded-md border border-border flex flex-col h-full min-h-0", className)}>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-muted-foreground" aria-hidden />
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recent Activity</h3>
         </div>
-        <div className="widget-actions"></div>
+        <div className="flex items-center gap-2"></div>
       </div>
-      <div className="widget-content space-y-2 max-h-[340px] overflow-y-auto dashboard-card-scroll">
+      <div className="p-3 flex-1 space-y-2 max-h-[340px] overflow-y-auto dashboard-card-scroll">
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {[...Array(4)].map((_, i) => (
               <div
                 key={i}
-                className="flex items-center space-x-3 p-3 rounded-lg animate-pulse"
+                className="flex items-center space-x-3 p-2 rounded-md animate-pulse"
               >
                 <div className="w-4 h-4 bg-muted rounded flex-shrink-0" />
                 <div className="flex-1 space-y-2 min-w-0">
@@ -108,7 +107,7 @@ export function NotificationsWidget({ className }: NotificationsWidgetProps) {
                 </span>
               </>
             )
-            const className = "flex flex-col gap-0.5 py-2 px-3 rounded-lg hover:bg-muted transition-colors"
+            const className = "flex flex-col gap-0.5 py-2 px-2 rounded-md hover:bg-muted transition-colors"
             return item.url !== "#" ? (
               <Link key={item.id} href={`${baseHref}${item.url}`} className={className}>
                 {content}
@@ -121,6 +120,6 @@ export function NotificationsWidget({ className }: NotificationsWidgetProps) {
           })
         )}
       </div>
-    </Card>
+    </div>
   )
 }

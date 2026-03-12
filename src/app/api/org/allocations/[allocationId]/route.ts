@@ -10,13 +10,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 import type { AllocationContextType, AllocationSource } from "@prisma/client";
 import { logOrgAudit } from "@/lib/audit/org-audit";
 import { computeChanges } from "@/lib/audit/diff";
-
-const ALLOWED_CONTEXT_TYPES: AllocationContextType[] = ["TEAM", "PROJECT", "ROLE", "OTHER"];
-const ALLOWED_SOURCES: AllocationSource[] = ["MANUAL", "INTEGRATION"];
+import { UpdateAllocationSchema } from "@/lib/validations/org";
 
 export async function GET(
   request: NextRequest,
@@ -89,8 +88,7 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/allocations/[allocationId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -134,7 +132,7 @@ export async function PUT(
     }
 
     // Step 5: Parse and validate body
-    const body = await request.json();
+    const body = UpdateAllocationSchema.parse(await request.json());
     const updates: {
       allocationPercent?: number;
       contextType?: AllocationContextType;
@@ -146,24 +144,11 @@ export async function PUT(
     } = {};
 
     if (body.allocationPercent !== undefined) {
-      const percent = Number(body.allocationPercent);
-      if (isNaN(percent) || percent < 0 || percent > 1) {
-        return NextResponse.json(
-          { error: "allocationPercent must be between 0 and 1" },
-          { status: 400 }
-        );
-      }
-      updates.allocationPercent = percent;
+      updates.allocationPercent = body.allocationPercent;
     }
 
     if (body.contextType !== undefined) {
-      if (!ALLOWED_CONTEXT_TYPES.includes(body.contextType)) {
-        return NextResponse.json(
-          { error: `contextType must be one of: ${ALLOWED_CONTEXT_TYPES.join(", ")}` },
-          { status: 400 }
-        );
-      }
-      updates.contextType = body.contextType;
+      updates.contextType = body.contextType as AllocationContextType;
     }
 
     if (body.contextId !== undefined) {
@@ -175,43 +160,15 @@ export async function PUT(
     }
 
     if (body.startDate !== undefined) {
-      const date = new Date(body.startDate);
-      if (isNaN(date.getTime())) {
-        return NextResponse.json({ error: "Invalid startDate" }, { status: 400 });
-      }
-      updates.startDate = date;
+      updates.startDate = new Date(body.startDate);
     }
 
     if (body.endDate !== undefined) {
-      if (body.endDate === null) {
-        updates.endDate = null;
-      } else {
-        const date = new Date(body.endDate);
-        if (isNaN(date.getTime())) {
-          return NextResponse.json({ error: "Invalid endDate" }, { status: 400 });
-        }
-        updates.endDate = date;
-      }
+      updates.endDate = body.endDate ? new Date(body.endDate) : null;
     }
 
     if (body.source !== undefined) {
-      if (!ALLOWED_SOURCES.includes(body.source)) {
-        return NextResponse.json(
-          { error: `source must be one of: ${ALLOWED_SOURCES.join(", ")}` },
-          { status: 400 }
-        );
-      }
-      updates.source = body.source;
-    }
-
-    // Validate date ordering
-    const start = updates.startDate ?? existing.startDate;
-    const end = updates.endDate !== undefined ? updates.endDate : existing.endDate;
-    if (end && end <= start) {
-      return NextResponse.json(
-        { error: "endDate must be after startDate" },
-        { status: 400 }
-      );
+      updates.source = body.source as AllocationSource;
     }
 
     // Step 6: Update allocation
@@ -270,8 +227,7 @@ export async function PUT(
       },
     });
   } catch (error: unknown) {
-    console.error("[PUT /api/org/allocations/[allocationId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -334,7 +290,6 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
-    console.error("[DELETE /api/org/allocations/[allocationId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

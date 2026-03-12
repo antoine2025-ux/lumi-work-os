@@ -158,7 +158,7 @@ export function RoleCardForm({
       }
 
       onSuccess()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsLoading(false)
@@ -192,7 +192,7 @@ export function RoleCardForm({
                 required
                 disabled={isLoading}
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 The title of this role template
               </p>
             </div>
@@ -211,7 +211,7 @@ export function RoleCardForm({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Categorizes roles for organizational analysis
               </p>
             </div>
@@ -226,7 +226,7 @@ export function RoleCardForm({
                 required
                 disabled={isLoading}
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Seniority or career level (e.g., L3, Senior, Staff)
               </p>
             </div>
@@ -326,7 +326,7 @@ export function RoleCardForm({
                   ))}
                 </div>
               )}
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Success metrics that define performance in this role
               </p>
             </div>

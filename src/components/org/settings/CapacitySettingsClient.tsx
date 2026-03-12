@@ -65,7 +65,7 @@ export function CapacitySettingsClient() {
         underutilizedThresholdPct: String(Math.round(data.thresholds.underutilizedThresholdPct * 100)),
         defaultWeeklyHoursTarget: String(data.thresholds.defaultWeeklyHoursTarget),
       });
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
@@ -107,7 +107,7 @@ export function CapacitySettingsClient() {
 
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setSaving(false);

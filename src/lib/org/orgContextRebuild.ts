@@ -31,7 +31,7 @@ export async function safeRebuildOrgContext(workspaceId: string): Promise<void> 
 
   try {
     await rebuildOrgContextForWorkspace(workspaceId);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[OrgContext] Failed to rebuild Org context for workspace", {
       workspaceId,
       error,

@@ -25,7 +25,7 @@ export async function getProfileOverride(args: { workspaceId: string; userId: st
     return await model.findUnique({
       where: { workspaceId_userId: { workspaceId, userId } },
     })
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn("[profileOverrides] getProfileOverride failed:", err)
     return null
   }
@@ -71,7 +71,7 @@ export async function upsertProfileOverride(args: {
         notes: data.notes ?? null,
       },
     })
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("[profileOverrides] upsertProfileOverride failed:", err)
     throw err
   }

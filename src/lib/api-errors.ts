@@ -8,9 +8,11 @@
  * - Request ID tracking
  * - Secret sanitization
  * - Structured server-side logging
+ * - Sentry error capture for 500-level errors
  */
 
 import { logger } from '@/lib/logger'
+import * as Sentry from '@sentry/nextjs'
 
 /**
  * API Error codes
@@ -371,7 +373,7 @@ export function formatErrorResponse(error: ApiError, includeDetails: boolean = f
  * ```typescript
  * try {
  *   // ... route logic
- * } catch (error) {
+ * } catch (error: unknown) {
  *   return handleApiError(error, request)
  * }
  * ```
@@ -401,6 +403,20 @@ export function handleApiError(
     requestId: apiError.requestId,
     route,
   }, apiError.cause ?? apiError)
+
+  // Capture 500-level errors in Sentry (skip expected client errors)
+  if (apiError.status >= 500) {
+    Sentry.captureException(apiError.cause ?? apiError, {
+      tags: {
+        errorCode: apiError.code,
+        route,
+      },
+      extra: {
+        requestId: apiError.requestId,
+        details: apiError.details,
+      },
+    })
+  }
 
   return Response.json(response, { status: apiError.status })
 }

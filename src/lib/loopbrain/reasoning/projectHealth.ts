@@ -257,7 +257,7 @@ export async function buildProjectHealthSnapshot(
     });
 
     return snapshot;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[ProjectHealth] Failed to build snapshot", {
       workspaceId,
       projectId,
@@ -755,7 +755,7 @@ export async function buildMultipleProjectHealthSnapshots(
         options
       );
       snapshots.push(snapshot);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("[ProjectHealth] Failed to build snapshot for project", {
         workspaceId,
         projectId,

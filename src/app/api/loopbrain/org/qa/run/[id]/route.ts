@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateOrgQaQuestionsForWorkspace } from "@/lib/org/qa/evaluator";
+import { handleApiError } from "@/lib/api-errors";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 
 function isDevToolsEnabled() {
@@ -60,25 +61,7 @@ export async function POST(
       new URL("/org/dev/loopbrain-status", req.nextUrl),
       303,
     );
-  } catch (error) {
-    console.error("Org QA run route error:", error);
-
-    const acceptHeader = req.headers.get("accept") ?? "";
-
-    if (acceptHeader.includes("application/json")) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Failed to run Org QA question",
-        },
-        { status: 500 },
-      );
-    }
-
-    // Redirect even on error for form submissions
-    return NextResponse.redirect(
-      new URL("/org/dev/loopbrain-status", req.nextUrl),
-      303,
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, req);
   }
 }

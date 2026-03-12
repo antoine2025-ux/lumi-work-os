@@ -60,7 +60,7 @@ export async function handleEntityChange(
       entityType,
       entityId,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("[LoopbrainEventListener] Failed to handle entity change", {
       workspaceId,
       entityType,

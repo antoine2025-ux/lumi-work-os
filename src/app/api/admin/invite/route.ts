@@ -6,6 +6,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
 import { handleApiError } from '@/lib/api-errors'
+import { AdminInviteUserSchema } from '@/lib/validations/admin'
 
 // POST /api/admin/invite - Invite a user via Supabase Auth
 export async function POST(request: NextRequest) {
@@ -23,26 +24,8 @@ export async function POST(request: NextRequest) {
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
-    const body = await request.json()
-    const { 
-      email,
-      role = 'MEMBER',
-      redirectTo
-    } = body
-
-    if (!email) {
-      return NextResponse.json({ 
-        error: 'Email is required' 
-      }, { status: 400 })
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ 
-        error: 'Invalid email format' 
-      }, { status: 400 })
-    }
+    const body = AdminInviteUserSchema.parse(await request.json())
+    const { email, role, redirectTo } = body
 
     // Check if user already exists in our database
     const existingUser = await prisma.user.findUnique({
@@ -121,11 +104,12 @@ export async function POST(request: NextRequest) {
     let supabaseAdmin
     try {
       supabaseAdmin = getSupabaseAdmin()
-    } catch (adminError: any) {
-      console.error('Failed to initialize Supabase admin client:', adminError.message)
+    } catch (adminError: unknown) {
+      const message = adminError instanceof Error ? adminError.message : 'Unknown error'
+      console.error('Failed to initialize Supabase admin client:', message)
       return NextResponse.json({ 
         error: 'Supabase admin not configured',
-        details: adminError.message
+        details: message
       }, { status: 500 })
     }
 
@@ -248,7 +232,7 @@ export async function POST(request: NextRequest) {
         invited: true
       })
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

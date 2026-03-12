@@ -211,7 +211,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
 
       // Redirect to the new workspace
       router.push(`/wiki/workspace/${newWorkspace.id}`)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating workspace:', error)
       setError(error instanceof Error ? error.message : 'Failed to create workspace')
     } finally {
@@ -254,7 +254,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
       if (pathname.includes(`/wiki/workspace/${workspaceIdToDelete}`)) {
         router.push('/wiki/personal-space')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting workspace:', error)
       alert(error instanceof Error ? error.message : 'Failed to delete workspace. Please try again.')
     }
@@ -287,19 +287,15 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
         setRecentPages(recentData)
       }
 
-      // Redirect to the appropriate workspace
+      // Redirect to the space that contained the page
       if (workspaceType === 'personal' || workspaceType === 'personal-space') {
-        router.push('/wiki/personal-space')
-      } else if (workspaceType === 'team' || workspaceType === 'team-workspace') {
-        router.push('/wiki/team-workspace')
-      } else if (workspaceType && workspaceType !== 'team' && workspaceType !== 'personal') {
-        // Custom workspace
-        router.push(`/wiki/workspace/${workspaceType}`)
+        router.push('/spaces/home')
+      } else if (workspaceType === 'team' || workspaceType === 'team-workspace' || workspaceType?.startsWith('wiki-')) {
+        router.push('/wiki/home')
       } else {
-        // Default to home
-        router.push('/wiki')
+        router.push('/spaces/home')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting page:', error)
       alert('Failed to delete page. Please try again.')
     }
@@ -448,7 +444,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
         const recentData = await recentResponse.json()
         setRecentPages(recentData)
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error creating page from template:', err)
       setError(err instanceof Error ? err.message : 'Failed to create page')
     } finally {
@@ -494,7 +490,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
       )
       window.dispatchEvent(new CustomEvent('workspacePagesRefreshed'))
       window.dispatchEvent(new CustomEvent('pageCreated'))
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error saving page:', err)
       setError(err instanceof Error ? err.message : 'Failed to save')
       throw err
@@ -533,7 +529,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error toggling favorite:', error)
     }
   }
@@ -590,7 +586,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
         // If no workspace selected, determine from current path
         if (pathname.includes('/wiki/personal-space')) {
           workspaceType = 'personal'
-        } else if (pathname.includes('/wiki/team-workspace')) {
+        } else if (pathname.includes('/wiki/home')) {
           workspaceType = 'team'
         } else if (pathname.includes('/wiki/workspace/')) {
           // Extract workspace ID from pathname for custom workspaces
@@ -661,7 +657,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', `/wiki/${newPage.slug}?edit=true`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating page:', error)
       setError(error instanceof Error ? error.message : 'Failed to create page. Please try again.')
     } finally {
@@ -726,7 +722,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
           // Don't fail completely - just log the error and continue with empty counts
           setPageCounts({})
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading workspaces:', error)
       }
     }
@@ -758,7 +754,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
           // Don't fail completely - just log the error and continue with empty counts
           setPageCounts({})
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading global wiki data:', error)
       }
     }
@@ -797,7 +793,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
             : (projectsResult.projects || [])
           setProjects(Array.isArray(projectsData) ? projectsData : [])
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading wiki data:', error)
       } finally {
         setIsLoading(false)
@@ -832,7 +828,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
           const favoritesData = await response.json()
           setFavoritePages(favoritesData)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error refreshing favorites:', error)
       }
     }
@@ -991,10 +987,10 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
       )}>
         {showLayoutEditor ? (
           /* Minimalistic Page Editor */
-          <div className="h-full bg-background min-h-screen w-full min-w-0 relative">
+          <div className="group h-full bg-background min-h-screen w-full min-w-0 relative">
             {/* Floating Vertical Sidebar - Right Side */}
             <div className={cn(
-              "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-500 ease-in-out",
+              "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-300 ease-in-out opacity-0 group-hover:opacity-100",
               isAISidebarOpen && aiDisplayMode === 'floating' 
                 ? "right-[540px]" // Slide left when AI chat is open in floating mode (500px width + 40px gap)
                 : isAISidebarOpen && aiDisplayMode === 'sidebar'
@@ -1011,7 +1007,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
                   }
                 }}
                 disabled={isSaving || !newPageTitle.trim()}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10 rounded-full flex items-center justify-center p-0"
+                className="h-8 w-8 rounded-full flex items-center justify-center p-0 bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 title={isSaving ? 'Saving...' : 'Save'}
               >
                 {isSaving ? (
@@ -1023,34 +1019,34 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" 
+                className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" 
                 title={activeEditorPage ? 'Close' : 'Cancel'}
                 onClick={() => activeEditorPage ? handleCloseLayoutEditor() : handleCancelCreate()}
               >
                 <X className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Share">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="Share">
                 <Share2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Favorite">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="Favorite">
                 <Star className="h-4 w-4" />
               </Button>
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" 
+                className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" 
                 title="View"
                 onClick={() => activeEditorPage && handleCloseLayoutEditor()}
               >
                 <Eye className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Comments">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="Comments">
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="AI Assistant">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="AI Assistant">
                 <Brain className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="More options">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="More options">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </div>
@@ -1231,7 +1227,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
                   
                   // Navigate to the new blank draft page with AI assistant open
                   router.push(`/wiki/${newPage.slug}?edit=true&ai=open`)
-                } catch (error) {
+                } catch (error: unknown) {
                   console.error('Error creating page:', error)
                   throw error
                 } finally {

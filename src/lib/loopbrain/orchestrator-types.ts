@@ -169,6 +169,18 @@ export interface LoopbrainSuggestion {
 }
 
 /**
+ * Client-side action triggered by Loopbrain after a response.
+ * 'navigate' = soft router.push (preferred for internal routes)
+ * 'redirect' = full page load via window.location.href (external or hard reset)
+ */
+export interface LoopbrainClientAction {
+  type: 'redirect' | 'navigate'
+  url: string
+  /** Optional display text shown before navigation, e.g. "Opening Q2 Marketing Strategy..." */
+  label?: string
+}
+
+/**
  * Loopbrain response
  */
 export interface LoopbrainResponse {
@@ -217,6 +229,8 @@ export interface LoopbrainResponse {
   dailyBriefing?: DailyBriefing
   /** Meeting prep brief (for MeetingPrepBrief UI) */
   meetingPrep?: MeetingPrepBrief
+  /** Client-side navigation action to execute after rendering the response */
+  clientAction?: LoopbrainClientAction
   /** Optional metadata (model, tokens, etc.) */
   metadata?: {
     model?: string

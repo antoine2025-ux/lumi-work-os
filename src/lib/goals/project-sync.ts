@@ -131,8 +131,6 @@ export async function syncProjectToGoals(
   projectId: string,
   updatedById: string
 ): Promise<SyncResult[]> {
-  console.log(`[GoalSync] Starting sync for project ${projectId}`)
-  
   const links = await prisma.projectGoalLink.findMany({
     where: {
       projectId,
@@ -150,15 +148,11 @@ export async function syncProjectToGoals(
     },
   })
 
-  console.log(`[GoalSync] Found ${links.length} goals with autoUpdate enabled`)
-
   const results: SyncResult[] = []
 
   for (const link of links) {
     const contribution = await calculateProjectContribution(link.id)
     if (!contribution) continue
-
-    console.log(`[GoalSync] Goal "${link.goal.title}": actualImpact=${contribution.actualImpact}%`)
 
     // Update the actual impact on the link
     await prisma.projectGoalLink.update({
@@ -179,8 +173,6 @@ export async function syncProjectToGoals(
     })
 
     const newProgress = updatedGoal?.progress ?? previousProgress
-
-    console.log(`[GoalSync] Goal "${link.goal.title}" updated: ${previousProgress}% → ${newProgress}%`)
 
     // Create audit trail
     if (Math.abs(newProgress - previousProgress) > 0.01) {
@@ -206,7 +198,6 @@ export async function syncProjectToGoals(
     })
   }
 
-  console.log(`[GoalSync] Sync complete. Updated ${results.filter(r => r.updated).length} of ${results.length} goals`)
   return results
 }
 

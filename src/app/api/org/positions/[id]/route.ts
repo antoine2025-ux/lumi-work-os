@@ -13,6 +13,7 @@ import { safeRebuildOrgContext } from '@/lib/org/org-context-service'
 import { handleApiError } from '@/lib/api-errors'
 import { logOrgAudit } from '@/lib/audit/org-audit'
 import { computeChanges } from '@/lib/audit/diff'
+import { UpdatePositionSchema } from '@/lib/validations/org'
 
 // GET /api/org/positions/[id] - Get a specific org position
 export async function GET(
@@ -97,7 +98,7 @@ export async function GET(
     }
 
     return NextResponse.json(position)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -120,7 +121,7 @@ export async function PUT(
 
     setWorkspaceContext(auth.workspaceId)
 
-    const body = await request.json()
+    const body = UpdatePositionSchema.parse(await request.json())
     const { 
       title, 
       teamId,
@@ -313,7 +314,7 @@ export async function PUT(
     void safeRebuildOrgContext(auth.workspaceId);
 
     return NextResponse.json(position)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -440,7 +441,7 @@ export async function DELETE(
     void safeRebuildOrgContext(auth.workspaceId);
 
     return NextResponse.json({ message: 'Position deleted successfully' })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

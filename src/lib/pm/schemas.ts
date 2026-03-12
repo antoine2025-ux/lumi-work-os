@@ -26,6 +26,7 @@ export const ProjectTemplateDataSchema = z.object({
 export const ProjectCreateSchema = z.object({
   workspaceId: z.string().min(1, 'Workspace ID is required'),
   name: z.string().min(1, 'Project name is required').max(255, 'Project name too long'),
+  excerpt: z.string().max(300).optional(),
   description: z.string().optional(),
   status: z.enum(['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED']).default('ACTIVE'),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'),
@@ -69,6 +70,7 @@ export const ProjectCreateSchema = z.object({
 
 export const ProjectUpdateSchema = z.object({
   name: z.string().min(1, 'Project name is required').max(255, 'Project name too long').optional(),
+  excerpt: z.string().max(300).optional(),
   description: z.string().optional(),
   status: z.enum(['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
@@ -336,6 +338,43 @@ export const AssignTaskToMilestoneSchema = z.object({
 
 export const UpdateTaskPointsSchema = z.object({
   points: z.number().int().min(0).max(100).optional()
+})
+
+// Project Template schemas
+export const ProjectTemplateCreateSchema = z.object({
+  name: z.string().min(1).max(255),
+  description: z.string().optional(),
+  category: z.string().min(1),
+  isDefault: z.boolean().optional().default(false),
+  isPublic: z.boolean().optional().default(true),
+  templateData: z.record(z.string(), z.unknown()),
+})
+
+export const ProjectTemplateUpdateSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().optional(),
+  category: z.string().optional(),
+  isDefault: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
+  templateData: z.record(z.string(), z.unknown()).optional(),
+})
+
+export const ProjectTemplateApplySchema = z.object({
+  projectName: z.string().min(1).max(255),
+  projectDescription: z.string().optional(),
+})
+
+// Project Space Member schemas
+export const ProjectSpaceMemberAddSchema = z.object({
+  userId: z.string().min(1),
+  role: z.enum(['VIEWER', 'MEMBER', 'ADMIN']).optional().default('MEMBER'),
+})
+
+// Project Documentation schemas
+export const ProjectDocumentationUpdateSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  description: z.string().optional(),
+  url: z.string().url().optional(),
 })
 
 // Type exports

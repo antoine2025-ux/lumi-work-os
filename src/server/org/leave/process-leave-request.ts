@@ -65,6 +65,14 @@ export async function processLeaveRequest(input: {
     throw new LeaveRequestError('NOT_PENDING', 'Leave request is no longer pending')
   }
 
+  // Guard against self-approval
+  if (leaveRequest.personId === actorUserId) {
+    throw new LeaveRequestError(
+      'ACCESS_DENIED',
+      'You cannot approve your own leave request'
+    )
+  }
+
   const [permissions, isTeamLeadOfPerson] = await Promise.all([
     getProfilePermissions(actorUserId, leaveRequest.personId, workspaceId),
     prisma.orgTeam.findFirst({

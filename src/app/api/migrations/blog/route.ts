@@ -46,8 +46,6 @@ export async function POST(request: NextRequest) {
     })
     setWorkspaceContext(auth.workspaceId)
 
-    console.log("[MIGRATIONS] Starting blog migration...")
-
     // Check if table already exists
     const tableExists = await prisma.$queryRaw<Array<{ exists: boolean }>>`
       SELECT EXISTS (
@@ -106,13 +104,11 @@ export async function POST(request: NextRequest) {
       CREATE INDEX IF NOT EXISTS "blog_posts_publishedAt_idx" ON "blog_posts"("publishedAt" DESC);
     `
 
-    console.log("[MIGRATIONS] Blog migration completed successfully")
-
     return NextResponse.json({
       success: true,
       message: "Blog migration completed successfully",
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   } finally {
     await prisma.$disconnect()
@@ -136,7 +132,7 @@ export async function GET() {
       migrated: tableExists[0]?.exists || false,
       tableExists: tableExists[0]?.exists || false,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[MIGRATIONS] Error checking blog migration:", error)
     const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json(

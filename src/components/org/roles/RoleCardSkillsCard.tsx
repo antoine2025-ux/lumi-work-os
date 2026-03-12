@@ -40,11 +40,11 @@ function SkillItem({
   isDeleting: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg bg-slate-800/50 px-3 py-2 group">
+    <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 group">
       <div className="flex items-center gap-2 min-w-0">
-        <span className="text-sm text-slate-100 truncate">{skill.skill.name}</span>
+        <span className="text-sm text-foreground truncate">{skill.skill.name}</span>
         {skill.skill.category && (
-          <span className="text-xs text-slate-500">{skill.skill.category}</span>
+          <span className="text-xs text-muted-foreground">{skill.skill.category}</span>
         )}
         {skill.minProficiency && (
           <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-400">
@@ -56,7 +56,7 @@ function SkillItem({
       {canEdit && (
         <button
           type="button"
-          className="p-1 text-slate-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="p-1 text-muted-foreground hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={onRemove}
           disabled={isDeleting}
           title="Remove"
@@ -86,7 +86,7 @@ export function RoleCardSkillsCard({ roleCardId, canEdit = false }: RoleCardSkil
       } else {
         setError("Failed to load skills");
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[RoleCardSkillsCard] Error:", err);
       setError("Failed to load skills");
     } finally {
@@ -105,7 +105,7 @@ export function RoleCardSkillsCard({ roleCardId, canEdit = false }: RoleCardSkil
     try {
       await OrgApi.removeRoleCardSkill(roleCardId, roleCardSkillId);
       setSkills((prev) => prev.filter((s) => s.id !== roleCardSkillId));
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[RoleCardSkillsCard] Remove error:", err);
     } finally {
       setDeletingId(null);
@@ -122,15 +122,15 @@ export function RoleCardSkillsCard({ roleCardId, canEdit = false }: RoleCardSkil
   const existingSkillIds = skills.map((s) => s.skillId);
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+    <div className="rounded-xl border border-border bg-card/50 p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-slate-200">Skills</h3>
+        <h3 className="text-sm font-medium text-foreground">Skills</h3>
         {canEdit && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setDialogOpen(true)}
-            className="text-xs text-slate-400 hover:text-slate-200"
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
             <Plus className="h-3 w-3 mr-1" />
             Add skill
@@ -139,7 +139,7 @@ export function RoleCardSkillsCard({ roleCardId, canEdit = false }: RoleCardSkil
       </div>
 
       {isLoading && (
-        <div className="py-4 text-center text-sm text-slate-500">Loading...</div>
+        <div className="py-4 text-center text-sm text-muted-foreground">Loading...</div>
       )}
 
       {error && (
@@ -147,7 +147,7 @@ export function RoleCardSkillsCard({ roleCardId, canEdit = false }: RoleCardSkil
       )}
 
       {!isLoading && !error && skills.length === 0 && (
-        <div className="py-4 text-center text-sm text-slate-500">
+        <div className="py-4 text-center text-sm text-muted-foreground">
           No skills defined
         </div>
       )}
@@ -157,7 +157,7 @@ export function RoleCardSkillsCard({ roleCardId, canEdit = false }: RoleCardSkil
           {/* Required Skills */}
           {requiredSkills.length > 0 && (
             <div>
-              <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                 Required
               </h4>
               <div className="space-y-1">
@@ -177,7 +177,7 @@ export function RoleCardSkillsCard({ roleCardId, canEdit = false }: RoleCardSkil
           {/* Preferred Skills */}
           {preferredSkills.length > 0 && (
             <div>
-              <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                 Preferred
               </h4>
               <div className="space-y-1">

@@ -252,7 +252,7 @@ export async function PATCH(
         departmentId: updatedTeam.departmentId,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

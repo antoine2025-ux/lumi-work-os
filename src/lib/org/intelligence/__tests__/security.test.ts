@@ -75,7 +75,7 @@ describe("Security: unauthenticated requests", () => {
           return { status: 401, body: { ok: false, error: { code: "UNAUTHORIZED" } } };
         }
         return { status: 200, body: { ok: true } };
-      } catch (error) {
+      } catch (error: unknown) {
         if (error instanceof AuthenticationError) {
           return { status: 401, body: { ok: false, error: { code: "UNAUTHORIZED" } } };
         }
@@ -135,7 +135,7 @@ describe("Security: unauthorized workspace access", () => {
         await mockAssertAccess({ workspaceId: session.workspaceId, userId: session.user.id });
 
         return { status: 200, body: { ok: true } };
-      } catch (error) {
+      } catch (error: unknown) {
         if (error instanceof AuthenticationError) {
           return { status: 401, body: { ok: false, error: { code: "UNAUTHORIZED" } } };
         }
@@ -171,7 +171,7 @@ describe("Security: unauthorized workspace access", () => {
         await mockAssertAccess({ workspaceId: requestedWorkspaceId, userId: session.user.id });
 
         return { status: 200, body: { ok: true } };
-      } catch (error) {
+      } catch (error: unknown) {
         if (error instanceof AuthenticationError) {
           return { status: 401, body: { ok: false, error: { code: "UNAUTHORIZED" } } };
         }
@@ -225,7 +225,7 @@ async function simulateRouteWithAuth() {
     await mockAssertAccess({ workspaceId: session.workspaceId, userId: session.user.id });
 
     return { status: 200, body: { ok: true } };
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof AuthenticationError) {
       return { status: 401, body: { ok: false, error: { code: "UNAUTHORIZED" } } };
     }

@@ -1,9 +1,8 @@
 /**
- * DELETE /api/org/structure/departments/[departmentId]
- * Hard delete a department.
- * 
- * Requires OWNER/ADMIN role.
- * Strict auth pattern: getUnifiedAuth → assertAccess → setWorkspaceContext → Prisma
+ * PUT    /api/org/structure/departments/[departmentId] — Update a department (ADMIN)
+ * DELETE /api/org/structure/departments/[departmentId] — Hard delete a department (ADMIN)
+ *
+ * Auth pattern: getUnifiedAuth → assertAccess → setWorkspaceContext → Prisma
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -11,8 +10,61 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
-import { handleApiError } from "@/lib/api-errors"
-import { logOrgAudit } from "@/lib/audit/org-audit"
+import { handleApiError } from "@/lib/api-errors";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { UpdateDepartmentSchema } from "@/lib/validations/org";
+
+export async function PUT(
+  request: NextRequest,
+  ctx: { params: Promise<{ departmentId: string }> }
+) {
+  try {
+    const auth = await getUnifiedAuth(request);
+    const userId = auth?.user?.userId;
+    const workspaceId = auth?.workspaceId;
+
+    if (!userId || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await assertAccess({ userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    setWorkspaceContext(workspaceId);
+
+    const { departmentId } = await ctx.params;
+    const body = UpdateDepartmentSchema.parse(await request.json());
+    const { name, description, ownerPersonId, color } = body;
+
+    const department = await prisma.orgDepartment.findFirst({
+      where: { id: departmentId, workspaceId },
+    });
+    if (!department) {
+      return NextResponse.json({ error: "Department not found" }, { status: 404 });
+    }
+
+    const updated = await prisma.orgDepartment.update({
+      where: { id: departmentId },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description: description || null }),
+        ...(ownerPersonId !== undefined && { ownerPersonId: ownerPersonId || null }),
+        ...(color !== undefined && { color: color || null }),
+      },
+    });
+
+    logOrgAudit({
+      workspaceId,
+      entityType: "DEPARTMENT",
+      entityId: departmentId,
+      entityName: updated.name,
+      action: "UPDATED",
+      actorId: userId,
+    }).catch(() => {});
+
+    return NextResponse.json({ ok: true, department: updated });
+  } catch (error: unknown) {
+    return handleApiError(error, request);
+  }
+}
 
 export async function DELETE(
   request: NextRequest,
@@ -120,13 +172,11 @@ export async function DELETE(
       actorId: userId,
     }).catch((e) => console.error("[DELETE /api/org/structure/departments/[departmentId]] Audit error:", e));
 
-    console.log(`[DELETE /api/org/structure/departments/[departmentId]] Deleted department ${departmentId} by user ${userId}`);
-
     return NextResponse.json(
       { ok: true },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

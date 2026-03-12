@@ -72,7 +72,7 @@ async function OverviewDataLoader({ context }: OrgOverviewContentProps) {
       <div className="px-10 pb-10">
         {/* Health summary with derived signals - always show */}
         <div className="mt-4">
-          <OrgHealthSummary orgId={context.workspaceId} />
+          <OrgHealthSummary workspaceId={context.workspaceId} />
         </div>
 
         {/* Primary CTA: Complete setup (only if incomplete) */}

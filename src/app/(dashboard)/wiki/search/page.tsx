@@ -115,7 +115,7 @@ export default function WikiSearchPage() {
       })
 
       setResults(transformedResults)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Search error:', error)
       setResults([])
     } finally {

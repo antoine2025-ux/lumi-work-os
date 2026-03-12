@@ -103,7 +103,7 @@ export function SetAuthorityDrawer({
       } else {
         resetForm();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to fetch authority:", err);
     }
   };
@@ -121,7 +121,7 @@ export function SetAuthorityDrawer({
           name: p.name || p.email || p.id,
         }))
       );
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to fetch people:", err);
     } finally {
       setLoadingPeople(false);
@@ -190,7 +190,7 @@ export function SetAuthorityDrawer({
       }
 
       onSuccess?.();
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);

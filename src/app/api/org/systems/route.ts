@@ -4,6 +4,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
+import { CreateSystemSchema } from "@/lib/validations/org"
 
 export async function GET(req: NextRequest) {
   try {
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" } as any,
     })
     return NextResponse.json({ systems })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }
@@ -47,16 +48,15 @@ export async function POST(req: NextRequest) {
     setWorkspaceContext(auth.workspaceId)
 
     const workspaceId = auth.workspaceId
-    const body = (await req.json()) as { name?: string; description?: string }
-    const name = String(body?.name ?? "").trim()
-    if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 })
+    const body = CreateSystemSchema.parse(await req.json())
+    const name = body.name
 
     const created = await prisma.systemEntity.create({
-      data: { workspaceId, name, description: body?.description ?? null },
+      data: { workspaceId, name, description: body.description ?? null },
       select: { id: true } as any,
     })
     return NextResponse.json({ ok: true, id: created.id })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }
@@ -89,7 +89,7 @@ export async function PATCH(req: NextRequest) {
     })
 
     return NextResponse.json({ ok: true })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

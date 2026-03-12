@@ -48,9 +48,9 @@ export async function GET(request: NextRequest) {
     const cacheKey = `wiki_pages_${auth.workspaceId}_${auth.user.userId}_${pagination.page || 1}_${pagination.limit || 10}_${pagination.sortBy || 'order'}_${pagination.sortOrder || 'asc'}`
     const cachePromise = cache.get(cacheKey)
     const raceTimeout = 200 // Increased from 50ms to allow slower Redis responses
-    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), raceTimeout))
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), raceTimeout))
     
-    const cached = await Promise.race([cachePromise, timeoutPromise]) as any
+    const cached = await Promise.race([cachePromise, timeoutPromise])
     
     if (cached) {
       logger.debug('Returning cached wiki pages', { workspaceId: auth.workspaceId, ...pagination })
@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.json(result)
     response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120')
     return response
-  } catch (error) {
+  } catch (error: unknown) {
     const totalDurationMs = performance.now() - startTime
     logger.error('Error fetching wiki pages', {
       route,
@@ -385,7 +385,7 @@ export async function POST(request: NextRequest) {
     await cache.invalidatePattern(`wiki_pages_${auth.workspaceId}_*`)
 
     return NextResponse.json(page, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     const err = error instanceof Error ? error : error
     const message = err instanceof Error ? err.message : String(err)
     const name = err instanceof Error ? err.name : 'Error'

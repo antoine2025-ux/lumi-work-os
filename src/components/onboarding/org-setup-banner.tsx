@@ -44,7 +44,7 @@ export function OrgSetupBanner({ workspaceSlug }: OrgSetupBannerProps) {
         if (stateData.onboardingState && !stateData.onboardingState.orgStructure) {
           setShowBanner(true)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to check onboarding state', error)
       }
     }

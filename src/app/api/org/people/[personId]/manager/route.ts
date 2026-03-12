@@ -136,7 +136,7 @@ export async function PUT(
         entity: { type: "person", id: updated.id },
         payload: { managerId },
       });
-    } catch (loopbrainError: any) {
+    } catch (loopbrainError: unknown) {
       console.error("[PUT /api/org/people/[personId]/manager] Loopbrain error (non-fatal):", loopbrainError);
     }
 
@@ -167,7 +167,7 @@ export async function PUT(
     };
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request);
   }
 }

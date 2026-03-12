@@ -59,7 +59,7 @@ function loadStateFromStorage(): Partial<AssistantState> {
       }
       return parsed
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error loading assistant state from storage:', error)
   }
   return {}
@@ -83,7 +83,7 @@ function saveStateToStorage(state: AssistantState) {
       // Clear storage if no messages
       sessionStorage.removeItem(STORAGE_KEY)
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error saving assistant state to storage:', error)
   }
 }

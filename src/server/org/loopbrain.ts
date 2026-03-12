@@ -72,7 +72,7 @@ export async function emitOrgContextObject(input: OrgContextObjectInput): Promis
         workspaceId: input.workspaceId,
         contextItemId: saved.id,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       // Log but don't fail - indexing is non-blocking
       console.error("[emitOrgContextObject] Failed to trigger indexing:", error);
     }

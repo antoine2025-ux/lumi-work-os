@@ -62,7 +62,7 @@ export function registerOrgContextNightlyJob() {
           console.log(
             `[OrgContext] Successfully rebuilt org context for workspace ${ws.id} (${ws.name})`
           );
-        } catch (error) {
+        } catch (error: unknown) {
           failureCount++;
           console.error(
             "[OrgContext] Failed to rebuild org context for workspace",
@@ -78,7 +78,7 @@ export function registerOrgContextNightlyJob() {
       console.log(
         `[OrgContext] Nightly org context rebuild completed: ${successCount} succeeded, ${failureCount} failed`
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(
         "[OrgContext] Nightly org context rebuild failed at root level",
         {

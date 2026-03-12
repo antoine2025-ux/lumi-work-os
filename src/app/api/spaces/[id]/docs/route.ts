@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const docs = await getTeamDocs(spaceId)
     return NextResponse.json(docs)
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { sendInteractiveSlackMessage, SlackBlockBuilder } from '@/lib/integrations/slack-interactive'
 import { getSlackIntegration } from '@/lib/integrations/slack-service'
 import { addHours } from 'date-fns'
@@ -163,19 +164,8 @@ export async function POST(request: NextRequest) {
         '5. Status should change from AWAITING_RESPONSE to COMPLETED',
       ],
     })
-  } catch (error) {
-    logger.error('[Slack Test] Error sending test message', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    })
-
-    return NextResponse.json(
-      {
-        error: 'Failed to send test message',
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -227,10 +217,7 @@ export async function GET(request: NextRequest) {
         },
       },
     })
-  } catch (_error) {
-    return NextResponse.json(
-      { error: 'Failed to get Slack status' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

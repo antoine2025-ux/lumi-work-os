@@ -157,7 +157,7 @@ async function loadTasksDueToday(
       dueDate: t.dueDate?.toISOString() ?? "",
       projectName: t.project?.name ?? null,
     }));
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[briefing-data] Failed to load tasks due today", { err });
     return [];
   }
@@ -194,7 +194,7 @@ async function loadOverdueTasks(
       dueDate: t.dueDate?.toISOString() ?? "",
       projectName: t.project?.name ?? null,
     }));
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[briefing-data] Failed to load overdue tasks", { err });
     return [];
   }
@@ -238,7 +238,7 @@ async function loadRecentChanges(
         timestamp: a.createdAt.toISOString(),
       };
     });
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[briefing-data] Failed to load recent changes", { err });
     return [];
   }
@@ -272,7 +272,7 @@ async function loadCalendarEventsForBriefing(
       endTime: e.endTime.toISOString(),
       attendees: [],
     }));
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[briefing-data] Failed to load calendar events", { err });
     return [];
   }
@@ -315,7 +315,7 @@ async function loadHealthAlerts(
           title: i.title,
         };
       });
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[briefing-data] Failed to load health alerts", { err });
     return [];
   }
@@ -345,7 +345,7 @@ async function loadActiveInsights(
       category: i.category,
       severity: i.priority,
     }));
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[briefing-data] Failed to load active insights", { err });
     return [];
   }
@@ -367,7 +367,7 @@ async function loadRecentEmailsForBriefing(
       date: t.date.toISOString(),
       snippet: t.snippet || t.bodyPreview.slice(0, 200),
     }));
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[briefing-data] Failed to load recent emails", { err });
     return [];
   }
@@ -409,7 +409,7 @@ async function loadSlackHighlightsForBriefing(
     return highlights
       .sort((a, b) => b.messageCount - a.messageCount)
       .slice(0, 5);
-  } catch (err) {
+  } catch (err: unknown) {
     logger.warn("[briefing-data] Failed to load Slack highlights", { err });
     return [];
   }

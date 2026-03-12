@@ -14,6 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { handleApiError } from "@/lib/api-errors";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
@@ -110,7 +111,6 @@ export async function GET(request: NextRequest) {
       responseMeta: getCapacityResponseMeta(),
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/capacity/effective] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

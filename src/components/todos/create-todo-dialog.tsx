@@ -123,7 +123,7 @@ export function CreateTodoDialog({
         const data = await response.json()
         setMembers(data.members || [])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to load members:', error)
     } finally {
       setLoadingMembers(false)
@@ -141,7 +141,7 @@ export function CreateTodoDialog({
         // API returns { projects: Project[] }
         setProjects(data.projects || [])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to load projects:', error)
     } finally {
       setLoadingProjects(false)
@@ -198,7 +198,7 @@ export function CreateTodoDialog({
       const todo = await response.json()
       onCreated(todo)
       onOpenChange(false)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving todo:', error)
       alert(error instanceof Error ? error.message : 'Failed to save todo')
     } finally {

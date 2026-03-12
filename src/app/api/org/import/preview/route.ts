@@ -6,6 +6,7 @@ import { handleApiError } from "@/lib/api-errors"
 import { parseCsv } from "@/server/org/import/csv"
 import { asFte, asPercent, asShrinkage, ImportError } from "@/server/org/import/validators"
 import { getPeopleEmailMap } from "@/server/org/import/lookup"
+import { ImportPreviewSchema } from '@/lib/validations/org';
 
 type Preview =
   | { ok: boolean; entity: "manager_links"; count: number; sample: any[]; errors: ImportError[] }
@@ -22,10 +23,9 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" })
     setWorkspaceContext(workspaceId)
 
-    const body = (await req.json()) as { entity: string; csv: string }
+    const body = ImportPreviewSchema.parse(await req.json())
 
-    const entity = String(body?.entity ?? "")
-    const csvText = String(body?.csv ?? "")
+    const { entity, csv: csvText } = body;
     const { rows } = parseCsv(csvText)
 
     const emailMap = await getPeopleEmailMap(workspaceId)
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ error: "Unknown entity" }, { status: 400 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req)
   }
 }

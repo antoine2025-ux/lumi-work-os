@@ -14,36 +14,7 @@ import {
   markStepComplete,
 } from '@/lib/org/onboarding-checklist'
 import { createOrgPerson } from '@/server/org/people/write'
-
-// Validation schemas
-const DepartmentSchema = z.object({
-  name: z.string().min(2, 'Department name must be at least 2 characters'),
-  description: z.string().optional().default(''),
-})
-
-const TeamSchema = z.object({
-  name: z.string().min(2, 'Team name must be at least 2 characters'),
-  description: z.string().optional().default(''),
-})
-
-const RoleCardSchema = z.object({
-  name: z.string().min(2, 'Role name must be at least 2 characters'),
-  description: z.string().optional().default(''),
-  level: z.enum(['ENTRY', 'JUNIOR', 'MID', 'SENIOR', 'LEAD', 'PRINCIPAL', 'EXECUTIVE']),
-})
-
-const InviteSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  role: z.enum(['ADMIN', 'EDITOR', 'VIEWER']),
-  positionIndex: z.number().int().min(0),
-})
-
-const OrgBootstrapSchema = z.object({
-  department: DepartmentSchema,
-  team: TeamSchema,
-  roleCards: z.array(RoleCardSchema).min(2, 'At least 2 role cards required').max(5),
-  invite: InviteSchema.optional(), // Optional: no email sending; when provided we create record and return link
-})
+import { OrgBootstrapSchema } from '@/lib/validations/org';
 
 /**
  * POST /api/org/bootstrap
@@ -73,8 +44,7 @@ export async function POST(request: NextRequest) {
 
     setWorkspaceContext(auth.workspaceId)
 
-    const body = await request.json()
-    const validatedData = OrgBootstrapSchema.parse(body)
+    const validatedData = OrgBootstrapSchema.parse(await request.json())
 
     // Check if org already bootstrapped
     const onboardingState = await prisma.workspaceOnboardingState.findUnique({
@@ -185,7 +155,7 @@ export async function POST(request: NextRequest) {
       data: result,
       inviteLink: result.inviteLink ?? null,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation failed', details: error.issues },

@@ -41,8 +41,9 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true, ...mapRole(member.role) });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to load permissions.";
     console.error("[GET /api/org/permissions] Error:", error);
-    return NextResponse.json({ ...FALLBACK, hint: error?.message || "Failed to load permissions." }, { status: 200 });
+    return NextResponse.json({ ...FALLBACK, hint: message }, { status: 200 });
   }
 }

@@ -51,7 +51,7 @@ export function CreateFolderDialog({
       onOpenChange(false)
       setName('')
       onSuccess?.()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create folder')
     } finally {
       setSubmitting(false)

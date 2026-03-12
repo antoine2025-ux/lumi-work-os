@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const spaces = await getAccessibleSpaces(auth.user.userId, auth.workspaceId)
 
     return NextResponse.json({ spaces })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
@@ -76,11 +76,36 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // For PRIVATE spaces, the owner is implicitly included via ownerId.
-    // No separate SpaceMember row needed for the creator.
+    // If a teamId was provided, auto-add all active OrgTeam members as SpaceMembers.
+    if (body.teamId) {
+      const teamPositions = await prisma.orgPosition.findMany({
+        where: {
+          teamId: body.teamId,
+          workspaceId: auth.workspaceId,
+          isActive: true,
+          userId: { not: null },
+        },
+        select: { userId: true },
+      })
+
+      const memberUserIds = teamPositions
+        .map((p) => p.userId)
+        .filter((uid): uid is string => uid !== null && uid !== auth.user.userId)
+
+      if (memberUserIds.length > 0) {
+        await prisma.spaceMember.createMany({
+          data: memberUserIds.map((uid) => ({
+            spaceId: space.id,
+            userId: uid,
+            role: 'VIEWER' as const,
+          })),
+          skipDuplicates: true,
+        })
+      }
+    }
 
     return NextResponse.json(space, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

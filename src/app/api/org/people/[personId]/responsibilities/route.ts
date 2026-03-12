@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 
 type RouteContext = { params: Promise<{ personId: string }> };
@@ -121,13 +122,6 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
       responsibilityOverrides,
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/people/[personId]/responsibilities] Error:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Failed to load responsibilities",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }

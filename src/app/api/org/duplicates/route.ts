@@ -5,6 +5,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { GenerateDuplicateCandidatesSchema } from '@/lib/validations/org';
 
 export async function GET(req: NextRequest) {
   try {
@@ -86,7 +87,7 @@ export async function GET(req: NextRequest) {
         b: byId.get(r.personBId) || { id: r.personBId, name: "Unknown" },
       })),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, req);
   }
 }

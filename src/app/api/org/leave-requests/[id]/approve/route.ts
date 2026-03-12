@@ -54,7 +54,7 @@ export async function POST(
     });
 
     return NextResponse.json({ ok: true, status: result.status });
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof LeaveRequestError) {
       const statusMap = {
         NOT_FOUND: 404,

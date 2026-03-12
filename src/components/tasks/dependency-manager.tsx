@@ -81,7 +81,7 @@ export function DependencyManager({
         const data = await response.json()
         setDependencies(data)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading dependencies:', error)
     }
   }
@@ -95,7 +95,7 @@ export function DependencyManager({
         const filtered = data.filter((task: Task) => task.id !== taskId)
         setAvailableTasks(filtered)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading available tasks:', error)
     } finally {
       setIsLoading(false)
@@ -124,7 +124,7 @@ export function DependencyManager({
         const error = await response.json()
         console.error('Error adding dependency:', error)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error adding dependency:', error)
     } finally {
       setIsUpdating(false)
@@ -152,7 +152,7 @@ export function DependencyManager({
         const error = await response.json()
         console.error('Error removing dependency:', error)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error removing dependency:', error)
     } finally {
       setIsUpdating(false)
@@ -181,7 +181,7 @@ export function DependencyManager({
         const error = await response.json()
         console.error('Error adding blocked task:', error)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error adding blocked task:', error)
     } finally {
       setIsUpdating(false)
@@ -209,7 +209,7 @@ export function DependencyManager({
         const error = await response.json()
         console.error('Error removing blocked task:', error)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error removing blocked task:', error)
     } finally {
       setIsUpdating(false)

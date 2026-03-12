@@ -6,6 +6,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
+import { ChatStreamSchema } from '@/lib/validations/assistant'
 
 // POST /api/ai/chat/stream - Stream chat response
 export async function POST(request: NextRequest) {
@@ -19,21 +20,8 @@ export async function POST(request: NextRequest) {
       requireRole: ['MEMBER'],
     })
 
-    const { message, sessionId, model = 'gpt-4-turbo' } = await request.json()
-
-    if (!message) {
-      return new Response(JSON.stringify({ error: 'Message is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
-
-    if (!sessionId) {
-      return new Response(JSON.stringify({ error: 'Session ID is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
+    const body = ChatStreamSchema.parse(await request.json())
+    const { message, sessionId, model = 'gpt-4-turbo' } = body
 
     // Get chat session
     const chatSession = await prisma.chatSession.findUnique({
@@ -168,7 +156,7 @@ export async function POST(request: NextRequest) {
             new TextEncoder().encode(`data: ${JSON.stringify({ content: '', done: true, fullContent })}\n\n`)
           )
           controller.close()
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Streaming error:', error)
           controller.enqueue(
             new TextEncoder().encode(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error', done: true })}\n\n`)
@@ -185,7 +173,7 @@ export async function POST(request: NextRequest) {
         'Connection': 'keep-alive',
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }
