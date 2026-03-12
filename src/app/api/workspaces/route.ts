@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { prisma } from "@/lib/db"
 import { WorkspaceRole } from "@prisma/client"
 import { logOrgAuditEvent } from "@/server/audit/orgAudit"
@@ -10,7 +11,19 @@ import { CreateWorkspaceAltSchema } from '@/lib/validations/workspace'
 export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
-    
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
+    }
+    // Assert workspace access when user has current workspace context
+    if (auth.workspaceId) {
+      await assertAccess({
+        userId: auth.user.userId,
+        workspaceId: auth.workspaceId,
+        scope: 'workspace',
+        requireRole: ['VIEWER'],
+      })
+    }
+
     // Get all workspaces where user has a WorkspaceMember record
     // PHASE 1: Use explicit select to exclude employmentStatus
     const memberships = await prisma.workspaceMember.findMany({

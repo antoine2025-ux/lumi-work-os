@@ -2,13 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
-    if (!auth.isAuthenticated) {
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['VIEWER'],
+    })
+    setWorkspaceContext(auth.workspaceId)
 
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')

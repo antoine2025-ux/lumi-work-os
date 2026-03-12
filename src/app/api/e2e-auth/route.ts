@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
     const testEmail = 'e2e-test@loopwell.test'
     const testName = 'E2E Test User'
     
-    // Use raw SQL to avoid Prisma schema mismatch issues
-    // Upsert test user
+    // Use raw SQL to avoid Prisma schema mismatch issues.
+    // SECURITY: prisma.$queryRaw tagged template parameterizes ${} values (no SQL injection).
     const userResult = await prismaUnscoped.$queryRaw<{ id: string; email: string; name: string | null }[]>`
       INSERT INTO users (id, email, name, "emailVerified", "createdAt", "updatedAt")
       VALUES (gen_random_uuid()::text, ${testEmail}, ${testName}, NOW(), NOW(), NOW())

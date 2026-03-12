@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { AssistantStreamSchema } from '@/lib/validations/assistant'
 
 // Lazy initialization - only create client when needed
@@ -14,10 +16,24 @@ function getOpenAIClient(): OpenAI | null {
 
 export async function POST(request: NextRequest) {
   try {
-    const _auth = await getUnifiedAuth(request)
-    
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
+    })
+    setWorkspaceContext(auth.workspaceId)
+
     const body = AssistantStreamSchema.parse(await request.json())
     const { message, sessionId } = body
+
+    if (!message || !sessionId) {
+      return NextResponse.json({ error: 'Message and session ID required' }, { status: 400 })
+    }
 
     // Create a streaming response
     const openai = getOpenAIClient()

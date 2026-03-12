@@ -1,7 +1,10 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { SliteAdapter } from '@/lib/migrations/adapters/slite-adapter'
 import { ClickUpAdapter } from '@/lib/migrations/adapters/clickup-adapter'
 import { StartMigrationSchema } from '@/lib/validations/workspace'
@@ -10,10 +13,32 @@ import { IntegrationType } from '@prisma/client'
 // POST /api/migrations - Start a new migration
 export async function POST(request: NextRequest) {
   try {
+    console.log('=== MIGRATION API CALLED ===')
+
     // Get authenticated user with development fallback
     const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
+    }
+
     const body = StartMigrationSchema.parse(await request.json())
     const { platform, apiKey, workspaceId, additionalConfig } = body
+
+    if (!platform || !apiKey || !workspaceId) {
+      return NextResponse.json({
+        error: 'Missing required fields: platform, apiKey, workspaceId'
+      }, { status: 400 })
+    }
+
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId,
+      scope: 'workspace',
+      requireRole: ['ADMIN'],
+    })
+    setWorkspaceContext(workspaceId)
+
+    console.log('🔐 Authenticated user:', auth.user.email, auth.isDevelopment ? '(dev mode)' : '(production)')
 
     // Use authenticated user instead of creating default user
     const userId = auth.user.id
@@ -46,17 +71,12 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
     }
 
-    // Create or get a default workspace
-    let workspace = await prisma.workspace.findFirst()
+    // Use the requested workspace for migration
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+    })
     if (!workspace) {
-      workspace = await prisma.workspace.create({
-        data: {
-          name: 'Default Workspace',
-          slug: 'default-workspace',
-          description: 'Default workspace for migrations',
-          ownerId: userId
-        }
-      })
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
     }
 
     // Create migration session for review instead of direct import
@@ -92,8 +112,8 @@ export async function POST(request: NextRequest) {
 // GET /api/migrations - Get migration status
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -104,7 +124,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'workspaceId is required' }, { status: 400 })
     }
 
-    const { prisma } = await import('@/lib/db')
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId,
+      scope: 'workspace',
+      requireRole: ['VIEWER'],
+    })
+    setWorkspaceContext(workspaceId)
     const migrations = await prisma.integration.findMany({
       where: {
         workspaceId,

@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
-    // RLS defense-in-depth: set app.user_id so RLS policies pass
+    // RLS defense-in-depth: set app.user_id so RLS policies pass.
+    // SECURITY: $executeRaw tagged template parameterizes ${} values (no SQL injection).
     await prisma.$executeRaw`SELECT set_config('app.user_id', ${auth.user.userId}, true)`
 
     const { searchParams } = new URL(request.url)
@@ -327,8 +328,8 @@ export async function POST(request: NextRequest) {
     const textContent = extractTextFromProseMirror(finalContentJson)
     const excerpt = textContent.substring(0, 200) + (textContent.length > 200 ? '...' : '')
 
-    // RLS on wiki_pages requires app.user_id to be set for INSERT. Run create inside a transaction
-    // that sets the session variable so the policy has_workspace_access(workspaceId, app.user_id) passes.
+    // RLS on wiki_pages requires app.user_id to be set for INSERT.
+    // SECURITY: $executeRaw tagged template parameterizes ${} values (no SQL injection).
     const page = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.user_id', ${auth.user.userId}, true)`
       return tx.wikiPage.create({
