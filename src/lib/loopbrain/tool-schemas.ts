@@ -265,6 +265,31 @@ export const READ_TOOLS: LoopbrainToolDef[] = [
 
 export const WRITE_TOOLS: LoopbrainToolDef[] = [
   {
+    name: 'createProject',
+    description:
+      'Create a new project in the workspace. Requires a name. Optional: description, status, priority.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Project name' },
+        description: { type: 'string', description: 'Project description (optional)' },
+        status: {
+          type: 'string',
+          enum: ['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED'],
+          description: 'Project status (default ACTIVE)',
+        },
+        priority: {
+          type: 'string',
+          enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
+          description: 'Project priority (default MEDIUM)',
+        },
+      },
+      required: ['name'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
     name: 'createTask',
     description:
       'Create a new task in a project. Requires project ID, title. Optional: description, assignee, priority, due date.',
@@ -288,6 +313,22 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
     requiredRole: 'MEMBER',
   },
   {
+    name: 'createEpic',
+    description:
+      'Create an epic (a group of related tasks) within a project. Epics organize multiple related tasks under a common theme or goal.',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Epic title' },
+        projectId: { type: 'string', description: 'Project ID to create epic in' },
+        description: { type: 'string', description: 'Epic description (optional)' },
+      },
+      required: ['title', 'projectId'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
     name: 'assignTask',
     description: 'Assign an existing task to a person.',
     parameters: {
@@ -297,6 +338,26 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
         assigneeId: { type: 'string', description: 'Person ID to assign to' },
       },
       required: ['taskId', 'assigneeId'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'createTodo',
+    description: 'Create a personal to-do item for the current user.',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'To-do title' },
+        note: { type: 'string', description: 'Additional note (optional)' },
+        dueAt: { type: 'string', description: 'Due date (ISO 8601 datetime, optional)' },
+        priority: {
+          type: 'string',
+          enum: ['LOW', 'MEDIUM', 'HIGH'],
+          description: 'Priority (optional)',
+        },
+      },
+      required: ['title'],
     },
     category: 'write',
     requiredRole: 'MEMBER',
@@ -325,6 +386,39 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
     requiredRole: 'MEMBER',
   },
   {
+    name: 'createMultipleCalendarEvents',
+    description:
+      'Create multiple Google Calendar events in one step (e.g. work blocks + breaks). Use for batch scheduling like "plan my work blocks for tomorrow". Max 20 events.',
+    parameters: {
+      type: 'object',
+      properties: {
+        events: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'Event title' },
+              startTime: { type: 'string', description: 'Start time (ISO 8601)' },
+              endTime: { type: 'string', description: 'End time (ISO 8601)' },
+              description: { type: 'string', description: 'Event description (optional)' },
+              attendees: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Email addresses of attendees (optional)',
+              },
+              location: { type: 'string', description: 'Location (optional)' },
+            },
+            required: ['title', 'startTime', 'endTime'],
+          },
+          description: 'Array of 1-20 calendar events',
+        },
+      },
+      required: ['events'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
     name: 'sendEmail',
     description: 'Send an email via Gmail.',
     parameters: {
@@ -336,6 +430,24 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
         threadId: { type: 'string', description: 'Thread ID for replies (optional)' },
       },
       required: ['to', 'subject', 'body'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'replyToEmail',
+    description:
+      'Reply to an existing email thread. Requires threadId and messageId from recent emails context.',
+    parameters: {
+      type: 'object',
+      properties: {
+        to: { type: 'string', description: 'Recipient email address' },
+        subject: { type: 'string', description: 'Email subject' },
+        body: { type: 'string', description: 'Reply body (plain text)' },
+        replyToThreadId: { type: 'string', description: 'Thread ID of the email to reply to' },
+        replyToMessageId: { type: 'string', description: 'Message ID of the email to reply to' },
+      },
+      required: ['to', 'subject', 'body', 'replyToThreadId', 'replyToMessageId'],
     },
     category: 'write',
     requiredRole: 'MEMBER',
@@ -385,6 +497,31 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
     requiredRole: 'MEMBER',
   },
   {
+    name: 'createGoal',
+    description: 'Create a new goal/OKR for the workspace.',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Goal title' },
+        description: { type: 'string', description: 'Goal description (optional)' },
+        ownerId: { type: 'string', description: 'Person ID of goal owner (optional)' },
+        level: {
+          type: 'string',
+          enum: ['COMPANY', 'DEPARTMENT', 'TEAM', 'INDIVIDUAL'],
+          description: 'Goal level (default TEAM)',
+        },
+        period: {
+          type: 'string',
+          enum: ['QUARTERLY', 'ANNUAL', 'CUSTOM'],
+          description: 'Goal period (default QUARTERLY)',
+        },
+      },
+      required: ['title'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
     name: 'createTimeOff',
     description: 'Create a time-off / leave request for the current user.',
     parameters: {
@@ -403,6 +540,25 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
     },
     category: 'write',
     requiredRole: 'MEMBER',
+  },
+  {
+    name: 'addPersonToProject',
+    description: 'Add a user as a member of a project.',
+    parameters: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID' },
+        userId: { type: 'string', description: 'User ID to add' },
+        role: {
+          type: 'string',
+          enum: ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'],
+          description: 'Project role (default MEMBER)',
+        },
+      },
+      required: ['projectId', 'userId'],
+    },
+    category: 'write',
+    requiredRole: 'ADMIN',
   },
   {
     name: 'assignToProject',
@@ -432,6 +588,86 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
     },
     category: 'write',
     requiredRole: 'ADMIN',
+  },
+  {
+    name: 'updateTaskStatus',
+    description: 'Change the status of an existing task.',
+    parameters: {
+      type: 'object',
+      properties: {
+        taskId: { type: 'string', description: 'Task ID' },
+        status: {
+          type: 'string',
+          enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED'],
+          description: 'New status',
+        },
+      },
+      required: ['taskId', 'status'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'updateProject',
+    description:
+      "Update an existing project's name, description, status, or priority.",
+    parameters: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID' },
+        name: { type: 'string', description: 'New project name (optional)' },
+        description: { type: 'string', description: 'New description (optional)' },
+        status: {
+          type: 'string',
+          enum: ['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED'],
+          description: 'New status (optional)',
+        },
+        priority: {
+          type: 'string',
+          enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
+          description: 'New priority (optional)',
+        },
+      },
+      required: ['projectId'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'linkProjectToGoal',
+    description:
+      'Link a project to a goal, establishing that the project contributes to achieving the goal.',
+    parameters: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID' },
+        goalId: { type: 'string', description: 'Goal ID' },
+        contributionType: {
+          type: 'string',
+          enum: ['REQUIRED', 'CONTRIBUTING', 'SUPPORTING'],
+          description: 'How the project contributes (default CONTRIBUTING)',
+        },
+      },
+      required: ['projectId', 'goalId'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'addSubtask',
+    description:
+      'Create a subtask under an existing task to break it into smaller pieces.',
+    parameters: {
+      type: 'object',
+      properties: {
+        taskId: { type: 'string', description: 'Parent task ID' },
+        title: { type: 'string', description: 'Subtask title' },
+        description: { type: 'string', description: 'Subtask description (optional)' },
+      },
+      required: ['taskId', 'title'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
   },
   {
     name: 'createPerson',
@@ -485,6 +721,42 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
         personId: { type: 'string', description: 'The person/user ID to remove' },
       },
       required: ['projectId', 'personId'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'createDriveDocument',
+    description:
+      'Create a new Google Doc with a title and content. Optionally place it in a specific folder. Returns the file ID and link.',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Document title' },
+        content: { type: 'string', description: 'Document content (plain text)' },
+        folderId: { type: 'string', description: 'Optional parent folder ID' },
+      },
+      required: ['title', 'content'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'updateDriveDocument',
+    description:
+      'Update an existing Google Doc. Use mode "append" to add content to the end, or "replace" to overwrite the entire document. Use searchDriveFiles or readDriveDocument first to find the file ID.',
+    parameters: {
+      type: 'object',
+      properties: {
+        fileId: { type: 'string', description: 'Google Drive file ID' },
+        content: { type: 'string', description: 'New content (plain text)' },
+        mode: {
+          type: 'string',
+          enum: ['append', 'replace'],
+          description: '"append" adds to the end; "replace" overwrites the entire document',
+        },
+      },
+      required: ['fileId', 'content', 'mode'],
     },
     category: 'write',
     requiredRole: 'MEMBER',
