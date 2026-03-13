@@ -168,6 +168,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
         userMessage,
       })
 
+      console.log('[DEBUG-PLANNER] Calling generatePlan with writeCalls:', writeCalls.length, 'userMessage:', userMessage.slice(0, 100))
       const plannerResult = await generatePlan({
         message: userMessage,
         registry: toolRegistry,
@@ -198,8 +199,10 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
           stepCount: plannerResult.plan.steps.length,
           toolNames: plannerResult.plan.steps.map((s) => s.toolName),
         })
+        console.log('[DEBUG-PLANNER] Plan produced:', plannerResult.plan.steps.length, 'steps:', plannerResult.plan.steps.map(s => s.toolName))
       } else {
         // Planner didn't produce a plan — fall back to native tool calls
+        console.log('[DEBUG-PLANNER] Fallback to native calls. plannerResult.mode:', plannerResult.mode, 'plan steps:', plannerResult.plan?.steps?.length ?? 0)
         planToolCalls = writeCalls.map((tc) => ({
           id: tc.id,
           name: tc.name,

@@ -362,9 +362,21 @@ const createProjectTool: LoopbrainTool = {
           status: p.status,
           priority: p.priority,
           createdById: context.userId,
+          ownerId: context.userId,
           spaceId: p.spaceId,
         },
       })
+      
+      // Add the creating user as a project member (OWNER role)
+      await prisma.projectMember.create({
+        data: {
+          projectId: project.id,
+          userId: context.userId,
+          role: 'OWNER',
+          workspaceId: context.workspaceId,
+        },
+      })
+      
       return {
         success: true,
         data: { id: project.id, name: project.name },
