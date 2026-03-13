@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { AILogo } from "@/components/ai-logo"
 import {
@@ -17,6 +18,7 @@ import {
   Lightbulb,
   Search,
   CheckSquare,
+  Check,
   ThumbsUp,
   ThumbsDown,
   ChevronsUp,
@@ -40,6 +42,8 @@ import { OnboardingBriefing as OnboardingBriefingView } from "./OnboardingBriefi
 import { MeetingPrepBrief as MeetingPrepBriefView } from "./MeetingPrepBrief"
 import { ClarifyingQuestions } from "./clarifying-questions"
 import { ExecutionProgress, type StepProgressState } from "./execution-progress"
+import { ExecutionPlanView, type ExecutionPlanStep } from "./execution-plan-view"
+import { formatPlanForDisplay } from "./format-plan-steps"
 import { AdvisorySuggestion } from "./advisory-suggestion"
 import { OrgRoutingBadge } from "@/components/debug/OrgRoutingBadge"
 import { useWorkspace } from "@/lib/workspace-context"
@@ -163,6 +167,59 @@ export function LoopbrainAssistantPanel({
       console.error("Failed to send feedback", err)
     }
   }
+
+  // Transform pendingPlan or executingPlan into display format
+  const displayPlan = useMemo(() => {
+    const plan = executingPlan || pendingPlan
+    if (!plan || !plan.steps || plan.steps.length === 0) return null
+    
+    try {
+      return formatPlanForDisplay(plan, isExecutingPlan ? stepProgress : undefined)
+    } catch (error) {
+      console.error('Failed to format plan for display:', error)
+      return null
+    }
+  }, [pendingPlan, executingPlan, stepProgress, isExecutingPlan])
+
+  // Map real-time step progress to display format
+  const getDisplayStepsWithStatus = useCallback(() => {
+    if (!displayPlan) return []
+    
+    return displayPlan.steps.map((step, stepIndex) => {
+      // For parent steps, check if any children are executing/success/error
+      if (step.children && step.children.length > 0) {
+        const childStatuses = step.children.map((_, childIdx) => {
+          const progressIdx = stepIndex + childIdx + 1 // approximate mapping
+          return stepProgress[progressIdx]?.status || 'pending'
+        })
+        
+        // Parent status: executing if any child executing, success if all success, error if any error
+        let parentStatus: ExecutionPlanStep['status'] = 'pending'
+        if (childStatuses.some(s => s === 'error')) parentStatus = 'error'
+        else if (childStatuses.every(s => s === 'success')) parentStatus = 'success'
+        else if (childStatuses.some(s => s === 'executing')) parentStatus = 'executing'
+        
+        return {
+          ...step,
+          status: isExecutingPlan ? parentStatus : 'pending',
+          children: step.children.map((child, childIdx) => ({
+            ...child,
+            status: isExecutingPlan 
+              ? (stepProgress[stepIndex + childIdx + 1]?.status || 'pending')
+              : 'pending'
+          }))
+        }
+      }
+      
+      // Leaf steps: direct mapping
+      return {
+        ...step,
+        status: isExecutingPlan 
+          ? (stepProgress[stepIndex]?.status || 'pending')
+          : 'pending'
+      }
+    })
+  }, [displayPlan, stepProgress, isExecutingPlan])
 
   // Sync prop display mode
   useEffect(() => {
@@ -1108,15 +1165,28 @@ export function LoopbrainAssistantPanel({
                                   />
                                 )}
 
-                                {/* Plan Confirmation Card */}
-                                {pendingPlan && !executingPlan && (
-                                  <PlanConfirmation
-                                    plan={pendingPlan}
+                                {/* Execution Plan View — unified pre-execution and during-execution */}
+                                {displayPlan && displayPlan.steps.length > 0 && (pendingPlan || executingPlan) ? (
+                                  <ExecutionPlanView
+                                    plan={{
+                                      ...displayPlan,
+                                      steps: getDisplayStepsWithStatus()
+                                    }}
                                     onConfirm={handlePlanConfirm}
-                                    onCancel={handlePlanCancel}
+                                    onModify={pendingPlan ? handlePlanCancel : undefined}
                                     isExecuting={isExecutingPlan}
-                                    insights={plannerInsights.length > 0 ? plannerInsights : undefined}
                                   />
+                                ) : (
+                                  /* Fallback: if formatPlanForDisplay fails or returns empty, show old component */
+                                  pendingPlan && !executingPlan && (
+                                    <PlanConfirmation
+                                      plan={pendingPlan}
+                                      onConfirm={handlePlanConfirm}
+                                      onCancel={handlePlanCancel}
+                                      isExecuting={isExecutingPlan}
+                                      insights={plannerInsights.length > 0 ? plannerInsights : undefined}
+                                    />
+                                  )
                                 )}
 
                                 {/* Meeting Task Review */}
@@ -1202,8 +1272,9 @@ export function LoopbrainAssistantPanel({
                                   />
                                 )}
 
-                                {/* Execution Progress */}
-                                {executingPlan && (
+                                {/* ExecutionProgress replaced by ExecutionPlanView above */}
+                                {/* Keep commented for now as fallback if needed */}
+                                {/* executingPlan && (
                                   <ExecutionProgress
                                     plan={executingPlan}
                                     isExecuting={isExecutingPlan}
@@ -1215,6 +1286,55 @@ export function LoopbrainAssistantPanel({
                                     onRetry={handleExecutionRetry}
                                     onCancel={handleExecutionCancel}
                                   />
+                                ) */}
+
+                                {/* Execution completion summary */}
+                                {executionResult && !isExecutingPlan && (
+                                  <div className="mt-3 rounded-lg border border-green-200 dark:border-green-800/50 bg-green-50/30 dark:bg-green-950/10 p-4">
+                                    <div className="flex items-start gap-3">
+                                      <Check className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-green-900 dark:text-green-100 font-medium">
+                                          {executionResult}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Execution error display */}
+                                {executionError && (
+                                  <div className="mt-3 rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50/30 dark:bg-red-950/10 p-4">
+                                    <div className="flex items-start gap-3">
+                                      <X className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-red-900 dark:text-red-100 font-medium">
+                                          Execution failed
+                                        </p>
+                                        <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                                          {executionError}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-3">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleExecutionRetry}
+                                        className="text-xs"
+                                      >
+                                        Retry
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleExecutionCancel}
+                                        className="text-xs"
+                                      >
+                                        Dismiss
+                                      </Button>
+                                    </div>
+                                  </div>
                                 )}
                               </>
                             )}
