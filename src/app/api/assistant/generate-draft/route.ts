@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import OpenAI from 'openai'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
@@ -140,6 +141,12 @@ export async function POST(request: NextRequest) {
     if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
+    })
     setWorkspaceContext(auth.workspaceId)
 
     const body = AssistantGenerateDraftSchema.parse(await request.json())

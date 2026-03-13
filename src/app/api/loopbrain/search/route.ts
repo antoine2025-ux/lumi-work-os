@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
 import { searchSimilarContextItems } from '@/lib/loopbrain/embedding-service'
 import { ContextType } from '@/lib/loopbrain/context-types'
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
       scope: 'workspace',
       requireRole: ['MEMBER']
     })
+    setWorkspaceContext(auth.workspaceId)
 
     // Use workspaceId from auth (preferred source)
     const workspaceId = auth.workspaceId

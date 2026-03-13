@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
 import { getFeatureFlags, setFeatureFlag } from "@/lib/feature-flags"
 import { FeatureFlagToggleSchema } from '@/lib/validations/assistant'
@@ -16,6 +17,7 @@ export async function GET(request: NextRequest) {
       scope: 'workspace', 
       requireRole: ['MEMBER'] 
     })
+    setWorkspaceContext(auth.workspaceId)
 
     const flags = await getFeatureFlags(auth.workspaceId)
 
@@ -36,6 +38,7 @@ export async function POST(request: NextRequest) {
       scope: 'workspace', 
       requireRole: ['ADMIN', 'OWNER'] 
     })
+    setWorkspaceContext(auth.workspaceId)
 
     const body = FeatureFlagToggleSchema.parse(await request.json())
     const { key, enabled } = body

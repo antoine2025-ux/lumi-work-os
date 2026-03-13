@@ -2,15 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { AssistantSessionsCreateSchema } from '@/lib/validations/assistant'
 
 // POST /api/assistant/sessions - Create a new assistant session
 export async function POST(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
-    if (!auth.isAuthenticated) {
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
+    })
+    setWorkspaceContext(auth.workspaceId)
 
     const body = AssistantSessionsCreateSchema.parse(await request.json())
     const { intent = 'assist', title, target = 'wiki_page' } = body
@@ -39,12 +48,16 @@ export async function GET(request: NextRequest) {
     if (!auth.isAuthenticated) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
-    
-    // Return empty array if no workspace (public routes)
+    // Return empty array if no workspace
     if (!auth.workspaceId) {
       return NextResponse.json([])
     }
-    
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['VIEWER'],
+    })
     const { searchParams } = new URL(request.url)
     const hasDraft = searchParams.get('hasDraft') === 'true'
     
@@ -58,9 +71,7 @@ export async function GET(request: NextRequest) {
       whereClause.draftBody = { not: null }
       whereClause.phase = { not: 'published' }
     }
-    
-    // Set workspace context for Prisma middleware
-    const { setWorkspaceContext } = await import('@/lib/prisma/scopingMiddleware')
+
     setWorkspaceContext(auth.workspaceId)
     
     const sessions = await prisma.chatSession.findMany({

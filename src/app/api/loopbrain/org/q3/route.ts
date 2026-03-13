@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { answerQ3 } from "@/lib/loopbrain/reasoning/q3";
 import { handleApiError } from "@/lib/api-errors";
 import { LoopbrainOrgQ3Schema } from "@/lib/validations/loopbrain";
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
       scope: "workspace",
       requireRole: ["MEMBER"],
     });
+    setWorkspaceContext(workspaceId);
 
     const body = LoopbrainOrgQ3Schema.parse(await request.json());
     const { projectId } = body;

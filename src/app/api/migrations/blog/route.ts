@@ -62,9 +62,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Run migration SQL
+    // Run migration SQL (static DDL - no user input, safe to use $executeRaw)
+    console.log("[MIGRATIONS] Creating blog_posts table...")
 
-    await prisma.$executeRawUnsafe(`
+    await prisma.$executeRaw`
       -- CreateEnum
       DO $$ BEGIN
         CREATE TYPE "BlogPostStatus" AS ENUM ('DRAFT', 'PUBLISHED');
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
       CREATE INDEX IF NOT EXISTS "blog_posts_status_idx" ON "blog_posts"("status");
       CREATE INDEX IF NOT EXISTS "blog_posts_category_idx" ON "blog_posts"("category");
       CREATE INDEX IF NOT EXISTS "blog_posts_publishedAt_idx" ON "blog_posts"("publishedAt" DESC);
-    `)
+    `
 
     return NextResponse.json({
       success: true,

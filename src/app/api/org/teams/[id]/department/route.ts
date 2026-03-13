@@ -137,8 +137,9 @@ export async function PATCH(
         // Get department name for better error message
         const departmentName = existingTeam.department?.name || "the target department";
         
-        // Find ALL teams with the same name (to show duplicates)
-        // Use raw SQL to properly handle NULL ordering (NULLs first)
+        // Find ALL teams with the same name (to show duplicates).
+        // Use raw SQL to properly handle NULL ordering (NULLs first).
+        // SECURITY: $queryRaw tagged template parameterizes ${} values (no SQL injection).
         const allTeamsWithSameName = await prisma.$queryRaw<Array<{
           id: string;
           name: string;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
 import { BlogAdminLoginSchema } from "@/lib/validations/admin"
 
@@ -17,6 +18,7 @@ export async function POST(request: NextRequest) {
       scope: "workspace",
       requireRole: ["OWNER"],
     })
+    setWorkspaceContext(auth.workspaceId)
 
     const body = BlogAdminLoginSchema.parse(await request.json())
     const { password } = body

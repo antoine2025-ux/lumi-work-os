@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { loadCurrentWorkspaceOrgContextBundle } from "@/lib/context/org/loadCurrentWorkspaceOrgContextBundle";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors"
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
       scope: "workspace",
       requireRole: ["MEMBER"],
     });
+    setWorkspaceContext(auth.workspaceId);
 
     const { workspaceId, bundle } =
       await loadCurrentWorkspaceOrgContextBundle(request);
