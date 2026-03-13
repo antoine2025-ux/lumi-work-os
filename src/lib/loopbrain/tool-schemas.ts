@@ -151,6 +151,17 @@ export const READ_TOOLS: LoopbrainToolDef[] = [
     requiredRole: 'VIEWER',
   },
   {
+    name: 'listSpaces',
+    description:
+      'List all spaces in the workspace that the user has access to. Use this to find the right space before creating a project or wiki page.',
+    parameters: {
+      type: 'object',
+      properties: {},
+    },
+    category: 'read',
+    requiredRole: 'VIEWER',
+  },
+  {
     name: 'listPeople',
     description:
       'List people in the workspace. Returns name, role, team, department. Use to find a person before assigning tasks or checking capacity.',
@@ -267,12 +278,17 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
   {
     name: 'createProject',
     description:
-      'Create a new project in the workspace. Requires a name. Optional: description, status, priority.',
+      'Create a new project in the workspace. If the user does not specify which space to create it in, you MUST first list available spaces using listSpaces or ask the user which space they want. Never create a project without knowing which space it belongs to.',
     parameters: {
       type: 'object',
       properties: {
         name: { type: 'string', description: 'Project name' },
         description: { type: 'string', description: 'Project description (optional)' },
+        spaceId: {
+          type: 'string',
+          description:
+            'Space ID where the project will live. REQUIRED — ask the user or use listSpaces to find it if not provided.',
+        },
         status: {
           type: 'string',
           enum: ['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED'],
@@ -284,7 +300,7 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
           description: 'Project priority (default MEDIUM)',
         },
       },
-      required: ['name'],
+      required: ['name', 'spaceId'],
     },
     category: 'write',
     requiredRole: 'MEMBER',

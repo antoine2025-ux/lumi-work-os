@@ -15,6 +15,7 @@ import { prisma } from '@/lib/db'
 import { loadSession } from '@/lib/loopbrain/session-store'
 import { executePlanWithProgress, type ExecutionProgressEvent } from '@/lib/loopbrain/agent-loop'
 import { LoopbrainExecuteStreamSchema } from '@/lib/validations/loopbrain'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,11 +37,32 @@ export async function POST(request: NextRequest) {
     const session = await loadSession(workspaceId, userId, conversationId)
     const pendingPlan = session.pendingPlan
     if (!pendingPlan || pendingPlan.toolCalls.length === 0) {
+      console.error('[ExecuteStream] No pending plan found')
       return new Response(
         JSON.stringify({ error: 'No pending plan to execute' }),
         { status: 400 }
       )
     }
+
+    console.log('[ExecuteStream] Route handler: Plan loaded from session:', {
+      conversationId,
+      planStepCount: pendingPlan.toolCalls.length,
+      toolNames: pendingPlan.toolCalls.map((tc) => tc.name),
+    })
+    logger.info('[ExecuteStream] Starting execution', {
+      conversationId,
+      workspaceId,
+      userId,
+      planStepCount: pendingPlan.toolCalls.length,
+      toolNames: pendingPlan.toolCalls.map((tc) => tc.name),
+    })
+    logger.info('[ExecuteStream] Plan steps', {
+      steps: pendingPlan.toolCalls.map((tc) => ({
+        name: tc.name,
+        arguments: tc.arguments,
+        argumentsType: typeof tc.arguments,
+      })),
+    })
 
     const sessionWithPlan = {
       ...session,
@@ -64,12 +86,14 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         const send = (event: ExecutionProgressEvent) => {
+          console.log('[ExecuteStream] SSE event:', { type: event.type, stepIndex: event.stepIndex, status: event.status })
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
           )
         }
 
         try {
+          console.log('[ExecuteStream] Calling executePlanWithProgress...')
           await executePlanWithProgress(
             sessionWithPlan,
             {
@@ -87,8 +111,14 @@ export async function POST(request: NextRequest) {
             },
             send
           )
+          console.log('[ExecuteStream] executePlanWithProgress completed successfully')
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : 'Execution failed'
+          logger.error('[ExecuteStream] Execution error', {
+            error: err,
+            message: msg,
+            stack: err instanceof Error ? err.stack : undefined,
+          })
           send({ type: 'error', error: msg })
         } finally {
           controller.close()

@@ -22,6 +22,7 @@ export type ToolCategory =
   | 'email'
   | 'drive'
   | 'slack'
+  | 'space'
 
 export interface ToolPermissions {
   minimumRole: AgentRole

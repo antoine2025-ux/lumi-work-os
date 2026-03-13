@@ -102,6 +102,7 @@ function normalizeTaskStatus(val: unknown): unknown {
 const CreateProjectSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().optional(),
+  spaceId: z.string().min(1).describe('Space ID where the project will be created'),
   status: z.preprocess(normalizeEnum,
     z.enum(['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED'])
   ).optional().default('ACTIVE'),
@@ -288,6 +289,8 @@ const ListProjectsSchema = z.object({
   limit: z.preprocess(coerceNumber, z.number().int().min(1).max(50).optional().default(20)),
 })
 
+const ListSpacesSchema = z.object({})
+
 const ListPeopleSchema = z.object({
   search: z.string().optional(),
   teamId: z.string().optional(),
@@ -351,16 +354,6 @@ const createProjectTool: LoopbrainTool = {
     const p = CreateProjectSchema.parse(params)
     scope(context)
     try {
-      // Get default space for the user
-      const defaultSpaceId = await getDefaultSpaceForUser(context.userId, context.workspaceId)
-      if (!defaultSpaceId) {
-        return {
-          success: false,
-          error: 'No default space found. Please create a space first.',
-          humanReadable: 'Failed to create project: no default space found',
-        }
-      }
-
       const project = await prisma.project.create({
         data: {
           workspaceId: context.workspaceId,
@@ -369,7 +362,7 @@ const createProjectTool: LoopbrainTool = {
           status: p.status,
           priority: p.priority,
           createdById: context.userId,
-          spaceId: defaultSpaceId,
+          spaceId: p.spaceId,
         },
       })
       return {
@@ -1251,6 +1244,52 @@ const listProjectsTool: LoopbrainTool = {
   },
 }
 
+const listSpacesTool: LoopbrainTool = {
+  name: 'listSpaces',
+  description: 'List all spaces in the workspace that the user has access to. Use this to find the right space before creating a project or wiki page.',
+  category: 'space',
+  parameters: ListSpacesSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
+  async execute(_params: unknown, context: AgentContext): Promise<ToolResult> {
+    scope(context)
+    try {
+      const spaces = await prisma.space.findMany({
+        where: { workspaceId: context.workspaceId },
+        select: { 
+          id: true, 
+          name: true, 
+          type: true, 
+          visibility: true, 
+          isPersonal: true,
+          description: true,
+        },
+        orderBy: [
+          { isPersonal: 'asc' }, // Non-personal first
+          { name: 'asc' }
+        ],
+      })
+      return {
+        success: true,
+        data: { 
+          spaces: spaces.map(s => ({
+            id: s.id,
+            name: s.name,
+            type: s.type,
+            visibility: s.visibility,
+            isPersonal: s.isPersonal,
+            description: s.description,
+          })) as unknown as Record<string, unknown>[]
+        },
+        humanReadable: `Found ${spaces.length} space(s): ${spaces.filter(s => !s.isPersonal).map(s => s.name).join(', ')}`,
+      }
+    } catch (err: unknown) {
+      logger.error('listSpaces tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to list spaces' }
+    }
+  },
+}
+
 const listPeopleTool: LoopbrainTool = {
   name: 'listPeople',
   description: 'List people (workspace members) with their names and IDs. Use this to resolve names like "Sarah" to user IDs.',
@@ -2020,6 +2059,7 @@ const ALL_TOOLS: LoopbrainTool[] = [
   createCalendarEventTool,
   createMultipleCalendarEventsTool,
   listProjectsTool,
+  listSpacesTool,
   listPeopleTool,
   listTasksByAssigneeTool,
   searchEmailTool,

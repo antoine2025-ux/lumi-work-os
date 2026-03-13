@@ -17,7 +17,9 @@ import type { AgentContext } from './agent/types'
 import type { LoopbrainClientAction } from './orchestrator-types'
 import { enrichAgentContext } from './permissions'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { generatePlan, formatPlanForUser } from './agent/planner'
 import * as Sentry from '@sentry/nextjs'
+import { logger } from '@/lib/logger'
 
 const MAX_TOOL_ITERATIONS = 10
 const LOOPBRAIN_MODEL = process.env.LOOPBRAIN_MODEL || 'claude-sonnet-4-6'
@@ -151,24 +153,79 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
         await appendMessages(conversationId, readResults)
       }
 
+      // Use the planner to generate a COMPLETE multi-step plan instead of
+      // storing only the tool calls from this single LLM turn. The planner
+      // supports $stepN.data.field references so it can plan dependent steps
+      // (e.g. createProject + createTask using $step1.data.id) upfront.
+      const conversationHistory = currentSession.messages
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => `${m.role}: ${m.content}`)
+        .join('\n')
+
+      logger.info('Agent loop: invoking planner for complete write plan', {
+        workspaceId,
+        nativeWriteCalls: writeCalls.length,
+        userMessage,
+      })
+
+      const plannerResult = await generatePlan({
+        message: userMessage,
+        registry: toolRegistry,
+        context: agentCtx,
+        contextSnippet: '',
+        conversationContext: conversationHistory || undefined,
+      })
+
+      // If planner returned a plan with steps, use it; otherwise fall back
+      // to the native tool calls from this turn
+      let planToolCalls: ToolCallRecord[]
+      let confirmationText: string
+
+      if (
+        plannerResult.mode === 'plan' &&
+        plannerResult.plan &&
+        plannerResult.plan.steps.length > 0
+      ) {
+        planToolCalls = plannerResult.plan.steps.map((step) => ({
+          id: `planner-step-${step.stepNumber}`,
+          name: step.toolName,
+          arguments: step.parameters,
+        }))
+        confirmationText = formatPlanForUser(plannerResult.plan, plannerResult.insights)
+
+        logger.info('Agent loop: planner produced complete plan', {
+          workspaceId,
+          stepCount: plannerResult.plan.steps.length,
+          toolNames: plannerResult.plan.steps.map((s) => s.toolName),
+        })
+      } else {
+        // Planner didn't produce a plan — fall back to native tool calls
+        planToolCalls = writeCalls.map((tc) => ({
+          id: tc.id,
+          name: tc.name,
+          arguments: tc.arguments,
+        }))
+        confirmationText = llmResponse.content || buildConfirmationMessage(writeCalls)
+
+        logger.info('Agent loop: planner fallback to native tool calls', {
+          workspaceId,
+          plannerMode: plannerResult.mode,
+        })
+      }
+
       // Store a text-only assistant message proposing the write actions.
       // No tool_calls here — the write calls are held in the pending plan, not in
       // history, so the next user message ("yes") creates a valid sequence.
-      const confirmationText = llmResponse.content || buildConfirmationMessage(writeCalls)
       await appendMessage(conversationId, {
         role: 'assistant',
         content: confirmationText,
         timestamp: new Date().toISOString(),
       })
 
-      // Store write calls as pending plan requiring confirmation
+      // Store complete plan as pending plan requiring confirmation
       const plan: PendingPlan = {
-        toolCalls: writeCalls.map((tc) => ({
-          id: tc.id,
-          name: tc.name,
-          arguments: tc.arguments,
-        })),
-        originalAssistantMessage: llmResponse.content || '',
+        toolCalls: planToolCalls,
+        originalAssistantMessage: confirmationText,
         createdAt: new Date().toISOString(),
       }
       await storePendingPlan(conversationId, plan)
@@ -235,6 +292,106 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
 // --- Helper functions ---
 
+/**
+ * Resolve "$stepN.data.field" references in tool arguments.
+ * Maps step index (0-based) to step number (1-based) for $step1, $step2, etc.
+ * 
+ * Examples:
+ *   - "$step1.data.id" → stepResults.get(1).data.id
+ *   - "$step2.data.projects[0].id" → stepResults.get(2).data.projects[0].id
+ */
+function resolveStepReferences(
+  args: Record<string, unknown>,
+  stepResults: Map<number, unknown>,
+  currentStepIndex: number
+): Record<string, unknown> {
+  const resolved: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(args)) {
+    if (typeof value === 'string' && value.startsWith('$step')) {
+      const resolvedValue = resolveStepRef(value, stepResults)
+      console.log(`[ExecuteStream] Resolved reference: ${value} → ${JSON.stringify(resolvedValue)}`)
+      resolved[key] = resolvedValue
+    } else {
+      resolved[key] = value
+    }
+  }
+
+  return resolved
+}
+
+function resolveStepRef(ref: string, stepResults: Map<number, unknown>): unknown {
+  // Parse "$step<N>.data.<path>" or "$step<N>.id" (direct field access)
+  const match = ref.match(/^\$step(\d+)\.(.+)$/)
+  if (!match) {
+    console.warn(`[ExecuteStream] Invalid step reference format: ${ref}`)
+    return ref
+  }
+
+  const stepNum = parseInt(match[1], 10)
+  const path = match[2]
+
+  const result = stepResults.get(stepNum)
+  if (!result) {
+    console.warn(`[ExecuteStream] Step ${stepNum} result not found for reference: ${ref}`)
+    return ref // return unresolved
+  }
+
+  // Walk the path (supports "data.id", "data.projects[0].id")
+  const parts = path.split('.')
+  let current: unknown = result
+
+  for (const part of parts) {
+    if (current === null || current === undefined) {
+      console.warn(`[ExecuteStream] Path not found in step ${stepNum} result:`, { ref, part, current })
+      return undefined
+    }
+
+    // Check for array index, e.g. "projects[0]"
+    const arrayMatch = part.match(/^(\w+)\[(\d+)]$/)
+    if (arrayMatch) {
+      current = (current as Record<string, unknown>)[arrayMatch[1]]
+      if (Array.isArray(current)) {
+        current = current[parseInt(arrayMatch[2], 10)]
+      } else {
+        console.warn(`[ExecuteStream] Expected array for reference:`, { ref, part })
+        return undefined
+      }
+    } else {
+      current = (current as Record<string, unknown>)[part]
+    }
+  }
+
+  // Fallback: if path started with "data." and resolved to undefined, try without "data." wrapper
+  // This handles cases where the LLM might reference $step1.id instead of $step1.data.id
+  if (current === undefined && parts[0] === 'data' && parts.length > 1) {
+    console.log(`[ExecuteStream] Path with 'data.' resolved to undefined, trying without wrapper for: ${ref}`)
+    let fallback: unknown = result
+    for (const part of parts.slice(1)) {
+      if (fallback === null || fallback === undefined) break
+      
+      const arrayMatch = part.match(/^(\w+)\[(\d+)]$/)
+      if (arrayMatch) {
+        fallback = (fallback as Record<string, unknown>)[arrayMatch[1]]
+        if (Array.isArray(fallback)) {
+          fallback = fallback[parseInt(arrayMatch[2], 10)]
+        } else {
+          fallback = undefined
+          break
+        }
+      } else {
+        fallback = (fallback as Record<string, unknown>)[part]
+      }
+    }
+    if (fallback !== undefined) {
+      console.log(`[ExecuteStream] Fallback resolution succeeded: ${ref} → ${JSON.stringify(fallback)}`)
+      return fallback
+    }
+  }
+
+  return current
+}
+
 function buildSystemPrompt(userContext: {
   name: string
   email: string
@@ -252,6 +409,7 @@ IMPORTANT RULES:
 - Use tools to look up information rather than guessing. When the user asks about emails, calendar, projects, people, or documents, call the appropriate tool.
 - When the user asks to search Drive, find meeting notes, or read a Drive document, use searchDriveFiles then readDriveDocument. You have full access to their Google Drive.
 - For write operations (creating tasks, events, sending emails), always explain what you plan to do BEFORE calling the tool. The user will need to confirm.
+- **When creating projects or wiki pages, always confirm which space the user wants before proceeding.** If they specify a space name, use listSpaces to find the matching space ID. If they don't specify, ask them or use listSpaces to show available options.
 - Be concise and actionable. This is a workplace tool, not a general chatbot.
 - If a tool returns an error, explain what went wrong and suggest alternatives.
 - When referring to people, use their names (from tool results), not IDs.
@@ -379,14 +537,56 @@ export async function executePlanWithProgress(
   const { conversationId } = params
   const toolCalls = session.pendingPlan.toolCalls
   const results: LoopbrainMessage[] = []
+  const stepResults = new Map<number, unknown>() // Map step index → tool result data
   let clientAction: LoopbrainClientAction | undefined
 
+  console.log('[ExecuteStream] Plan received:', {
+    conversationId,
+    stepCount: toolCalls.length,
+    toolNames: toolCalls.map((tc) => tc.name),
+    steps: toolCalls.map((tc, i) => ({
+      index: i,
+      name: tc.name,
+      arguments: tc.arguments,
+    })),
+  })
+  logger.info('[ExecuteStream] executePlanWithProgress entry', {
+    conversationId,
+    stepCount: toolCalls.length,
+    toolNames: toolCalls.map((tc) => tc.name),
+  })
+
   // Enrich context for permission checks during tool execution
-  const agentCtx = await enrichAgentContext(params.workspaceId, params.userId, params.userRole)
+  let agentCtx: AgentContext
+  try {
+    agentCtx = await enrichAgentContext(params.workspaceId, params.userId, params.userRole)
+    console.log('[ExecuteStream] enrichAgentContext done:', { personId: agentCtx.personId })
+    logger.info('[ExecuteStream] enrichAgentContext done', { personId: agentCtx.personId })
+  } catch (err: unknown) {
+    console.error('[ExecuteStream] enrichAgentContext failed:', err)
+    logger.error('[ExecuteStream] enrichAgentContext failed', { err })
+    throw err
+  }
 
   for (let i = 0; i < toolCalls.length; i++) {
     const toolCall = toolCalls[i]
-    const description = formatActionForUser(toolCall.name, toolCall.arguments)
+    
+    // Resolve step references ($step1.data.id → actual value from step 1)
+    const resolvedArguments = resolveStepReferences(toolCall.arguments, stepResults, i)
+    
+    const description = formatActionForUser(toolCall.name, resolvedArguments)
+
+    console.log(`[ExecuteStream] Step ${i+1}/${toolCalls.length}: ${toolCall.name}`, {
+      originalArgs: toolCall.arguments,
+      resolvedArgs: resolvedArguments,
+      argumentsType: typeof resolvedArguments,
+    })
+    logger.info('[ExecuteStream] Executing step', {
+      stepIndex: i,
+      toolName: toolCall.name,
+      arguments: resolvedArguments,
+      argumentsType: typeof resolvedArguments,
+    })
 
     await onEvent({
       type: 'progress',
@@ -395,7 +595,49 @@ export async function executePlanWithProgress(
       description,
     })
 
-    const result = await executeWriteTool(toolCall, params.workspaceId, params.userId, agentCtx)
+    let result: unknown
+    try {
+      // Execute with resolved arguments
+      result = await executeWriteTool(
+        { ...toolCall, arguments: resolvedArguments }, 
+        params.workspaceId, 
+        params.userId, 
+        agentCtx
+      )
+      
+      console.log(`[ExecuteStream] Step ${i+1} result:`, {
+        stepIndex: i,
+        toolName: toolCall.name,
+        hasError: typeof result === 'object' && result !== null && 'error' in result,
+        resultPreview: JSON.stringify(result).slice(0, 500),
+        fullResult: result,
+      })
+      logger.info('[ExecuteStream] Step result', {
+        stepIndex: i,
+        toolName: toolCall.name,
+        hasError: typeof result === 'object' && result !== null && 'error' in result,
+        result,
+      })
+      
+      // Store result for subsequent steps to reference
+      // Wrap in { data: ... } so $stepN.data.field references work correctly
+      // (executeWriteTool already unwraps result.data, so we re-wrap it here)
+      stepResults.set(i + 1, { data: result, success: true })
+      
+    } catch (err: unknown) {
+      console.error(`[ExecuteStream] Step ${i+1} threw exception:`, {
+        stepIndex: i,
+        toolName: toolCall.name,
+        error: err,
+        stack: err instanceof Error ? err.stack : undefined,
+      })
+      logger.error('[ExecuteStream] executeWriteTool threw', {
+        stepIndex: i,
+        toolName: toolCall.name,
+        err,
+      })
+      throw err
+    }
     const isError = typeof result === 'object' && result !== null && 'error' in result
 
     if (isError) {
@@ -435,6 +677,7 @@ export async function executePlanWithProgress(
   }
 
   // All succeeded — persist to session
+  console.log('[ExecuteStream] All steps complete. Persisting to session...')
   await appendMessage(conversationId, {
     role: 'user',
     content: params.userMessage,
@@ -463,6 +706,11 @@ export async function executePlanWithProgress(
     timestamp: new Date().toISOString(),
   })
 
+  console.log('[ExecuteStream] Execution complete:', {
+    success: true,
+    stepsExecuted: toolCalls.length,
+    responsePreview: finalResponse.content.slice(0, 200),
+  })
   await onEvent({ type: 'complete', summary: finalResponse.content, clientAction })
   return {
     success: true,
@@ -557,8 +805,24 @@ async function executeWriteTool(
   const tool = toolRegistry.get(toolCall.name)
   if (!tool) return { error: `Unknown write tool: ${toolCall.name}` }
   const context: AgentContext = agentCtx ?? { workspaceId, userId, workspaceSlug: '', userRole: 'MEMBER' }
+
+  // Normalize arguments: tools expect an object; DB/LLM may store/return a JSON string
+  let args: Record<string, unknown>
+  const raw = toolCall.arguments
+  if (typeof raw === 'string') {
+    try {
+      args = JSON.parse(raw) as Record<string, unknown>
+    } catch {
+      return { error: `Invalid tool arguments: expected JSON object, got string` }
+    }
+  } else if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
+    args = {}
+  } else {
+    args = raw as Record<string, unknown>
+  }
+
   try {
-    const result = await tool.execute(toolCall.arguments, context)
+    const result = await tool.execute(args, context)
     return result.success
       ? result.data ?? { message: result.humanReadable }
       : { error: result.error ?? result.humanReadable }
