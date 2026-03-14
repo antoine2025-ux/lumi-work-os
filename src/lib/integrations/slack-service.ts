@@ -543,6 +543,52 @@ export async function getSlackUserDMChannel(
 }
 
 /**
+ * Update an existing Slack message in-place (chat.update)
+ */
+export async function updateSlackMessage(
+  workspaceId: string,
+  params: { channel: string; ts: string; text: string; blocks?: Record<string, unknown>[] }
+): Promise<{ ok: boolean; error?: string }> {
+  const accessToken = await getValidAccessToken(workspaceId)
+
+  try {
+    const response = await fetch('https://slack.com/api/chat.update', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        channel: params.channel,
+        ts: params.ts,
+        text: params.text,
+        blocks: params.blocks,
+      }),
+    })
+
+    const data = await response.json()
+
+    if (!data.ok) {
+      logger.error('Slack chat.update error', {
+        workspaceId,
+        error: data.error,
+        channel: params.channel,
+        ts: params.ts,
+      })
+      return { ok: false, error: data.error }
+    }
+
+    return { ok: true }
+  } catch (error: unknown) {
+    logger.error('Failed to update Slack message', {
+      workspaceId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+/**
  * Deactivate Slack integration
  */
 export async function deactivateSlackIntegration(workspaceId: string): Promise<void> {

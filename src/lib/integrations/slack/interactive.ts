@@ -12,7 +12,7 @@
  */
 
 import { prisma, prismaUnscoped } from '@/lib/db'
-import { sendSlackMessage, getSlackUserEmail, getSlackIntegration } from '@/lib/integrations/slack-service'
+import { sendSlackMessage, updateSlackMessage, getSlackUserEmail, getSlackIntegration } from '@/lib/integrations/slack-service'
 import { runAgentLoop } from '@/lib/loopbrain/agent-loop'
 import { getMemberRole } from '@/lib/loopbrain/context/getMemberRole'
 import { logger } from '@/lib/logger'
@@ -94,6 +94,10 @@ export async function handleSlackLoopbrainMessage(
 
   if (!text || text.trim().length === 0) return
 
+  // Hoisted so the catch block can update the thinking message without re-resolving workspace
+  let thinkingMsg: { ok: boolean; ts?: string } | undefined
+  let resolvedWorkspaceId: string | undefined
+
   try {
     // 1. Resolve workspace
     const workspaceId = await resolveWorkspace(slackTeamId)
@@ -101,6 +105,7 @@ export async function handleSlackLoopbrainMessage(
       logger.warn('[SlackInteractive] No workspace found for team', { slackTeamId })
       return
     }
+    resolvedWorkspaceId = workspaceId
 
     // 2. Resolve user
     const resolved = await resolveUser(slackUserId, slackTeamId, workspaceId)
@@ -142,7 +147,19 @@ export async function handleSlackLoopbrainMessage(
     const memberRole = await getMemberRole(workspaceId, userId)
     const conversationId = `slack-${channelId}-${replyThreadTs}`
 
-    // 5. Call agent loop
+    // 5. Post instant "thinking" acknowledgment — user sees feedback immediately
+    thinkingMsg = await sendSlackMessage(workspaceId, {
+      channel: channelId,
+      text: '🧠 Thinking...',
+      threadTs: replyThreadTs,
+    }).catch((err) => {
+      logger.warn('[SlackInteractive] Failed to post thinking message', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return { ok: false as const }
+    })
+
+    // 6. Call agent loop
     logger.info('[SlackInteractive] Dispatching to agent loop', {
       workspaceId,
       userId,
@@ -164,9 +181,16 @@ export async function handleSlackLoopbrainMessage(
       },
     })
 
-    // 6. Handle result
+    // 7. Handle result — update or replace the thinking message
+    const userContext = {
+      name: user?.name ?? 'Unknown',
+      email: user?.email ?? '',
+      timezone: user?.timezone ?? 'UTC',
+      workspaceName: workspace?.name ?? 'Workspace',
+    }
+
     if (result.pendingPlan) {
-      // Write action needs user confirmation — post plan with Approve/Cancel buttons
+      // Write action needs user confirmation — update thinking msg with plan + Approve/Cancel buttons
       await postPlanConfirmation({
         workspaceId,
         userId,
@@ -175,20 +199,33 @@ export async function handleSlackLoopbrainMessage(
         responseText: result.response,
         conversationId,
         memberRole,
-        userContext: {
-          name: user?.name ?? 'Unknown',
-          email: user?.email ?? '',
-          timezone: user?.timezone ?? 'UTC',
-          workspaceName: workspace?.name ?? 'Workspace',
-        },
+        userContext,
+        thinkingMsgTs: thinkingMsg?.ts,
       })
     } else {
-      // Read-only response — post formatted text
-      await sendSlackMessage(workspaceId, {
-        channel: channelId,
-        text: formatForSlack(result.response),
-        threadTs: replyThreadTs,
-      })
+      // Read-only response — update thinking message in-place
+      const formattedResponse = formatForSlack(result.response)
+      if (thinkingMsg?.ts) {
+        const updated = await updateSlackMessage(workspaceId, {
+          channel: channelId,
+          ts: thinkingMsg.ts,
+          text: formattedResponse,
+        })
+        if (!updated.ok) {
+          // Fallback: post as new message if update fails
+          await sendSlackMessage(workspaceId, {
+            channel: channelId,
+            text: formattedResponse,
+            threadTs: replyThreadTs,
+          })
+        }
+      } else {
+        await sendSlackMessage(workspaceId, {
+          channel: channelId,
+          text: formattedResponse,
+          threadTs: replyThreadTs,
+        })
+      }
     }
   } catch (error: unknown) {
     logger.error('[SlackInteractive] Processing failed', {
@@ -197,15 +234,31 @@ export async function handleSlackLoopbrainMessage(
       error: error instanceof Error ? error.message : String(error),
     })
 
-    // Try to send error message
+    // Try to update the thinking message with an error, or send a new one
     try {
-      const workspaceId = await resolveWorkspace(slackTeamId)
-      if (workspaceId) {
-        await sendSlackMessage(workspaceId, {
-          channel: channelId,
-          text: "Something went wrong processing your request. Try again or use the Loopwell app.",
-          threadTs: threadTs ?? messageTs,
-        })
+      const errorWorkspaceId = resolvedWorkspaceId ?? await resolveWorkspace(slackTeamId)
+      if (errorWorkspaceId) {
+        const errorText = 'Something went wrong processing your request. Try again or use the Loopwell app.'
+        if (thinkingMsg?.ts) {
+          await updateSlackMessage(errorWorkspaceId, {
+            channel: channelId,
+            ts: thinkingMsg.ts,
+            text: errorText,
+          }).catch(() => {
+            // If update fails, post as a new message
+            return sendSlackMessage(errorWorkspaceId, {
+              channel: channelId,
+              text: errorText,
+              threadTs: threadTs ?? messageTs,
+            })
+          })
+        } else {
+          await sendSlackMessage(errorWorkspaceId, {
+            channel: channelId,
+            text: errorText,
+            threadTs: threadTs ?? messageTs,
+          })
+        }
       }
     } catch {
       // Best effort
@@ -371,10 +424,12 @@ interface PlanConfirmationParams {
     timezone: string
     workspaceName: string
   }
+  /** If set, update this message in-place instead of posting a new one */
+  thinkingMsgTs?: string
 }
 
 async function postPlanConfirmation(params: PlanConfirmationParams): Promise<void> {
-  const { workspaceId, userId, channelId, threadTs, responseText, conversationId, memberRole, userContext } = params
+  const { workspaceId, userId, channelId, threadTs, responseText, conversationId, memberRole, userContext, thinkingMsgTs } = params
 
   // Format the planner's confirmation text for Slack and add Approve/Cancel buttons
   const planText = formatForSlack(responseText)
@@ -404,12 +459,34 @@ async function postPlanConfirmation(params: PlanConfirmationParams): Promise<voi
     },
   ]
 
-  const result = await sendSlackMessage(workspaceId, {
-    channel: channelId,
-    text: planText, // Fallback for notifications
-    blocks,
-    threadTs,
-  })
+  // Update thinking message in-place if we have its timestamp; otherwise post a new message
+  let result: { ok: boolean; ts?: string }
+  if (thinkingMsgTs) {
+    const updated = await updateSlackMessage(workspaceId, {
+      channel: channelId,
+      ts: thinkingMsgTs,
+      text: planText,
+      blocks,
+    })
+    // If update succeeded, use the thinking message ts for pending action tracking
+    result = updated.ok ? { ok: true, ts: thinkingMsgTs } : { ok: false }
+    if (!updated.ok) {
+      // Fallback: post new message
+      result = await sendSlackMessage(workspaceId, {
+        channel: channelId,
+        text: planText,
+        blocks,
+        threadTs,
+      })
+    }
+  } else {
+    result = await sendSlackMessage(workspaceId, {
+      channel: channelId,
+      text: planText, // Fallback for notifications
+      blocks,
+      threadTs,
+    })
+  }
 
   // Store pending action so the webhook can re-enter the agent loop on button click
   if (result.ok && result.ts) {
