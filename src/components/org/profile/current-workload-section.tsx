@@ -1,22 +1,37 @@
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { Briefcase } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import type { CapacitySnapshotStatus } from "@/lib/org/capacity/status";
 
 interface Project {
   id: string;
   name: string;
   hoursAllocated: number;
-  role: string;
+  taskCount?: number;
+  role: string | null;
 }
 
 const PROJECT_DOT_COLORS = ["bg-blue-500", "bg-emerald-500", "bg-amber-500"] as const;
+
+const STATUS_BADGE: Record<CapacitySnapshotStatus, { label: string; className: string }> = {
+  HEALTHY: { label: "Healthy", className: "border-emerald-500/50 bg-emerald-500/20 text-emerald-300" },
+  AT_RISK: { label: "At Risk", className: "border-amber-500/50 bg-amber-500/20 text-amber-300" },
+  OVERALLOCATED: { label: "Over Capacity", className: "border-red-500/50 bg-red-500/20 text-red-300" },
+  UNDERUTILIZED: { label: "Underutilized", className: "border-slate-500/50 bg-slate-500/20 text-slate-300" },
+  UNAVAILABLE: { label: "Unavailable", className: "border-slate-500/50 bg-slate-500/20 text-slate-400" },
+};
 
 interface CurrentWorkloadSectionProps {
   totalCapacity: number;
   allocatedHours: number;
   availableHours: number;
   utilizationPct: number;
+  meetingHours?: number;
+  timeOffHours?: number;
+  effectiveHours?: number;
+  snapshotStatus?: CapacitySnapshotStatus;
   projects: Project[];
   workspaceSlug?: string;
 }
@@ -26,6 +41,10 @@ export function CurrentWorkloadSection({
   allocatedHours,
   availableHours,
   utilizationPct,
+  meetingHours,
+  timeOffHours,
+  effectiveHours,
+  snapshotStatus,
   projects,
   workspaceSlug,
 }: CurrentWorkloadSectionProps) {
@@ -38,11 +57,20 @@ export function CurrentWorkloadSection({
   const projectHref = (projectId: string) =>
     workspaceSlug ? `/w/${workspaceSlug}/projects/${projectId}` : `/projects/${projectId}`;
 
+  const badge = snapshotStatus ? STATUS_BADGE[snapshotStatus] : null;
+
   return (
     <div className="rounded-lg border border-border/50 bg-card/80 p-4">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-        Current Workload
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Current Workload
+        </h3>
+        {badge && (
+          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", badge.className)}>
+            {badge.label}
+          </Badge>
+        )}
+      </div>
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <span
@@ -64,7 +92,7 @@ export function CurrentWorkloadSection({
         />
 
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Allocated: {allocatedHours}h</span>
+          <span>Committed: {allocatedHours}h</span>
           <span
             className={
               availableHours < 0 ? "text-red-500 font-medium" : "text-muted-foreground"
@@ -73,6 +101,21 @@ export function CurrentWorkloadSection({
             Available: {availableHours}h
           </span>
         </div>
+
+        {/* V2 capacity breakdown */}
+        {(meetingHours != null || timeOffHours != null || effectiveHours != null) && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground border-t border-border/30 pt-2">
+            {meetingHours != null && meetingHours > 0 && (
+              <span>Meetings: {meetingHours}h</span>
+            )}
+            {timeOffHours != null && timeOffHours > 0 && (
+              <span>Time off: {timeOffHours}h</span>
+            )}
+            {effectiveHours != null && (
+              <span>Effective: {effectiveHours}h</span>
+            )}
+          </div>
+        )}
 
         {projects.length > 0 ? (
           <div className="pt-2 space-y-2">
@@ -99,6 +142,11 @@ export function CurrentWorkloadSection({
                   </div>
                   <span className="text-xs text-muted-foreground shrink-0">
                     {project.hoursAllocated}h/wk
+                    {project.taskCount != null && (
+                      <span className="ml-1 text-muted-foreground/70">
+                        ({project.taskCount} {project.taskCount === 1 ? "task" : "tasks"})
+                      </span>
+                    )}
                   </span>
                 </Link>
               ))}

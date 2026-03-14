@@ -356,7 +356,8 @@ TOOL RETURN VALUES
 - createWikiPage returns: { id, title, slug }
 - createGoal returns: { id, title }
 - addPersonToProject returns: { projectId, userId, membershipId }
-- updateTaskStatus returns: { taskId, status }
+- updateTask returns: { taskId, title } — use to change title, priority, dueDate, status, assigneeId, or estimatedHours; at least one field required
+- updateTaskStatus returns: { taskId, status } — use only when changing status alone is sufficient; prefer updateTask for multi-field changes
 - updateProject returns: { id, name }
 - linkProjectToGoal returns: { id, projectId, goalId }
 - addSubtask returns: { id, title, taskId }
@@ -367,12 +368,15 @@ TOOL RETURN VALUES
 - listProjects returns: { projects: [{ id, name, status, priority }] }
 - listPeople returns: { people: [{ userId, name, email, role }] } — use for resolving names like "Sarah" to email
 - listTasksByAssignee returns: { tasks: [{ id, title, status, priority, dueDate, projectId, projectName }], count }
+- listProjectTasks returns: { tasks: [{ id, title, status, priority, dueDate, assigneeName, epicTitle, points, estimatedHours }], count, projectId } — use to show all tasks in a project, filter by status/assignee/epic
 - bulkReassignTasks returns: { reassignedCount, assigneeId, assigneeName } — accepts taskIds (string[]) OR tasks (object array from listTasksByAssignee)
 - removeProjectMember returns: { projectId, projectName, removedPersonId }
 - searchDriveFiles returns: { files: [{ id, name, mimeType, webViewLink, modifiedTime }] } — use to find files in Google Drive
 - readDriveDocument returns: { content, fileName, mimeType, lastModified, webViewLink } — use after searchDriveFiles to get file content
 - createDriveDocument returns: { fileId, webViewLink, fileName }
 - updateDriveDocument returns: { success, webViewLink }
+- sendSlackMessage returns: { channel, messageTs } — sends a message to a Slack channel. Use when user wants to notify someone, share updates, or post to Slack.
+- getProjectHealth returns: { projectId, name, status, healthScore (0–100), overallHealth (EXCELLENT/GOOD/AT_RISK/CRITICAL), onTrack, completionRate (0–100), taskSummary: { total, done, blocked, inProgress, todo, inReview, overdue }, velocity: { tasksPerWeek, pointsPerWeek, avgCycleDays }, risks: [{ type, severity, description }], blockers: [{ description, daysBlocked, type }], momentum (IMPROVING/STABLE/DECLINING/VOLATILE), resourceHealth: { teamSize, unassignedTaskCount, bottlenecks } }
 
 ═══════════════════════════════════════════════════
 GOOGLE DRIVE — YOU HAVE FULL ACCESS

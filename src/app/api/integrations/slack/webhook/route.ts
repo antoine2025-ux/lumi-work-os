@@ -4,10 +4,8 @@ import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { handleSlackLoopbrainMessage } from '@/lib/integrations/slack/interactive'
 import { sendSlackMessage } from '@/lib/integrations/slack-service'
-import { executeAgentPlan } from '@/lib/loopbrain/agent/executor'
-import { toolRegistry } from '@/lib/loopbrain/agent/tool-registry'
-import { enrichAgentContext } from '@/lib/loopbrain/permissions'
-import { getMemberRole } from '@/lib/loopbrain/context/getMemberRole'
+import { runAgentLoop } from '@/lib/loopbrain/agent-loop'
+import { clearPendingPlan } from '@/lib/loopbrain/session-store'
 
 /**
  * Slack Webhook Handler
@@ -240,19 +238,35 @@ async function handleMention(event: any, teamId: string) {
 }
 
 /**
- * Handle Loopbrain plan approval/cancel button clicks
+ * Handle Loopbrain plan approval/cancel button clicks.
+ *
+ * On approve: re-enters the agent loop with "yes" — the session store already
+ * holds the pending plan, so the loop executes it and returns a summary.
+ *
+ * On cancel: clears the pending plan from the session store.
  */
 async function handleLoopbrainPlanAction(
   pendingAction: any,
   action: any
 ) {
   const isApprove = action.action_id === 'loopbrain_plan_approve'
-  const channelId = pendingAction.slackChannelId
-  const messageTs = pendingAction.slackMessageTs
-  const workspaceId = pendingAction.workspaceId
+  const channelId = pendingAction.slackChannelId as string | null
+  const messageTs = pendingAction.slackMessageTs as string | null
+  const workspaceId = pendingAction.workspaceId as string
+
+  const contextData = pendingAction.contextData as Record<string, unknown> | null
+  const conversationId = contextData?.conversationId as string | undefined
 
   if (!isApprove) {
-    // Cancel
+    // Cancel — clear session pending plan and mark action done
+    if (conversationId) {
+      try {
+        await clearPendingPlan(conversationId)
+      } catch {
+        // Session may not exist yet — safe to ignore
+      }
+    }
+
     await prisma.loopbrainPendingAction.update({
       where: { id: pendingAction.id },
       data: { status: 'CANCELLED', completedAt: new Date() },
@@ -262,44 +276,50 @@ async function handleLoopbrainPlanAction(
       await sendSlackMessage(workspaceId, {
         channel: channelId,
         text: 'Plan cancelled.',
-        threadTs: messageTs,
+        threadTs: messageTs ?? undefined,
       })
     }
     return
   }
 
-  // Approve — execute the plan
+  // Approve — re-enter agent loop with "yes" to trigger pending-plan execution
   try {
-    const contextData = pendingAction.contextData as Record<string, unknown> | null
-    const plan = contextData?.plan as Parameters<typeof executeAgentPlan>[0] | undefined
-
-    if (!plan) {
-      throw new Error('No plan data found in pending action')
+    if (!conversationId) {
+      throw new Error('No conversationId in pending action contextData')
     }
 
-    const slackUserRole = await getMemberRole(workspaceId, pendingAction.createdBy)
-    const slackAgentCtx = await enrichAgentContext(workspaceId, pendingAction.createdBy, slackUserRole)
-    const result = await executeAgentPlan(
-      plan,
-      slackAgentCtx,
-      toolRegistry
-    )
+    const userId = (contextData?.userId as string) || pendingAction.createdBy
+    const userRole = (contextData?.userRole as 'VIEWER' | 'MEMBER' | 'ADMIN' | 'OWNER') || 'MEMBER'
+    const userContext = (contextData?.userContext as {
+      name: string
+      email: string
+      timezone: string
+      workspaceName: string
+    }) || { name: 'Unknown', email: '', timezone: 'UTC', workspaceName: 'Workspace' }
+
+    const result = await runAgentLoop({
+      workspaceId,
+      userId,
+      conversationId,
+      userMessage: 'yes',
+      userRole,
+      userContext,
+    })
 
     await prisma.loopbrainPendingAction.update({
       where: { id: pendingAction.id },
       data: { status: 'COMPLETED', completedAt: new Date() },
     })
 
-    const hasFailed = !!result.failed
-    const resultText = !hasFailed
-      ? `Done! ${result.results.map((r) => r.humanReadable).filter(Boolean).join('\n') || 'Plan executed successfully.'}`
-      : `Execution failed: ${result.failed?.error ?? 'Unknown error'}`
-
     if (channelId && workspaceId) {
+      // Truncate to Slack's text limit
+      const responseText = result.response.length > 3000
+        ? result.response.slice(0, 2950) + '\n\n_...truncated. View full response in Loopwell._'
+        : result.response
       await sendSlackMessage(workspaceId, {
         channel: channelId,
-        text: resultText.slice(0, 3000),
-        threadTs: messageTs,
+        text: responseText,
+        threadTs: messageTs ?? undefined,
       })
     }
   } catch (err: unknown) {
@@ -311,8 +331,8 @@ async function handleLoopbrainPlanAction(
     if (channelId && workspaceId) {
       await sendSlackMessage(workspaceId, {
         channel: channelId,
-        text: `Plan execution failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        threadTs: messageTs,
+        text: `Something went wrong executing the plan: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        threadTs: messageTs ?? undefined,
       })
     }
   }

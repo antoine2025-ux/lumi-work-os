@@ -66,7 +66,8 @@ export async function GET(request: NextRequest) {
       'channels:read',
       'channels:history',
       'users:read',
-      'users:read.email'
+      'users:read.email',
+      'im:write',
     ].join(',')
 
     const state = Buffer.from(JSON.stringify({

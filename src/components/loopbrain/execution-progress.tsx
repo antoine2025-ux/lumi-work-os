@@ -29,6 +29,7 @@ const TOOL_ENTITY_TYPE: Record<string, EntityLink["type"]> = {
   createEpic: "epic",
   createGoal: "goal",
   createWikiPage: "wiki",
+  draftWikiPage: "wiki",
   createTodo: "todo",
 }
 

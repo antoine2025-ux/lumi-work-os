@@ -16,6 +16,12 @@ import { prisma, prismaUnscoped } from "@/lib/db";
 import { google } from "googleapis";
 import { logger } from "@/lib/logger";
 import type { UtilizationStatusV0 } from "../contract/workloadAnalysis.v0";
+import {
+  computeWeeklySnapshot,
+  computeWeeklySnapshotBatch,
+  type WeeklySnapshotResult,
+} from "@/lib/org/capacity/compute-weekly-snapshot";
+import type { CapacitySnapshotStatus } from "@/lib/org/capacity/status";
 
 // =============================================================================
 // Types
@@ -111,6 +117,28 @@ export interface UnifiedCapacitySnapshotV0 {
     hasCapacity: boolean;
   };
 
+  /** Task-based capacity snapshot (capacity calc contract v1.0) */
+  taskBasedCapacity: {
+    /** Whether snapshot data is available */
+    hasSnapshotData: boolean;
+    /** Contract hours for the week */
+    contractHours: number | null;
+    /** Hours consumed by meetings (from calendar) */
+    meetingHours: number | null;
+    /** Hours of time off */
+    timeOffHours: number | null;
+    /** Effective available hours (contract - meetings - timeOff) */
+    effectiveHours: number | null;
+    /** Committed hours from assigned tasks */
+    committedHours: number | null;
+    /** Utilization percentage (committed/effective × 100) */
+    utilization: number | null;
+    /** 5-tier status: OVERALLOCATED, AT_RISK, HEALTHY, UNDERUTILIZED, UNAVAILABLE */
+    snapshotStatus: CapacitySnapshotStatus | null;
+    /** Whether person's Google Calendar is connected */
+    calendarConnected: boolean;
+  };
+
   /** Summary */
   summary: {
     /** Overall capacity assessment */
@@ -190,6 +218,24 @@ export async function buildUnifiedCapacity(
     const weekStart = getWeekStart(now);
     const weekEnd = getWeekEnd(now);
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    // Try to compute weekly snapshot (best-effort — don't block if it fails)
+    let weeklySnapshot: WeeklySnapshotResult | null = null;
+    let calendarConnected = false;
+    try {
+      weeklySnapshot = await computeWeeklySnapshot(personId, workspaceId, weekStart);
+      // Check if calendar is connected by looking at meetingHours > 0 or checking account
+      const account = await prismaUnscoped.account.findFirst({
+        where: { userId: personId, provider: "google" },
+        select: { refresh_token: true },
+      });
+      calendarConnected = !!account?.refresh_token;
+    } catch (err: unknown) {
+      logger.warn("[UnifiedCapacity] Weekly snapshot computation failed, continuing with legacy data", {
+        personId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
 
     // Load all data in parallel
     const [person, capacityContractRaw, allocationsRaw, availabilityRecordsRaw, calendarEvents] =
@@ -416,6 +462,17 @@ export async function buildUnifiedCapacity(
       availability: availabilitySection,
       calendarImpact,
       effectiveCapacity,
+      taskBasedCapacity: {
+        hasSnapshotData: weeklySnapshot !== null,
+        contractHours: weeklySnapshot?.contractHours ?? null,
+        meetingHours: weeklySnapshot?.meetingHours ?? null,
+        timeOffHours: weeklySnapshot?.timeOffHours ?? null,
+        effectiveHours: weeklySnapshot?.effectiveHours ?? null,
+        committedHours: weeklySnapshot?.committedHours ?? null,
+        utilization: weeklySnapshot?.utilization ?? null,
+        snapshotStatus: (weeklySnapshot?.snapshotStatus as CapacitySnapshotStatus) ?? null,
+        calendarConnected,
+      },
       summary: {
         assessment,
         primaryConstraint,
@@ -559,6 +616,117 @@ export async function buildTeamCapacitySummary(
     logger.error("[UnifiedCapacity] Failed to build team summary", {
       workspaceId,
       teamId,
+      error,
+    });
+    throw error;
+  }
+}
+
+// =============================================================================
+// Workspace-Level Capacity Summary (for Loopbrain prompts)
+// =============================================================================
+
+/**
+ * Workspace capacity summary for Loopbrain context.
+ * Pre-computes snapshots for all active people and returns aggregated metrics.
+ */
+export interface WorkspaceCapacitySummaryV0 {
+  schemaVersion: "v0";
+  generatedAt: string;
+  workspaceId: string;
+  totalPeople: number;
+  overallocatedCount: number;
+  atRiskCount: number;
+  healthyCount: number;
+  underutilizedCount: number;
+  unavailableCount: number;
+  averageUtilization: number | null;
+  /** People with highest utilization (top 5 overloaded) */
+  topOverloaded: Array<{
+    personId: string;
+    personName: string;
+    utilization: number;
+    committedHours: number;
+    effectiveHours: number;
+  }>;
+}
+
+/**
+ * Build a workspace-level capacity summary from weekly snapshots.
+ * Used by Loopbrain to answer questions like "Who has bandwidth?" or "Is the team overcommitted?"
+ */
+export async function buildWorkspaceCapacitySummary(
+  workspaceId: string
+): Promise<WorkspaceCapacitySummaryV0> {
+  const now = new Date();
+  const weekStart = getWeekStart(now);
+
+  try {
+    const snapshots = await computeWeeklySnapshotBatch(workspaceId, weekStart);
+
+    // Load person names
+    const personIds = snapshots.map((s) => s.personId);
+    const members = personIds.length > 0
+      ? await prisma.workspaceMember.findMany({
+          where: { workspaceId, userId: { in: personIds } },
+          select: { userId: true, user: { select: { name: true, email: true } } },
+        })
+      : [];
+    const nameMap = new Map(
+      members.map((m) => [m.userId, m.user.name || m.user.email || "Unknown"])
+    );
+
+    let overallocatedCount = 0;
+    let atRiskCount = 0;
+    let healthyCount = 0;
+    let underutilizedCount = 0;
+    let unavailableCount = 0;
+    let utilizationSum = 0;
+    let utilizationCount = 0;
+
+    for (const snapshot of snapshots) {
+      switch (snapshot.snapshotStatus) {
+        case "OVERALLOCATED": overallocatedCount++; break;
+        case "AT_RISK": atRiskCount++; break;
+        case "HEALTHY": healthyCount++; break;
+        case "UNDERUTILIZED": underutilizedCount++; break;
+        case "UNAVAILABLE": unavailableCount++; break;
+      }
+      if (snapshot.utilization != null) {
+        utilizationSum += snapshot.utilization;
+        utilizationCount++;
+      }
+    }
+
+    // Top overloaded people (sorted by utilization descending)
+    const topOverloaded = snapshots
+      .filter((s) => s.utilization != null && s.utilization > 85)
+      .sort((a, b) => (b.utilization ?? 0) - (a.utilization ?? 0))
+      .slice(0, 5)
+      .map((s) => ({
+        personId: s.personId,
+        personName: nameMap.get(s.personId) ?? s.personId,
+        utilization: Math.round(s.utilization ?? 0),
+        committedHours: s.committedHours,
+        effectiveHours: s.effectiveHours,
+      }));
+
+    return {
+      schemaVersion: "v0",
+      generatedAt: new Date().toISOString(),
+      workspaceId,
+      totalPeople: snapshots.length,
+      overallocatedCount,
+      atRiskCount,
+      healthyCount,
+      underutilizedCount,
+      unavailableCount,
+      averageUtilization: utilizationCount > 0 ? Math.round(utilizationSum / utilizationCount) : null,
+      topOverloaded,
+    };
+  } catch (error: unknown) {
+    logger.error("[UnifiedCapacity] Failed to build workspace summary", {
+      workspaceId,
       error,
     });
     throw error;

@@ -198,14 +198,37 @@ async function streamViaHocuspocus(params: StreamDraftParams): Promise<void> {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Threshold (in characters) above which we treat `topic` as raw source material
+ * that needs summarization rather than a short topic description.
+ */
+const SOURCE_MATERIAL_THRESHOLD = 500
+
 function buildDraftPrompt(topic: string, outline?: string[]): string {
-  let prompt = `Write a well-structured wiki page about the following topic:
+  const isSourceMaterial = topic.length >= SOURCE_MATERIAL_THRESHOLD
+
+  let prompt: string
+  if (isSourceMaterial) {
+    prompt = `You are given raw source material (meeting notes, transcript, document, etc.). Analyze it and produce a well-structured wiki page that summarizes the key information.
+
+**Source Material:**
+${topic}
+
+**Instructions:**
+- Summarize the content — do NOT reproduce it verbatim.
+- Extract and organize: key points, decisions, action items, and important context.
+- Use markdown format with clear headings (## for main sections, ### for subsections), bullet lists, and concise paragraphs.
+- The page should be professional, informative, and ready to publish as internal documentation.
+- Do NOT include a title heading (# Title) — the page already has a title. Start directly with the content.`
+  } else {
+    prompt = `Write a well-structured wiki page about the following topic:
 
 **Topic:** ${topic}
 
 Write in markdown format. Use clear headings (## for main sections, ### for subsections), bullet lists where appropriate, and concise paragraphs. The page should be professional, informative, and ready to publish as internal documentation.
 
 Do NOT include a title heading (# Title) — the page already has a title. Start directly with the content.`
+  }
 
   if (outline && outline.length > 0) {
     prompt += `\n\nInclude the following sections:\n${outline.map((s) => `- ${s}`).join('\n')}`

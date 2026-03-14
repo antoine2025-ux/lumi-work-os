@@ -68,6 +68,11 @@ export type OrgIssue =
   | "CAPACITY_SEVERELY_OVERLOADED_TEAM"
   | "CAPACITY_UNDERUTILIZED_TEAM"
   | "CAPACITY_TEAM_NO_MEMBERS"
+  // Capacity calc contract v1.0: Snapshot-based issues
+  | "SNAPSHOT_AT_RISK_PERSON"
+  | "SNAPSHOT_OVERALLOCATED_PERSON"
+  | "SNAPSHOT_UNDERUTILIZED_PERSON"
+  | "SNAPSHOT_TEAM_IMBALANCE"
   // Reserved for v1.1 (registered to avoid union refactors)
   | "CAPACITY_MANAGER_OVERLOADED"
   | "CAPACITY_TEAM_DONUT";
@@ -420,7 +425,10 @@ export type CapacityIssueEvidence =
   // Phase J: Impact & Dependency issues
   | WorkImpactUndefinedEvidence
   | HighImpactSingleOwnerEvidence
-  | DecisionDomainImpactedEvidence;
+  | DecisionDomainImpactedEvidence
+  // Capacity calc contract v1.0: Snapshot-based issues
+  | SnapshotCapacityEvidence
+  | SnapshotTeamImbalanceEvidence;
 
 // ============================================================================
 // Phase G: Evidence Types (versionable, minimal, typed)
@@ -692,6 +700,35 @@ export type ForbiddenResponsibilityConflictEvidence = {
   semanticsVersion: number;
 };
 
+// ============================================================================
+// Capacity Calc Contract v1.0: Snapshot Evidence Types
+// ============================================================================
+
+export type SnapshotCapacityEvidence = {
+  evidenceVersion: 1;
+  utilization: number | null;
+  committedHours: number;
+  effectiveHours: number;
+  meetingHours: number;
+  contractHours: number;
+  snapshotStatus: string;
+  weekStart: string;
+  /** Only present for AT_RISK */
+  bufferHours?: number;
+  /** Only present for UNDERUTILIZED */
+  availableHours?: number;
+};
+
+export type SnapshotTeamImbalanceEvidence = {
+  evidenceVersion: 1;
+  teamUtilization: number;
+  memberCount: number;
+  overloadedMemberIds: string[];
+  overloadedMemberNames: string[];
+  totalEffectiveHours: number;
+  totalCommittedHours: number;
+};
+
 /**
  * Team input type for ownership issue derivation
  */
@@ -823,6 +860,19 @@ export function buildIssueExplainability(
     case "CAPACITY_TEAM_NO_MEMBERS":
       why.push(`Team "${context.entityName || issue.entityId}" has no active members assigned`);
       break;
+    // Snapshot-based capacity issues
+    case "SNAPSHOT_AT_RISK_PERSON":
+      why.push(`Person "${context.entityName || issue.entityId}" is near capacity based on task commitments and calendar`);
+      break;
+    case "SNAPSHOT_OVERALLOCATED_PERSON":
+      why.push(`Person "${context.entityName || issue.entityId}" has more task hours than available capacity`);
+      break;
+    case "SNAPSHOT_UNDERUTILIZED_PERSON":
+      why.push(`Person "${context.entityName || issue.entityId}" has significantly low utilization based on task commitments`);
+      break;
+    case "SNAPSHOT_TEAM_IMBALANCE":
+      why.push(`Team "${context.entityName || issue.entityId}" has uneven workload distribution — some members overloaded while team aggregate is below capacity`);
+      break;
     default:
       why.push(`${issue.type} issue detected for ${issue.entityType} "${context.entityName || issue.entityId}"`);
   }
@@ -890,6 +940,19 @@ export function buildIssueExplainability(
         break;
       case "CAPACITY_TEAM_NO_MEMBERS":
         whatChangesIt.push("Assign team members");
+        break;
+      // Snapshot-based capacity issues
+      case "SNAPSHOT_AT_RISK_PERSON":
+        whatChangesIt.push("Reduce task load or reassign tasks");
+        break;
+      case "SNAPSHOT_OVERALLOCATED_PERSON":
+        whatChangesIt.push("Reassign tasks or extend deadlines");
+        break;
+      case "SNAPSHOT_UNDERUTILIZED_PERSON":
+        whatChangesIt.push("Assign more work or review capacity contract");
+        break;
+      case "SNAPSHOT_TEAM_IMBALANCE":
+        whatChangesIt.push("Redistribute tasks across team members");
         break;
       default:
         whatChangesIt.push("Fix issue");
@@ -1911,6 +1974,239 @@ export function deriveCapacityV1Issues(
         explainability: buildIssueExplainability(
           { type: "CAPACITY_UNDERUTILIZED_TEAM", entityType: "TEAM", entityId: rollup.teamId, issueKey },
           { fixUrl: deepLinkForTeam(workspaceSlug, rollup.teamId), fixAction: "Review team allocation", entityName: rollup.teamName, evidence }
+        ),
+      });
+    }
+  }
+
+  return issues;
+}
+
+// ============================================================================
+// Capacity Calc Contract v1.0 §9.2: Snapshot-Based Issue Derivation
+// ============================================================================
+
+import type { WeeklySnapshotResult } from "./capacity/compute-weekly-snapshot";
+
+/**
+ * Input context for snapshot-based capacity issue derivation.
+ * Uses pre-computed weekly snapshots from the capacity engine.
+ */
+export type SnapshotIssueContext = {
+  workspaceSlug: string;
+  /** Snapshots for current week (one per person) */
+  currentWeekSnapshots: WeeklySnapshotResult[];
+  /** Snapshots for next week (one per person) — optional */
+  nextWeekSnapshots?: WeeklySnapshotResult[];
+  /** Person names for display */
+  personMetadata: Map<string, { name: string }>;
+  /** Team membership: personId → { teamId, teamName } */
+  personTeams: Map<string, { teamId: string; teamName: string }>;
+  /** Thresholds (percentages 0-100 scale, matching snapshotStatus thresholds) */
+  thresholds: {
+    overallocationThreshold: number; // default 100
+    thresholdAtRisk: number;         // default 85
+    underutilizedThresholdPct: number; // default 40
+  };
+};
+
+/**
+ * Derive capacity issues from weekly snapshots.
+ *
+ * Contract §9.2 issue types:
+ * - SNAPSHOT_OVERALLOCATED_PERSON: utilization > overallocationThreshold
+ * - SNAPSHOT_AT_RISK_PERSON: utilization between thresholdAtRisk and overallocationThreshold
+ * - SNAPSHOT_UNDERUTILIZED_PERSON: utilization < underutilizedThresholdPct
+ * - SNAPSHOT_TEAM_IMBALANCE: team aggregate < thresholdAtRisk but any member > overallocationThreshold
+ */
+export function deriveSnapshotCapacityIssues(
+  context: SnapshotIssueContext
+): OrgIssueMetadata[] {
+  const issues: OrgIssueMetadata[] = [];
+  const { thresholds, workspaceSlug } = context;
+
+  // Combine current + next week snapshots, check both
+  const allSnapshots = [...context.currentWeekSnapshots];
+  if (context.nextWeekSnapshots) {
+    allSnapshots.push(...context.nextWeekSnapshots);
+  }
+
+  // Track which persons already have issues (avoid duplicates across weeks)
+  const overallocatedPersons = new Set<string>();
+  const atRiskPersons = new Set<string>();
+  const underutilizedPersons = new Set<string>();
+
+  for (const snapshot of allSnapshots) {
+    const { personId, utilization, effectiveHours, committedHours, snapshotStatus } = snapshot;
+    const personName = context.personMetadata.get(personId)?.name ?? personId;
+
+    // SNAPSHOT_OVERALLOCATED_PERSON
+    if (
+      snapshotStatus === "OVERALLOCATED" &&
+      !overallocatedPersons.has(personId)
+    ) {
+      overallocatedPersons.add(personId);
+      const issueKey = `SNAPSHOT_OVERALLOCATED_PERSON:PERSON:${personId}`;
+      issues.push({
+        issueKey,
+        issueId: issueKey,
+        type: "SNAPSHOT_OVERALLOCATED_PERSON",
+        severity: "warning",
+        entityType: "PERSON",
+        entityId: personId,
+        entityName: personName,
+        explanation: `${personName} is overallocated at ${utilization != null ? Math.round(utilization) : "?"}% utilization — ${committedHours.toFixed(1)}h committed vs ${effectiveHours.toFixed(1)}h available.`,
+        fixUrl: `/org/people/${personId}`,
+        fixAction: "Reassign tasks or extend deadlines",
+        evidence: {
+          evidenceVersion: 1,
+          utilization,
+          committedHours,
+          effectiveHours,
+          meetingHours: snapshot.meetingHours,
+          contractHours: snapshot.contractHours,
+          snapshotStatus,
+          weekStart: snapshot.weekStart.toISOString(),
+        },
+        explainability: buildIssueExplainability(
+          { type: "SNAPSHOT_OVERALLOCATED_PERSON", entityType: "PERSON", entityId: personId, issueKey },
+          { fixUrl: `/org/people/${personId}`, fixAction: "Reassign tasks or extend deadlines", entityName: personName }
+        ),
+      });
+    }
+
+    // SNAPSHOT_AT_RISK_PERSON
+    if (
+      snapshotStatus === "AT_RISK" &&
+      !atRiskPersons.has(personId) &&
+      !overallocatedPersons.has(personId)
+    ) {
+      atRiskPersons.add(personId);
+      const bufferHours = effectiveHours > 0 && utilization != null
+        ? effectiveHours * (1 - utilization / 100)
+        : 0;
+      const issueKey = `SNAPSHOT_AT_RISK_PERSON:PERSON:${personId}`;
+      issues.push({
+        issueKey,
+        issueId: issueKey,
+        type: "SNAPSHOT_AT_RISK_PERSON",
+        severity: "warning",
+        entityType: "PERSON",
+        entityId: personId,
+        entityName: personName,
+        explanation: `${personName} is near capacity at ${utilization != null ? Math.round(utilization) : "?"}% utilization — only ${bufferHours.toFixed(1)}h buffer remaining.`,
+        fixUrl: `/org/people/${personId}`,
+        fixAction: "Reduce task load or reassign tasks",
+        evidence: {
+          evidenceVersion: 1,
+          utilization,
+          bufferHours,
+          committedHours,
+          effectiveHours,
+          meetingHours: snapshot.meetingHours,
+          contractHours: snapshot.contractHours,
+          snapshotStatus,
+          weekStart: snapshot.weekStart.toISOString(),
+        },
+        explainability: buildIssueExplainability(
+          { type: "SNAPSHOT_AT_RISK_PERSON", entityType: "PERSON", entityId: personId, issueKey },
+          { fixUrl: `/org/people/${personId}`, fixAction: "Reduce task load or reassign tasks", entityName: personName }
+        ),
+      });
+    }
+
+    // SNAPSHOT_UNDERUTILIZED_PERSON (current week only)
+    if (
+      snapshotStatus === "UNDERUTILIZED" &&
+      !underutilizedPersons.has(personId) &&
+      context.currentWeekSnapshots.includes(snapshot)
+    ) {
+      underutilizedPersons.add(personId);
+      const availableHours = effectiveHours - committedHours;
+      const issueKey = `SNAPSHOT_UNDERUTILIZED_PERSON:PERSON:${personId}`;
+      issues.push({
+        issueKey,
+        issueId: issueKey,
+        type: "SNAPSHOT_UNDERUTILIZED_PERSON",
+        severity: "info",
+        entityType: "PERSON",
+        entityId: personId,
+        entityName: personName,
+        explanation: `${personName} is underutilized at ${utilization != null ? Math.round(utilization) : 0}% — ${availableHours.toFixed(1)}h available this week.`,
+        fixUrl: `/org/people/${personId}`,
+        fixAction: "Assign more work or review capacity contract",
+        evidence: {
+          evidenceVersion: 1,
+          utilization,
+          availableHours,
+          effectiveHours,
+          committedHours,
+          meetingHours: snapshot.meetingHours,
+          contractHours: snapshot.contractHours,
+          snapshotStatus,
+          weekStart: snapshot.weekStart.toISOString(),
+        },
+        explainability: buildIssueExplainability(
+          { type: "SNAPSHOT_UNDERUTILIZED_PERSON", entityType: "PERSON", entityId: personId, issueKey },
+          { fixUrl: `/org/people/${personId}`, fixAction: "Assign more work or review capacity contract", entityName: personName }
+        ),
+      });
+    }
+  }
+
+  // SNAPSHOT_TEAM_IMBALANCE: team aggregate < thresholdAtRisk but any member > overallocationThreshold
+  const teamSnapshots = new Map<string, { snapshots: WeeklySnapshotResult[]; teamName: string }>();
+  for (const snapshot of context.currentWeekSnapshots) {
+    const team = context.personTeams.get(snapshot.personId);
+    if (!team) continue;
+    if (!teamSnapshots.has(team.teamId)) {
+      teamSnapshots.set(team.teamId, { snapshots: [], teamName: team.teamName });
+    }
+    teamSnapshots.get(team.teamId)!.snapshots.push(snapshot);
+  }
+
+  for (const [teamId, { snapshots, teamName }] of teamSnapshots) {
+    if (snapshots.length < 2) continue; // Need at least 2 members
+
+    const totalEffective = snapshots.reduce((s, sn) => s + sn.effectiveHours, 0);
+    const totalCommitted = snapshots.reduce((s, sn) => s + sn.committedHours, 0);
+    const teamUtilization = totalEffective > 0 ? (totalCommitted / totalEffective) * 100 : 0;
+
+    const overloadedMembers = snapshots.filter(
+      (sn) => sn.snapshotStatus === "OVERALLOCATED"
+    );
+
+    if (
+      teamUtilization < thresholds.thresholdAtRisk &&
+      overloadedMembers.length > 0
+    ) {
+      const issueKey = `SNAPSHOT_TEAM_IMBALANCE:TEAM:${teamId}`;
+      const overloadedNames = overloadedMembers.map(
+        (sn) => context.personMetadata.get(sn.personId)?.name ?? sn.personId
+      );
+      issues.push({
+        issueKey,
+        issueId: issueKey,
+        type: "SNAPSHOT_TEAM_IMBALANCE",
+        severity: "warning",
+        entityType: "TEAM",
+        entityId: teamId,
+        entityName: teamName,
+        explanation: `Team "${teamName}" is at ${Math.round(teamUtilization)}% aggregate utilization but ${overloadedMembers.length} member(s) are overloaded: ${overloadedNames.join(", ")}. This is a distribution problem, not a capacity problem.`,
+        fixUrl: deepLinkForTeam(workspaceSlug, teamId),
+        fixAction: "Redistribute tasks across team members",
+        evidence: {
+          evidenceVersion: 1,
+          teamUtilization,
+          memberCount: snapshots.length,
+          overloadedMemberIds: overloadedMembers.map((sn) => sn.personId),
+          overloadedMemberNames: overloadedNames,
+          totalEffectiveHours: totalEffective,
+          totalCommittedHours: totalCommitted,
+        },
+        explainability: buildIssueExplainability(
+          { type: "SNAPSHOT_TEAM_IMBALANCE", entityType: "TEAM", entityId: teamId, issueKey },
+          { fixUrl: deepLinkForTeam(workspaceSlug, teamId), fixAction: "Redistribute tasks across team members", entityName: teamName }
         ),
       });
     }

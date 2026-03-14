@@ -30,9 +30,8 @@ import {
   AlertTriangle,
   ArrowRight,
 } from "lucide-react"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
 import { callLoopbrainAssistant, executeLoopbrainPlanStream } from "@/lib/loopbrain/client"
+import { LoopbrainMarkdown } from "./loopbrain-markdown"
 import { useLoopbrainAssistant } from "./assistant-context"
 import type { LoopbrainResponse, LoopbrainMode, MeetingTaskExtractionResult, OnboardingBriefing, DailyBriefing, MeetingPrepBrief as MeetingPrepBriefType, LoopbrainClientAction } from "@/lib/loopbrain/orchestrator-types"
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from "@/lib/loopbrain/agent/types"
@@ -47,6 +46,8 @@ import { formatPlanForDisplay } from "./format-plan-steps"
 import { AdvisorySuggestion } from "./advisory-suggestion"
 import { OrgRoutingBadge } from "@/components/debug/OrgRoutingBadge"
 import { useWorkspace } from "@/lib/workspace-context"
+
+const CONVERSATION_ID_KEY = 'loopbrain-conversation-id'
 
 interface Message {
   id: string
@@ -133,13 +134,29 @@ export function LoopbrainAssistantPanel({
   const [dailyBriefing, setDailyBriefing] = useState<DailyBriefing | null>(null)
   const [meetingPrepBrief, setMeetingPrepBrief] = useState<MeetingPrepBriefType | null>(null)
   const [isCreatingMeetingTasks, setIsCreatingMeetingTasks] = useState(false)
-  const [conversationId, setConversationId] = useState<string | null>(null)
+  const [conversationId, setConversationId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(CONVERSATION_ID_KEY)
+    }
+    return null
+  })
   const [loadingStatusLabel, setLoadingStatusLabel] = useState<string>('Analyzing request...')
   const [pendingClientAction, setPendingClientAction] = useState<LoopbrainClientAction | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   // Track previous workspace to detect workspace switches (undefined = not yet initialized)
   const prevWorkspaceIdRef = useRef<string | null | undefined>(undefined)
+
+  // Sync conversationId to sessionStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (conversationId) {
+        sessionStorage.setItem(CONVERSATION_ID_KEY, conversationId)
+      } else {
+        sessionStorage.removeItem(CONVERSATION_ID_KEY)
+      }
+    }
+  }, [conversationId])
 
   // Execute a client action after a 500ms delay so the user sees the message first
   const executeClientAction = useCallback((action: LoopbrainClientAction) => {
@@ -171,12 +188,22 @@ export function LoopbrainAssistantPanel({
   // Transform pendingPlan or executingPlan into display format
   const displayPlan = useMemo(() => {
     const plan = executingPlan || pendingPlan
-    if (!plan || !plan.steps || plan.steps.length === 0) return null
+    console.log('[PlanView] pendingPlan exists:', !!pendingPlan, 'has steps:', pendingPlan?.steps?.length)
+    console.log('[PlanView] executingPlan exists:', !!executingPlan, 'has steps:', executingPlan?.steps?.length)
+    
+    if (!plan || !plan.steps || plan.steps.length === 0) {
+      console.log('[PlanView] Early return - no plan or no steps')
+      return null
+    }
+    
+    console.log('[PlanView] Plan steps:', plan.steps.map(s => ({ toolName: s.toolName, stepNumber: s.stepNumber })))
     
     try {
-      return formatPlanForDisplay(plan, isExecutingPlan ? stepProgress : undefined)
+      const result = formatPlanForDisplay(plan, isExecutingPlan ? stepProgress : undefined)
+      console.log('[PlanView] displayPlan result - title:', result?.title, 'steps count:', result?.steps?.length)
+      return result
     } catch (error) {
-      console.error('Failed to format plan for display:', error)
+      console.error('[PlanView] Failed to format plan for display:', error)
       return null
     }
   }, [pendingPlan, executingPlan, stepProgress, isExecutingPlan])
@@ -983,30 +1010,7 @@ export function LoopbrainAssistantPanel({
                         ) : (
                           <div className="space-y-4">
                             {/* Answer content */}
-                            <div className="prose prose-sm dark:prose-invert max-w-none">
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                  h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 mt-0 text-foreground border-b border-border pb-2">{children}</h1>,
-                                  h2: ({ children }) => <h2 className="text-xl font-bold mb-3 mt-6 text-foreground">{children}</h2>,
-                                  h3: ({ children }) => <h3 className="text-lg font-semibold mb-2 mt-5 text-foreground">{children}</h3>,
-                                  h4: ({ children }) => <h4 className="text-base font-medium mb-2 mt-4 text-foreground">{children}</h4>,
-                                  p: ({ children }) => <p className="text-sm mb-4 leading-relaxed text-foreground last:mb-0">{children}</p>,
-                                  ul: ({ children }) => <ul className="list-disc list-outside mb-4 ml-5 space-y-2 text-sm text-foreground">{children}</ul>,
-                                  ol: ({ children }) => <ol className="list-decimal list-outside mb-4 ml-5 space-y-2 text-sm text-foreground">{children}</ol>,
-                                  li: ({ children }) => <li className="text-sm text-foreground leading-relaxed">{children}</li>,
-                                  strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-                                  em: ({ children }) => <em className="italic text-foreground">{children}</em>,
-                                  code: ({ children }) => <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono text-foreground">{children}</code>,
-                                  pre: ({ children }) => <pre className="bg-muted p-3 rounded-lg overflow-x-auto mb-4 text-xs font-mono text-foreground border border-border">{children}</pre>,
-                                  blockquote: ({ children }) => <blockquote className="border-l-4 border-purple-400 dark:border-purple-600 pl-4 italic mb-4 text-foreground bg-purple-50 dark:bg-purple-900/10 py-2">{children}</blockquote>,
-                                  hr: () => <hr className="my-6 border-border" />,
-                                  a: ({ children, href }) => <a href={href} className="text-purple-600 dark:text-purple-400 hover:underline">{children}</a>,
-                                }}
-                              >
-                                {message.content}
-                              </ReactMarkdown>
-                            </div>
+                            <LoopbrainMarkdown content={message.content} size="sm" />
 
                             {/* Feedback actions */}
                             <div className="flex items-center gap-1 pt-1">
@@ -1166,6 +1170,14 @@ export function LoopbrainAssistantPanel({
                                 )}
 
                                 {/* Execution Plan View — unified pre-execution and during-execution */}
+                                {(() => {
+                                  console.log('[PlanView Render] displayPlan:', displayPlan)
+                                  console.log('[PlanView Render] displayPlan?.steps.length:', displayPlan?.steps.length)
+                                  console.log('[PlanView Render] pendingPlan:', !!pendingPlan)
+                                  console.log('[PlanView Render] executingPlan:', !!executingPlan)
+                                  console.log('[PlanView Render] condition result:', displayPlan && displayPlan.steps.length > 0 && (pendingPlan || executingPlan))
+                                  return null
+                                })()}
                                 {displayPlan && displayPlan.steps.length > 0 && (pendingPlan || executingPlan) ? (
                                   <ExecutionPlanView
                                     plan={{

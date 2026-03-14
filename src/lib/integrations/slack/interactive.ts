@@ -1,22 +1,19 @@
 /**
  * Slack Interactive Bridge
  *
- * Bridges Slack webhook events (app_mention, DM) to the Loopbrain orchestrator.
+ * Bridges Slack webhook events (app_mention, DM) to the Loopbrain agent loop.
  * Handles:
  * 1. Workspace resolution from Slack team ID
  * 2. User resolution (Slack user → Loopwell user via email match)
  * 3. Message parsing (strip bot mention prefix)
- * 4. Orchestrator dispatch
+ * 4. Agent loop dispatch
  * 5. Response posting back to Slack thread
- * 6. ACTION intent handling (auto-execute single-step, confirm multi-step)
+ * 6. Write-tool confirmation via Approve/Cancel buttons
  */
 
 import { prisma, prismaUnscoped } from '@/lib/db'
 import { sendSlackMessage, getSlackUserEmail, getSlackIntegration } from '@/lib/integrations/slack-service'
-import { executeAgentPlan } from '@/lib/loopbrain/agent/executor'
-import { toolRegistry } from '@/lib/loopbrain/agent/tool-registry'
-import type { AgentPlan } from '@/lib/loopbrain/agent/types'
-import { enrichAgentContext } from '@/lib/loopbrain/permissions'
+import { runAgentLoop } from '@/lib/loopbrain/agent-loop'
 import { getMemberRole } from '@/lib/loopbrain/context/getMemberRole'
 import { logger } from '@/lib/logger'
 import { IntegrationType, Prisma } from '@prisma/client'
@@ -127,18 +124,72 @@ export async function handleSlackLoopbrainMessage(
       return
     }
 
-    // 4. Slack → Loopbrain integration is temporarily disabled
-    // TODO: Migrate to agent loop (runAgentLoop) when Slack integration is re-enabled
-    // The orchestrator was deleted March 11, 2026 — this needs to be updated to use the agent loop
-    await sendSlackMessage(workspaceId, {
-      channel: channelId,
-      text: "Slack integration is temporarily unavailable. Please use the Loopwell web app to ask Loopbrain questions.",
-      threadTs: threadTs ?? messageTs,
+    // 4. Build agent loop context
+    const userId = resolved.userId
+    const replyThreadTs = threadTs ?? messageTs
+
+    const [user, workspace] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true, timezone: true },
+      }),
+      prisma.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { name: true },
+      }),
+    ])
+
+    const memberRole = await getMemberRole(workspaceId, userId)
+    const conversationId = `slack-${channelId}-${replyThreadTs}`
+
+    // 5. Call agent loop
+    logger.info('[SlackInteractive] Dispatching to agent loop', {
+      workspaceId,
+      userId,
+      conversationId,
+      messageLength: cleanedText.length,
     })
-    logger.warn('[SlackInteractive] Slack integration disabled — orchestrator deleted', {
-      workspaceId: resolved.workspaceId,
-      userId: resolved.userId,
+
+    const result = await runAgentLoop({
+      workspaceId,
+      userId,
+      conversationId,
+      userMessage: cleanedText,
+      userRole: memberRole,
+      userContext: {
+        name: user?.name ?? 'Unknown',
+        email: user?.email ?? '',
+        timezone: user?.timezone ?? 'UTC',
+        workspaceName: workspace?.name ?? 'Workspace',
+      },
     })
+
+    // 6. Handle result
+    if (result.pendingPlan) {
+      // Write action needs user confirmation — post plan with Approve/Cancel buttons
+      await postPlanConfirmation({
+        workspaceId,
+        userId,
+        channelId,
+        threadTs: replyThreadTs,
+        responseText: result.response,
+        conversationId,
+        memberRole,
+        userContext: {
+          name: user?.name ?? 'Unknown',
+          email: user?.email ?? '',
+          timezone: user?.timezone ?? 'UTC',
+          workspaceName: workspace?.name ?? 'Workspace',
+        },
+      })
+    } else {
+      // Read-only response — post formatted text
+      await sendSlackMessage(workspaceId, {
+        channel: channelId,
+        text: formatForSlack(result.response),
+        threadTs: replyThreadTs,
+      })
+    }
   } catch (error: unknown) {
     logger.error('[SlackInteractive] Processing failed', {
       slackUserId,
@@ -303,63 +354,35 @@ export async function cacheBotUserId(workspaceId: string): Promise<void> {
 }
 
 // =============================================================================
-// Pending Plan Handling (ACTION intents)
+// Plan Confirmation (write-tool approval flow)
 // =============================================================================
 
-async function handlePendingPlan(
-  workspaceId: string,
-  userId: string,
-  channelId: string,
-  threadTs: string,
-  plan: AgentPlan,
-  answer: string
-): Promise<void> {
-  const isSingleStep = plan.steps.length === 1
-
-  if (isSingleStep) {
-    // Auto-execute single-step plans
-    try {
-      const slackRole = await getMemberRole(workspaceId, userId)
-      const slackCtx = await enrichAgentContext(workspaceId, userId, slackRole)
-      const result = await executeAgentPlan(
-        plan,
-        slackCtx,
-        toolRegistry
-      )
-
-      const hasFailed = !!result.failed
-      const resultMessages = result.results.map((r) => r.humanReadable).filter(Boolean).join('\n')
-      const successText = !hasFailed
-        ? `Done! ${answer}\n\n${resultMessages}`
-        : `I tried but something went wrong: ${result.failed?.error ?? 'Unknown error'}`
-
-      await sendSlackMessage(workspaceId, {
-        channel: channelId,
-        text: successText.slice(0, 3000),
-        threadTs,
-      })
-    } catch (err: unknown) {
-      await sendSlackMessage(workspaceId, {
-        channel: channelId,
-        text: `I understood what you wanted but ran into an error: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        threadTs,
-      })
-    }
-    return
+interface PlanConfirmationParams {
+  workspaceId: string
+  userId: string
+  channelId: string
+  threadTs: string
+  responseText: string
+  conversationId: string
+  memberRole: string
+  userContext: {
+    name: string
+    email: string
+    timezone: string
+    workspaceName: string
   }
+}
 
-  // Multi-step plans: post summary with Approve/Cancel buttons
-  const stepList = plan.steps
-    .map((s, i) => `${i + 1}. ${s.description}`)
-    .join('\n')
+async function postPlanConfirmation(params: PlanConfirmationParams): Promise<void> {
+  const { workspaceId, userId, channelId, threadTs, responseText, conversationId, memberRole, userContext } = params
+
+  // Format the planner's confirmation text for Slack and add Approve/Cancel buttons
+  const planText = formatForSlack(responseText)
 
   const blocks: Record<string, unknown>[] = [
     {
       type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: `*Plan:* ${plan.reasoning}\n\n${stepList}`,
-      },
+      text: { type: 'mrkdwn', text: planText },
     },
     {
       type: 'actions',
@@ -383,21 +406,26 @@ async function handlePendingPlan(
 
   const result = await sendSlackMessage(workspaceId, {
     channel: channelId,
-    text: `Plan: ${plan.reasoning}`,
+    text: planText, // Fallback for notifications
     blocks,
     threadTs,
   })
 
-  // Store pending action for button callback
+  // Store pending action so the webhook can re-enter the agent loop on button click
   if (result.ok && result.ts) {
     try {
       await prisma.loopbrainPendingAction.create({
         data: {
           workspaceId,
           type: 'loopbrain_plan_approval',
-          contextType: 'AgentPlan',
-          contextId: `plan-${result.ts}`,
-          contextData: JSON.parse(JSON.stringify({ plan, answer })) as Prisma.InputJsonValue,
+          contextType: 'LoopbrainSession',
+          contextId: conversationId,
+          contextData: {
+            conversationId,
+            userId,
+            userRole: memberRole,
+            userContext,
+          } as unknown as Prisma.InputJsonValue,
           slackChannelId: channelId,
           slackMessageTs: result.ts,
           slackUserId: userId,

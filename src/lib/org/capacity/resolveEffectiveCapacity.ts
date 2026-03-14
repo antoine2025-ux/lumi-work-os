@@ -249,6 +249,116 @@ export async function resolveEffectiveCapacityBatch(
 }
 
 // ============================================================================
+// V2: Task-Based Capacity Resolver
+// ============================================================================
+
+/**
+ * Extended input for V2 capacity computation.
+ * Adds task-based commitment and time-off hours to the existing allocation model.
+ */
+export type EffectiveCapacityV2Input = EffectiveCapacityInput & {
+  /** Task-based committed hours (from getPersonTaskCommitmentHours) */
+  taskCommittedHours: number | null;
+  /** Whether any tasks had explicit estimates (hours or points, not just priority defaults) */
+  hasExplicitTaskEstimates: boolean;
+  /** Meeting hours from calendar (Phase 2 — default 0) */
+  meetingHours: number;
+  /** Time-off hours from PersonAvailability (already included in availabilityFactor, but tracked separately for snapshots) */
+  timeOffHours: number;
+};
+
+/**
+ * Extended result for V2 capacity computation.
+ */
+export type EffectiveCapacityV2 = EffectiveCapacity & {
+  /** Source of commitment: "tasks" if task data was used, "allocations" if fallback to WorkAllocation */
+  commitmentSource: "tasks" | "allocations";
+  /** Task-based committed hours (null if using allocation model) */
+  taskCommittedHours: number | null;
+  /** Meeting hours consumed (Phase 2) */
+  meetingHours: number;
+  /** Time-off hours consumed */
+  timeOffHours: number;
+};
+
+/**
+ * Compute effective capacity using the V2 model.
+ *
+ * Pure function — no database calls, deterministic.
+ *
+ * Key difference from V1:
+ * - Commitment source priority: if taskCommittedHours is available (not null),
+ *   use task-based sum as the numerator. Otherwise fall back to WorkAllocation percentages.
+ * - meetingHours reduces effective available hours (Phase 2 will wire calendar data)
+ * - timeOffHours tracked separately for snapshot storage
+ *
+ * Formula:
+ *   effectiveAvailableHours = contractedHours - meetingHours - timeOffHours
+ *   (where timeOffHours is already captured via availabilityFactor in the base formula,
+ *    but meetingHours is a new deduction)
+ *   committedHours = taskCommittedHours ?? allocation-derived hours
+ *   utilization = committedHours / effectiveAvailableHours
+ */
+export function computeEffectiveCapacityV2(
+  personId: string,
+  timeWindow: { start: Date; end: Date },
+  input: EffectiveCapacityV2Input
+): EffectiveCapacityV2 {
+  // Start with V1 computation for base values
+  const baseResult = computeEffectiveCapacity(personId, timeWindow, input);
+
+  const meetingHours = input.meetingHours;
+  const timeOffHours = input.timeOffHours;
+
+  // Determine commitment source and hours
+  const useTaskBased = input.taskCommittedHours != null && input.taskCommittedHours > 0;
+  const commitmentSource = useTaskBased ? "tasks" as const : "allocations" as const;
+  const committedHours = useTaskBased
+    ? input.taskCommittedHours!
+    : baseResult.allocatedHours;
+
+  // Recompute effective available hours with meeting deduction
+  // Base formula already applies availabilityFactor (which includes time off).
+  // Meeting hours are an additional deduction on top.
+  const contractedHours = baseResult.contractedHoursForWindow;
+  const availableAfterReductions = Math.max(
+    0,
+    contractedHours * baseResult.availabilityFactor - meetingHours
+  );
+
+  // Effective available = available after reductions minus committed work
+  const effectiveAvailableHours = Math.max(0, availableAfterReductions - committedHours);
+
+  // Build extended explanation
+  const explanation = [...baseResult.explanation];
+  if (meetingHours > 0) {
+    explanation.push(`${meetingHours.toFixed(1)}h in meetings`);
+  }
+  if (useTaskBased) {
+    explanation.push(
+      `${committedHours.toFixed(1)}h committed via tasks (${input.hasExplicitTaskEstimates ? "explicit estimates" : "priority defaults"})`
+    );
+  }
+  // Replace the last summary line
+  explanation.push(
+    `V2 Effective: ${effectiveAvailableHours.toFixed(1)}h available ` +
+    `(${contractedHours.toFixed(1)}h × ${Math.round(baseResult.availabilityFactor * 100)}% ` +
+    `− ${meetingHours.toFixed(1)}h meetings − ${committedHours.toFixed(1)}h committed)`
+  );
+
+  return {
+    ...baseResult,
+    allocatedHours: committedHours, // Override with task-based if available
+    effectiveAvailableHours,
+    explanation,
+    commitmentSource,
+    taskCommittedHours: useTaskBased ? input.taskCommittedHours : null,
+    meetingHours,
+    timeOffHours,
+  };
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 

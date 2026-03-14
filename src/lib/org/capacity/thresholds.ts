@@ -6,6 +6,8 @@
  */
 
 import { prisma } from "@/lib/db";
+import type { WorkingHoursConfig } from "./calendar-classification";
+import { DEFAULT_WORKING_HOURS } from "./calendar-classification";
 
 /**
  * Capacity threshold configuration
@@ -23,6 +25,8 @@ export type CapacityThresholds = {
   underutilizedThresholdPct: number;
   /** Capacity v1: Default weekly hours target for quick-entry */
   defaultWeeklyHoursTarget: number;
+  /** Capacity calc contract v1.0: At-risk threshold (0.85 = 85%) */
+  thresholdAtRisk: number;
 };
 
 /**
@@ -59,6 +63,7 @@ export const DEFAULT_CAPACITY_THRESHOLDS: CapacityThresholds = {
   severeOverloadThresholdPct: 1.4,     // 140%
   underutilizedThresholdPct: 0.6,      // 60%
   defaultWeeklyHoursTarget: 40,        // hours
+  thresholdAtRisk: 0.85,               // 85%
 };
 
 export const DEFAULT_CAPACITY_THRESHOLDS_WITH_WINDOW: CapacityThresholdsWithWindow = {
@@ -96,6 +101,7 @@ export async function getWorkspaceThresholdsAsync(
         severeOverloadThresholdPct: settings.severeOverloadThresholdPct,
         underutilizedThresholdPct: settings.underutilizedThresholdPct,
         defaultWeeklyHoursTarget: settings.defaultWeeklyHoursTarget,
+        thresholdAtRisk: settings.thresholdAtRisk,
       };
     }
   } catch {
@@ -103,6 +109,48 @@ export async function getWorkspaceThresholdsAsync(
   }
 
   return DEFAULT_CAPACITY_THRESHOLDS_WITH_WINDOW;
+}
+
+/**
+ * Get working hours configuration for calendar event classification.
+ * Reads workingHoursStart/End from OrgCapacitySettings, falls back to defaults.
+ */
+export async function getWorkingHoursConfig(
+  workspaceId: string
+): Promise<WorkingHoursConfig> {
+  try {
+    const settings = await prisma.orgCapacitySettings.findUnique({
+      where: { workspaceId },
+      select: {
+        workingHoursStart: true,
+        workingHoursEnd: true,
+        defaultWeeklyHoursTarget: true,
+      },
+    });
+
+    if (settings) {
+      // Compute daily hours from working hours window
+      const startMinutes = parseTimeString(settings.workingHoursStart);
+      const endMinutes = parseTimeString(settings.workingHoursEnd);
+      const dailyHours = Math.max(0, (endMinutes - startMinutes) / 60);
+
+      return {
+        workingHoursStart: settings.workingHoursStart,
+        workingHoursEnd: settings.workingHoursEnd,
+        dailyHours,
+      };
+    }
+  } catch {
+    // Pre-migration: fields don't exist yet
+  }
+
+  return DEFAULT_WORKING_HOURS;
+}
+
+/** Parse "HH:MM" to minutes from midnight */
+function parseTimeString(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + (minutes || 0);
 }
 
 /**
@@ -123,6 +171,7 @@ export async function saveWorkspaceThresholds(
       severeOverloadThresholdPct: thresholds.severeOverloadThresholdPct ?? DEFAULT_CAPACITY_THRESHOLDS.severeOverloadThresholdPct,
       underutilizedThresholdPct: thresholds.underutilizedThresholdPct ?? DEFAULT_CAPACITY_THRESHOLDS.underutilizedThresholdPct,
       defaultWeeklyHoursTarget: thresholds.defaultWeeklyHoursTarget ?? DEFAULT_CAPACITY_THRESHOLDS.defaultWeeklyHoursTarget,
+      thresholdAtRisk: thresholds.thresholdAtRisk ?? DEFAULT_CAPACITY_THRESHOLDS.thresholdAtRisk,
     },
     update: {
       ...(thresholds.lowCapacityHoursThreshold !== undefined && {
@@ -146,6 +195,9 @@ export async function saveWorkspaceThresholds(
       ...(thresholds.defaultWeeklyHoursTarget !== undefined && {
         defaultWeeklyHoursTarget: thresholds.defaultWeeklyHoursTarget,
       }),
+      ...(thresholds.thresholdAtRisk !== undefined && {
+        thresholdAtRisk: thresholds.thresholdAtRisk,
+      }),
     },
   });
 
@@ -157,6 +209,7 @@ export async function saveWorkspaceThresholds(
     severeOverloadThresholdPct: settings.severeOverloadThresholdPct,
     underutilizedThresholdPct: settings.underutilizedThresholdPct,
     defaultWeeklyHoursTarget: settings.defaultWeeklyHoursTarget,
+    thresholdAtRisk: settings.thresholdAtRisk,
   };
 }
 
@@ -164,7 +217,7 @@ export async function saveWorkspaceThresholds(
  * Format threshold for human-readable explanation
  */
 export function formatThresholdExplanation(
-  type: 'low_capacity' | 'overallocation' | 'severe_overload' | 'underutilized' | 'coverage_viability',
+  type: 'low_capacity' | 'overallocation' | 'severe_overload' | 'underutilized' | 'coverage_viability' | 'at_risk',
   thresholds: CapacityThresholds
 ): string {
   switch (type) {
@@ -174,6 +227,8 @@ export function formatThresholdExplanation(
       return `exceeds threshold (${Math.round(thresholds.overallocationThreshold * 100)}%)`;
     case 'severe_overload':
       return `exceeds severe threshold (${Math.round(thresholds.severeOverloadThresholdPct * 100)}%)`;
+    case 'at_risk':
+      return `near capacity (${Math.round(thresholds.thresholdAtRisk * 100)}–${Math.round(thresholds.overallocationThreshold * 100)}%)`;
     case 'underutilized':
       return `below threshold (${Math.round(thresholds.underutilizedThresholdPct * 100)}%)`;
     case 'coverage_viability':

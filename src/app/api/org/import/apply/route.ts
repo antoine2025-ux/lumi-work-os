@@ -193,17 +193,25 @@ export async function POST(req: NextRequest) {
       const uniqPeople = new Map<string, any>()
       for (const x of prepared) uniqPeople.set(x.personId, x)
 
-      // Upsert using unique constraint (batched for scale)
-      const ops = Array.from(uniqPeople.values()).map((x) =>
-        prisma.personCapacity.upsert({
-          where: { workspaceId_personId: { workspaceId, personId: x.personId } },
-          update: { fte: x.fte, shrinkagePct: x.shrinkagePct },
-          create: x,
+      // Upsert static profile records (weekStart=null) using findFirst+create/update
+      // because Prisma compound unique doesn't support null in where clause
+      const peopleEntries = Array.from(uniqPeople.values())
+      const upsertOps = peopleEntries.map(async (x) => {
+        const existing = await prisma.personCapacity.findFirst({
+          where: { workspaceId, personId: x.personId, weekStart: null },
+          select: { id: true },
         })
-      )
+        if (existing) {
+          return prisma.personCapacity.update({
+            where: { id: existing.id },
+            data: { fte: x.fte, shrinkagePct: x.shrinkagePct },
+          })
+        }
+        return prisma.personCapacity.create({ data: x })
+      })
 
-      await runInBatches(ops, 200, async (batch) => {
-        await prisma.$transaction(batch)
+      await runInBatches(upsertOps, 200, async (batch) => {
+        await Promise.all(batch)
       })
 
       // Log audit entries (fire-and-forget batch) - use UPDATED since upsert

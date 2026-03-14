@@ -18,6 +18,7 @@ import type { LoopbrainClientAction } from './orchestrator-types'
 import { enrichAgentContext } from './permissions'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { generatePlan, formatPlanForUser } from './agent/planner'
+import { buildPlannerContext, formatContextForPrompt } from './agent/context-builder'
 import * as Sentry from '@sentry/nextjs'
 import { logger } from '@/lib/logger'
 
@@ -162,6 +163,14 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
         .map((m) => `${m.role}: ${m.content}`)
         .join('\n')
 
+      let contextSnippet = ''
+      try {
+        const plannerCtx = await buildPlannerContext(workspaceId)
+        contextSnippet = formatContextForPrompt(plannerCtx)
+      } catch (err) {
+        console.warn('[agent-loop] Failed to build planner context, proceeding without:', err)
+      }
+
       logger.info('Agent loop: invoking planner for complete write plan', {
         workspaceId,
         nativeWriteCalls: writeCalls.length,
@@ -172,7 +181,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
         message: userMessage,
         registry: toolRegistry,
         context: agentCtx,
-        contextSnippet: '',
+        contextSnippet,
         conversationContext: conversationHistory || undefined,
       })
 

@@ -1,11 +1,10 @@
 "use client"
 
 import { AlertCircle, RefreshCw, ArrowRight, Sparkles } from "lucide-react"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { LoopbrainMarkdown } from "./loopbrain-markdown"
 import type { LoopbrainResponse } from "@/lib/loopbrain/orchestrator-types"
 import { useLoopbrainAssistant } from "./assistant-context"
 import type { LoopbrainMode } from "@/lib/loopbrain/orchestrator-types"
@@ -92,11 +91,7 @@ export function QuickAskResult({
         <Sparkles className="h-3 w-3 text-primary" />
         <span className="font-medium truncate">{query}</span>
       </div>
-      <div className="text-xs text-foreground/90 leading-relaxed prose prose-xs dark:prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {response.answer}
-        </ReactMarkdown>
-      </div>
+      <LoopbrainMarkdown content={response.answer} size="sm" className="text-xs" />
       <div className="flex items-center justify-between pt-1">
         <Button
           variant="ghost"

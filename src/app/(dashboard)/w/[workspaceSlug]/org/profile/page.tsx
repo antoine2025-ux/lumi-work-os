@@ -16,7 +16,7 @@ import { TimeOffSectionWrapper } from "@/components/org/profile/time-off-section
 import { PendingActionsSection } from "@/components/org/my-team/pending-actions-section";
 import { WikiContributionsSection } from "@/components/org/profile/wiki-contributions-section";
 import { ProfileEditButton } from "@/components/org/profile/profile-edit-button";
-import { getUserWorkload } from "@/lib/org/profile/get-workload";
+import { getUserWorkloadV2 } from "@/lib/org/profile/get-workload";
 import { getUserTimeOff } from "@/lib/org/profile/get-time-off";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +65,7 @@ export default async function MyProfilePage({ params }: PageProps) {
     prisma.workspaceOnboardingState.findUnique({
       where: { workspaceId: context.workspaceId },
     }),
-      getUserWorkload(context.userId, context.workspaceId),
+      getUserWorkloadV2(context.userId, context.workspaceId),
       getUserTimeOff(context.userId, context.workspaceId),
     prisma.workspaceMember.findFirst({
       where: { userId: context.userId, workspaceId: context.workspaceId },
@@ -284,6 +284,10 @@ export default async function MyProfilePage({ params }: PageProps) {
               allocatedHours={workload.allocatedHours}
               availableHours={workload.availableHours}
               utilizationPct={workload.utilizationPct}
+              meetingHours={workload.meetingHours}
+              timeOffHours={workload.timeOffHours}
+              effectiveHours={workload.effectiveHours}
+              snapshotStatus={workload.snapshotStatus}
               projects={workload.projects}
               workspaceSlug={workspaceSlug}
             />

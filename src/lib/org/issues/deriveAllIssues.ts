@@ -12,10 +12,12 @@ import {
   deriveOwnershipIssues,
   deriveIssues,
   deriveCapacityIssues,
+  deriveSnapshotCapacityIssues,
   buildIssueExplainability,
   deriveWorkImpactIssues,
   type OrgIssueMetadata,
   type CapacityIssueContext,
+  type SnapshotIssueContext,
 } from "@/lib/org/deriveIssues";
 import { resolveTeamOwners, resolveDepartmentOwners } from "@/lib/org/ownership-resolver";
 import { batchIsPersonManagerExempt } from "@/lib/org/manager-exemption";
@@ -28,6 +30,7 @@ import {
   getCapacityContractsBatch,
   resolveActiveContractBatch,
   computeEffectiveCapacity,
+  computeWeeklySnapshotBatch,
   type EffectiveCapacity,
 } from "@/lib/org/capacity";
 import { getWorkAllocationsBatch } from "@/lib/org/allocations";
@@ -324,7 +327,50 @@ export async function deriveAllIssues(
     console.warn("[deriveAllIssues] Capacity issue derivation failed:", err);
   }
 
-  // 13. Combine all derived issues
+  // 13. Derive snapshot-based capacity issues (capacity calc contract v1.0 §9.2)
+  let snapshotCapacityIssues: OrgIssueMetadata[] = [];
+  try {
+    const now = new Date();
+    const { startOfWeek, addWeeks } = await import("date-fns");
+    const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const nextWeekStart = addWeeks(currentWeekStart, 1);
+
+    const [currentWeekSnapshots, nextWeekSnapshots] = await Promise.all([
+      computeWeeklySnapshotBatch(workspaceId, currentWeekStart),
+      computeWeeklySnapshotBatch(workspaceId, nextWeekStart),
+    ]);
+
+    // Build person-to-team mapping from positions
+    const personTeams = new Map<string, { teamId: string; teamName: string }>();
+    for (const pos of positions) {
+      if (pos.userId && pos.team) {
+        personTeams.set(pos.userId, { teamId: pos.team.id, teamName: pos.team.name });
+      }
+    }
+
+    const snapshotPersonMetadata = new Map(
+      positions.map((p) => [p.userId!, { name: p.user?.name ?? p.user?.email ?? p.userId! }])
+    );
+
+    const snapshotContext: SnapshotIssueContext = {
+      workspaceSlug,
+      currentWeekSnapshots,
+      nextWeekSnapshots,
+      personMetadata: snapshotPersonMetadata,
+      personTeams,
+      thresholds: {
+        overallocationThreshold: thresholds.overallocationThreshold * 100,
+        thresholdAtRisk: thresholds.thresholdAtRisk * 100,
+        underutilizedThresholdPct: thresholds.underutilizedThresholdPct * 100,
+      },
+    };
+
+    snapshotCapacityIssues = deriveSnapshotCapacityIssues(snapshotContext);
+  } catch (err: unknown) {
+    console.warn("[deriveAllIssues] Snapshot capacity issue derivation failed:", err);
+  }
+
+  // 14. Combine all derived issues
   const allIssues: OrgIssueMetadata[] = [
     ...ownershipIssues,
     ...personIssues,
@@ -333,9 +379,10 @@ export async function deriveAllIssues(
     ...responsibilityIssues,
     ...workStaffingIssues,
     ...capacityIssues,
+    ...snapshotCapacityIssues,
   ];
 
-  // 13. Return standardized payload
+  // Return standardized payload
   return {
     issues: allIssues,
     issueWindow,

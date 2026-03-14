@@ -20,6 +20,7 @@ import type { CapacityThresholds } from "./thresholds";
 export type PersonCapacityStatus =
   | "MISSING"
   | "OK"
+  | "AT_RISK"
   | "OVERLOADED"
   | "SEVERELY_OVERLOADED"
   | "UNDERUTILIZED"
@@ -52,6 +53,7 @@ export type StatusUI = {
 export const STATUS_UI_MAP: Record<PersonCapacityStatus | TeamCapacityStatus, StatusUI> = {
   SEVERELY_OVERLOADED: { severity: "critical", color: "red", label: "Severely Overloaded" },
   OVERLOADED: { severity: "warning", color: "orange", label: "Overloaded" },
+  AT_RISK: { severity: "warning", color: "amber", label: "At Risk" },
   ZERO_AVAILABLE: { severity: "warning", color: "red", label: "Zero Availability" },
   NO_CAPACITY: { severity: "warning", color: "red", label: "No Capacity" },
   UNDERUTILIZED: { severity: "info", color: "yellow", label: "Underutilized" },
@@ -201,4 +203,77 @@ export function getTeamCapacityStatus(
  */
 export function getStatusUI(status: PersonCapacityStatus | TeamCapacityStatus): StatusUI {
   return STATUS_UI_MAP[status];
+}
+
+// ============================================================================
+// V2: Snapshot-Based Status (capacity calculation contract v1.0 §6)
+// ============================================================================
+
+/**
+ * 5-tier capacity status for weekly snapshots.
+ * Used by PersonCapacity.snapshotStatus field.
+ *
+ * Mapping from contract §6:
+ * - OVERALLOCATED: > 100% (overallocationThreshold)
+ * - AT_RISK: 85-100% (thresholdAtRisk to overallocationThreshold)
+ * - HEALTHY: 40-84% (underutilizedThresholdPct to thresholdAtRisk)
+ * - UNDERUTILIZED: < 40% (below underutilizedThresholdPct)
+ * - UNAVAILABLE: effectiveHours ≤ 0
+ */
+export type CapacitySnapshotStatus =
+  | "OVERALLOCATED"
+  | "AT_RISK"
+  | "HEALTHY"
+  | "UNDERUTILIZED"
+  | "UNAVAILABLE";
+
+/** Thresholds for V2 status derivation (all in percentage 0-100) */
+export type CapacitySnapshotThresholds = {
+  overallocationThreshold: number; // Default 100
+  thresholdAtRisk: number; // Default 85
+  underutilizedThresholdPct: number; // Default 40
+};
+
+/** Default thresholds matching contract §6 */
+export const DEFAULT_SNAPSHOT_THRESHOLDS: CapacitySnapshotThresholds = {
+  overallocationThreshold: 100,
+  thresholdAtRisk: 85,
+  underutilizedThresholdPct: 40,
+};
+
+/**
+ * Derive capacity snapshot status from utilization percentage.
+ *
+ * Contract §6 five-tier system:
+ * 1. UNAVAILABLE: effectiveHours ≤ 0
+ * 2. OVERALLOCATED: utilization > overallocationThreshold (100%)
+ * 3. AT_RISK: utilization > thresholdAtRisk (85%) AND ≤ overallocationThreshold
+ * 4. HEALTHY: utilization ≥ underutilizedThresholdPct (40%) AND ≤ thresholdAtRisk
+ * 5. UNDERUTILIZED: utilization < underutilizedThresholdPct (40%)
+ */
+export function getPersonCapacityStatusV2(
+  utilization: number | null,
+  effectiveHours: number,
+  thresholds: CapacitySnapshotThresholds = DEFAULT_SNAPSHOT_THRESHOLDS
+): CapacitySnapshotStatus {
+  // No effective hours available
+  if (effectiveHours <= 0) {
+    return "UNAVAILABLE";
+  }
+
+  // No utilization data (no tasks, no allocations)
+  if (utilization == null) {
+    return "UNDERUTILIZED"; // 0% utilization = underutilized
+  }
+
+  if (utilization > thresholds.overallocationThreshold) {
+    return "OVERALLOCATED";
+  }
+  if (utilization > thresholds.thresholdAtRisk) {
+    return "AT_RISK";
+  }
+  if (utilization < thresholds.underutilizedThresholdPct) {
+    return "UNDERUTILIZED";
+  }
+  return "HEALTHY";
 }

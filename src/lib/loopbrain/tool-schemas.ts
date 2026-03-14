@@ -270,6 +270,28 @@ export const READ_TOOLS: LoopbrainToolDef[] = [
     category: 'read',
     requiredRole: 'VIEWER',
   },
+  {
+    name: 'listProjectTasks',
+    description:
+      'List tasks in a specific project. Optionally filter by status, assignee, or epic. Use when the user asks about tasks in a project, what work is in progress, what is blocked, or what is due soon.',
+    parameters: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID to list tasks for' },
+        status: {
+          type: 'string',
+          enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED'],
+          description: 'Optional status filter',
+        },
+        assigneeId: { type: 'string', description: 'Optional: filter to tasks assigned to this person/user ID' },
+        epicId: { type: 'string', description: 'Optional: filter to tasks in this epic' },
+        limit: { type: 'number', description: 'Max results (default 50, max 200)' },
+      },
+      required: ['projectId'],
+    },
+    category: 'read',
+    requiredRole: 'VIEWER',
+  },
 ]
 
 // WRITE TOOLS — confirmation gate intercepts these
@@ -606,6 +628,34 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
     requiredRole: 'ADMIN',
   },
   {
+    name: 'updateTask',
+    description:
+      'Update fields on an existing task: title, priority, due date, status, assignee, or estimated hours. Prefer this over updateTaskStatus when changing more than just status.',
+    parameters: {
+      type: 'object',
+      properties: {
+        taskId: { type: 'string', description: 'Task UUID to update' },
+        title: { type: 'string', description: 'New task title (optional)' },
+        priority: {
+          type: 'string',
+          enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
+          description: 'New priority (optional)',
+        },
+        dueDate: { type: 'string', description: 'New due date in ISO 8601 format YYYY-MM-DD (optional). Omit to leave unchanged.' },
+        status: {
+          type: 'string',
+          enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED'],
+          description: 'New status (optional)',
+        },
+        assigneeId: { type: 'string', description: 'New assignee user ID (optional). Pass empty string to unassign.' },
+        estimatedHours: { type: 'number', description: 'Hour estimate (optional)' },
+      },
+      required: ['taskId'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
     name: 'updateTaskStatus',
     description: 'Change the status of an existing task.',
     parameters: {
@@ -773,6 +823,31 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
         },
       },
       required: ['fileId', 'content', 'mode'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'sendSlackMessage',
+    description:
+      'Send a message to a Slack channel. Use when the user wants to notify a team, share an update, ask someone a question in a channel, or post information to Slack. Requires Slack integration to be connected.',
+    parameters: {
+      type: 'object',
+      properties: {
+        channel: {
+          type: 'string',
+          description: 'Channel name (e.g., "#general", "#product-team") or channel ID',
+        },
+        message: {
+          type: 'string',
+          description: 'The message text to send. Supports Slack markdown (bold with *, code with `, etc.)',
+        },
+        threadTs: {
+          type: 'string',
+          description: 'Thread timestamp to reply in a thread (optional)',
+        },
+      },
+      required: ['channel', 'message'],
     },
     category: 'write',
     requiredRole: 'MEMBER',

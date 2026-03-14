@@ -1369,6 +1369,7 @@ model Task {
   epicId            String?
   milestoneId       String?
   points            Int?
+  estimatedHours    Float?            // Explicit hour estimate for capacity calculation (contract v1.0 §4)
   customFieldValues CustomFieldVal[]
   subtasks          Subtask[]
   comments          TaskComment[]
@@ -2538,6 +2539,16 @@ model OrgCapacitySettings {
   underutilizedThresholdPct  Float @default(0.6) // 60% = underutilized
   defaultWeeklyHoursTarget   Int   @default(40)  // Default for quick-entry
 
+  // Capacity calculation contract v1.0 additions
+  workingHoursStart  String @default("08:00") // Working day start time (for calendar event clipping)
+  workingHoursEnd    String @default("17:00") // Working day end time
+  pointsMultiplier   Float  @default(0.4)     // Task points × multiplier = estimated hours
+  defaultHoursUrgent Float  @default(4)       // Default hours when task has no estimate (URGENT priority)
+  defaultHoursHigh   Float  @default(4)       // Default hours (HIGH priority)
+  defaultHoursMedium Float  @default(2)       // Default hours (MEDIUM priority)
+  defaultHoursLow    Float  @default(1)       // Default hours (LOW priority)
+  thresholdAtRisk    Float  @default(0.85)    // 85% = at-risk threshold (0-1 scale, consistent with existing thresholds)
+
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("org_capacity_settings")
@@ -2968,11 +2979,24 @@ model PersonCapacity {
   // Optional: when the capacity profile was last reviewed
   reviewedAt DateTime?
 
+  // Weekly snapshot fields (capacity calculation contract v1.0 §8.1)
+  weekStart      DateTime? // Monday of the snapshot week (null = static profile record)
+  contractHours  Float?    // Weekly capacity from contract for this week
+  meetingHours   Float     @default(0) // Hours consumed by meetings (Phase 2: calendar integration)
+  timeOffHours   Float     @default(0) // Hours of time off / leave in this week
+  effectiveHours Float?    // contractHours - meetingHours - timeOffHours
+  committedHours Float     @default(0) // Sum of task estimated hours assigned this week
+  utilization    Float?    // (committedHours / effectiveHours) × 100
+  snapshotStatus String?   // Derived status: OVERALLOCATED, AT_RISK, HEALTHY, UNDERUTILIZED, UNAVAILABLE
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([workspaceId, personId])
+  // Changed from @@unique([workspaceId, personId]) to support weekly snapshots.
+  // Records with weekStart=null are static profiles; records with weekStart set are weekly snapshots.
+  @@unique([workspaceId, personId, weekStart])
   @@index([workspaceId, personId])
+  @@index([personId, weekStart])
   @@map("person_capacity")
 }
 
@@ -3284,6 +3308,7 @@ model CapacityContract {
   workspaceId         String
   personId            String // References User.id
   weeklyCapacityHours Float // e.g., 40, 32, 20
+  workingDays         String[] @default(["MON", "TUE", "WED", "THU", "FRI"]) // Days of week the person works
   effectiveFrom       DateTime
   effectiveTo         DateTime? // null = open-ended
   createdById         String? // User who created this contract

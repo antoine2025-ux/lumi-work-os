@@ -1,8 +1,9 @@
 /**
  * Capacity Module
- * 
+ *
  * Phase G: Capacity contracts and effective capacity resolution.
  * Capacity v1: Status, team rollups, and graduated thresholds.
+ * Capacity calc contract v1.0: Task-based commitment, weekly snapshots, AT_RISK status.
  */
 
 export {
@@ -22,9 +23,12 @@ export {
   resolveEffectiveCapacity,
   resolveEffectiveCapacityBatch,
   computeEffectiveCapacity,
+  computeEffectiveCapacityV2,
   hasAvailableCapacity,
   getCapacityStatusLabel,
   type EffectiveCapacity,
+  type EffectiveCapacityV2,
+  type EffectiveCapacityV2Input,
   type CapacityConfidence,
   type EffectiveCapacityInput,
 } from "./resolveEffectiveCapacity";
@@ -37,6 +41,7 @@ export {
   CAPACITY_DATA_ASSUMPTIONS,
   COVERAGE_DATA_ASSUMPTIONS,
   getWorkspaceThresholds,
+  getWorkingHoursConfig,
   formatThresholdExplanation,
   getDefaultIssueWindow,
   serializeIssueWindow,
@@ -49,15 +54,19 @@ export {
 
 export {
   getPersonCapacityStatus,
+  getPersonCapacityStatusV2,
   getTeamCapacityStatus,
   getStatusUI,
   STATUS_UI_MAP,
+  DEFAULT_SNAPSHOT_THRESHOLDS,
   type PersonCapacityStatus,
   type TeamCapacityStatus,
   type PersonCapacityMeta,
   type TeamCapacityRollup,
   type StatusUI,
   type StatusSeverity,
+  type CapacitySnapshotStatus,
+  type CapacitySnapshotThresholds,
 } from "./status";
 
 export {
@@ -67,3 +76,45 @@ export {
   type TeamMemberCapacity,
   type DepartmentCapacityRollup,
 } from "./teamRollup";
+
+export {
+  getTaskEstimatedHours,
+  getTaskHoursInWindow,
+  getPersonTaskCommitmentHours,
+  getPersonTaskCommitmentByProject,
+  getPersonTaskCommitmentHoursBatch,
+  DEFAULT_TASK_EFFORT_SETTINGS,
+  type TaskForEffort,
+  type TaskEffortSettings,
+  type TaskEffortResult,
+  type TaskCommitmentResult,
+  type ProjectTaskCommitment,
+} from "./task-effort";
+
+export {
+  computeWeeklySnapshot,
+  computeWeeklySnapshotBatch,
+  type WeeklySnapshotResult,
+} from "./compute-weekly-snapshot";
+
+export {
+  classifyCalendarEvent,
+  classifyEvents,
+  computeMeetingHoursUnion,
+  DEFAULT_WORKING_HOURS,
+  type CalendarEventClassification,
+  type ClassifiedEvent,
+  type RawCalendarEvent,
+  type WorkingHoursConfig,
+} from "./calendar-classification";
+
+export {
+  getPersonMeetingHours,
+  getPersonMeetingHoursBatch,
+  type MeetingHoursResult,
+} from "./calendar-meeting-hours";
+
+export {
+  invalidatePersonCapacity,
+  invalidateProjectCapacity,
+} from "./invalidation";

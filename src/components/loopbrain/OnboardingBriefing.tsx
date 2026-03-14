@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import ReactMarkdown from "react-markdown"
 import {
   Building2,
   Users,
@@ -22,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
+import { LoopbrainMarkdown } from "./loopbrain-markdown"
 import type {
   OnboardingBriefing as OnboardingBriefingType,
   OnboardingBriefingSectionIcon,
@@ -197,11 +197,7 @@ export function OnboardingBriefing({
               </button>
               {isOpen && (
                 <CardContent className="border-t border-border/40 pt-3 pb-4 px-4">
-                  <div className="prose prose-sm max-w-none text-muted-foreground dark:prose-invert
-                    prose-p:leading-relaxed prose-li:leading-relaxed
-                    prose-headings:text-foreground prose-strong:text-foreground">
-                    <ReactMarkdown>{section.content}</ReactMarkdown>
-                  </div>
+                  <LoopbrainMarkdown content={section.content} size="sm" />
                 </CardContent>
               )}
             </Card>

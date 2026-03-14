@@ -30,7 +30,7 @@ import { streamDraftToPage } from '@/lib/loopbrain/services/draft-page'
 import { isGmailConnected } from '@/lib/loopbrain/context-sources/gmail'
 import { searchGmailForContext } from '@/lib/loopbrain/context-sources/gmail-search'
 import { loadCalendarEvents } from '@/lib/loopbrain/context-sources/calendar'
-import { isSlackAvailable } from '@/lib/loopbrain/slack-helper'
+import { isSlackAvailable, loopbrainSendSlackMessage } from '@/lib/loopbrain/slack-helper'
 import { searchSlackMessages } from '@/lib/loopbrain/context-sources/slack-search'
 import { searchSimilarContextItems } from '@/lib/loopbrain/embedding-service'
 import { ContextType } from '@/lib/loopbrain/context-types'
@@ -39,6 +39,7 @@ import { buildWorkloadAnalysis } from '@/lib/loopbrain/workload-analysis'
 import { getAccessibleProjectIds, assertProjectMembership } from '@/lib/loopbrain/permissions/resource-acl'
 import { getAccessiblePersonIds } from '@/lib/loopbrain/permissions/hierarchy'
 import { hasToolRole } from '@/lib/loopbrain/permissions'
+import { buildProjectHealthSnapshot } from '@/lib/loopbrain/reasoning/projectHealth'
 import { filterPersonData } from '@/lib/loopbrain/permissions/context-filter'
 
 // ---------------------------------------------------------------------------
@@ -113,10 +114,11 @@ const CreateProjectSchema = z.object({
 
 const CreateTaskSchema = z.object({
   title: z.string().min(1).max(500),
-  projectId: z.string().min(1),
+  projectId: z.string().min(1).describe('Must be a project UUID — use listProjects to resolve a project name to its ID if needed'),
   description: z.string().optional(),
   assigneeId: z.string().optional(),
   epicId: z.string().optional(),
+  dueDate: z.string().optional().describe('Due date in ISO 8601 format (YYYY-MM-DD or full datetime)'),
   priority: z.preprocess(normalizeEnum,
     z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
   ).optional().default('MEDIUM'),
@@ -214,6 +216,27 @@ const UpdateTaskStatusSchema = z.object({
   ),
 })
 
+const UpdateTaskSchema = z.object({
+  taskId: z.string().min(1).describe('The task UUID to update'),
+  title: z.string().min(1).max(500).optional(),
+  priority: z.preprocess(normalizeEnum,
+    z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
+  ).optional(),
+  dueDate: z.string().optional().describe('New due date in ISO 8601 format (YYYY-MM-DD), or null to clear'),
+  status: z.preprocess(normalizeTaskStatus,
+    z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED'])
+  ).optional(),
+  assigneeId: z.string().optional().describe('New assignee user ID, or empty string to unassign'),
+  estimatedHours: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+    z.number().min(0).max(10000).optional()
+  ),
+}).refine(
+  (d) => d.title !== undefined || d.priority !== undefined || d.dueDate !== undefined ||
+         d.status !== undefined || d.assigneeId !== undefined || d.estimatedHours !== undefined,
+  { message: 'At least one field to update must be provided' }
+)
+
 const ListTasksByAssigneeSchema = z.object({
   personId: z.string().describe('The person/user ID whose tasks to list'),
   projectId: z.string().optional().describe('Optional project ID to scope the query'),
@@ -222,6 +245,17 @@ const ListTasksByAssigneeSchema = z.object({
     z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'])
   ).optional().describe('Optional status filter'),
   limit: z.preprocess(coerceNumber, z.number().int().min(1).max(100).optional().default(50)),
+})
+
+const ListProjectTasksSchema = z.object({
+  projectId: z.string().min(1).describe('Project ID to list tasks for'),
+  status: z.preprocess(
+    normalizeTaskStatus,
+    z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED'])
+  ).optional().describe('Optional status filter'),
+  assigneeId: z.string().optional().describe('Optional: filter to tasks assigned to this person/user ID'),
+  epicId: z.string().optional().describe('Optional: filter to tasks in this epic'),
+  limit: z.preprocess(coerceNumber, z.number().int().min(1).max(200).optional().default(50)),
 })
 
 const BulkReassignTasksSchema = z.object({
@@ -267,6 +301,11 @@ const GetCalendarEventsSchema = z.object({
   endDate: z.string().optional(),
 })
 const SearchSlackMessagesSchema = z.object({ query: z.string().min(1) })
+const SendSlackMessageSchema = z.object({
+  channel: z.string().min(1),
+  message: z.string().min(1),
+  threadTs: z.string().optional(),
+})
 const GetPersonProfileSchema = z.object({ personId: z.string().min(1) })
 const SearchWikiSchema = z.object({
   query: z.string().min(1),
@@ -408,6 +447,7 @@ const createTaskTool: LoopbrainTool = {
           description: p.description ?? null,
           assigneeId: p.assigneeId ?? null,
           epicId: p.epicId ?? null,
+          dueDate: p.dueDate ? new Date(p.dueDate) : null,
           priority: p.priority,
           status: p.status,
           createdById: context.userId,
@@ -732,7 +772,7 @@ const draftWikiPageTool: LoopbrainTool = {
             label: `Opening ${page.title}…`,
           },
         },
-        humanReadable: `Created wiki page "${page.title}" — AI is now drafting content about: ${p.topic}`,
+        humanReadable: `Created wiki page "${page.title}" (/wiki/${page.slug}) — AI is now drafting content.`,
       }
     } catch (err: unknown) {
       logger.error('draftWikiPage tool failed', { err, context })
@@ -946,6 +986,55 @@ const updateTaskStatusTool: LoopbrainTool = {
     } catch (err: unknown) {
       logger.error('updateTaskStatus tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to update task status' }
+    }
+  },
+}
+
+const updateTaskTool: LoopbrainTool = {
+  name: 'updateTask',
+  description: 'Update fields on an existing task: title, priority, due date, status, assignee, or estimated hours. Use this instead of updateTaskStatus when changing anything other than just status.',
+  category: 'task',
+  parameters: UpdateTaskSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = UpdateTaskSchema.parse(params)
+    scope(context)
+    try {
+      const data: Record<string, unknown> = {}
+      if (p.title !== undefined) data.title = p.title
+      if (p.priority !== undefined) data.priority = p.priority
+      if (p.status !== undefined) {
+        data.status = p.status
+        data.completedAt = p.status === 'DONE' ? new Date() : null
+      }
+      if (p.dueDate !== undefined) data.dueDate = p.dueDate ? new Date(p.dueDate) : null
+      if (p.assigneeId !== undefined) data.assigneeId = p.assigneeId || null
+      if (p.estimatedHours !== undefined) data.estimatedHours = p.estimatedHours
+
+      const task = await prisma.task.update({
+        where: { id: p.taskId },
+        data,
+      })
+
+      const changed = Object.keys(data)
+        .filter((k) => k !== 'completedAt')
+        .map((k) => {
+          const val = k === 'dueDate' && data[k] instanceof Date
+            ? (data[k] as Date).toISOString().split('T')[0]
+            : String(data[k])
+          return `${k} → ${val}`
+        })
+        .join(', ')
+
+      return {
+        success: true,
+        data: { taskId: task.id, title: task.title },
+        humanReadable: `Updated task "${task.title}" — changed: ${changed}`,
+      }
+    } catch (err: unknown) {
+      logger.error('updateTask tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to update task' }
     }
   },
 }
@@ -1453,6 +1542,74 @@ const listTasksByAssigneeTool: LoopbrainTool = {
   },
 }
 
+const listProjectTasksTool: LoopbrainTool = {
+  name: 'listProjectTasks',
+  description: 'List tasks in a specific project. Optionally filter by status, assignee, or epic.',
+  category: 'task',
+  parameters: ListProjectTasksSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = ListProjectTasksSchema.parse(params)
+    scope(context)
+    try {
+      const where: Record<string, unknown> = {
+        projectId: p.projectId,
+        workspaceId: context.workspaceId,
+      }
+      if (p.status) where.status = p.status
+      if (p.assigneeId) where.assigneeId = p.assigneeId
+      if (p.epicId) where.epicId = p.epicId
+
+      const tasks = await prisma.task.findMany({
+        where,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          dueDate: true,
+          assigneeId: true,
+          assignee: { select: { name: true } },
+          epicId: true,
+          epic: { select: { title: true } },
+          points: true,
+          estimatedHours: true,
+        },
+        orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
+        take: p.limit,
+      })
+
+      const mapped = tasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        dueDate: t.dueDate?.toISOString() ?? null,
+        assigneeId: t.assigneeId ?? null,
+        assigneeName: t.assignee?.name ?? null,
+        epicId: t.epicId ?? null,
+        epicTitle: t.epic?.title ?? null,
+        points: t.points ?? null,
+        estimatedHours: t.estimatedHours ?? null,
+      }))
+
+      const inProgress = mapped.filter((t) => t.status === 'IN_PROGRESS').length
+      const blocked = mapped.filter((t) => t.status === 'BLOCKED').length
+      const todo = mapped.filter((t) => t.status === 'TODO').length
+
+      return {
+        success: true,
+        data: { tasks: mapped as unknown as Record<string, unknown>[], count: mapped.length, projectId: p.projectId },
+        humanReadable: `Found ${mapped.length} task(s) in project. ${inProgress} in progress, ${blocked} blocked, ${todo} todo.`,
+      }
+    } catch (err: unknown) {
+      logger.error('listProjectTasks tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to list project tasks' }
+    }
+  },
+}
+
 const searchEmailTool: LoopbrainTool = {
   name: 'searchEmail',
   description: "Search the user's Gmail inbox. Returns matching email threads with subject, sender, date, and snippet.",
@@ -1596,6 +1753,49 @@ const searchSlackMessagesTool: LoopbrainTool = {
       }
     } catch (err: unknown) {
       return { success: false, error: String(err), humanReadable: 'Failed to search Slack' }
+    }
+  },
+}
+
+const sendSlackMessageTool: LoopbrainTool = {
+  name: 'sendSlackMessage',
+  description: 'Send a message to a Slack channel. Use when the user wants to notify a team, share an update, ask someone a question in a channel, or post information to Slack. Requires Slack integration to be connected.',
+  category: 'slack',
+  parameters: SendSlackMessageSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = SendSlackMessageSchema.parse(params)
+    scope(context)
+    try {
+      const slackConnected = await isSlackAvailable(context.workspaceId)
+      if (!slackConnected) {
+        return {
+          success: false,
+          error: 'Slack is not connected to this workspace. An admin can connect it in Settings > Integrations.',
+          humanReadable: 'Slack not connected',
+        }
+      }
+      const result = await loopbrainSendSlackMessage({
+        workspaceId: context.workspaceId,
+        channel: p.channel,
+        text: p.message,
+        threadTs: p.threadTs,
+      })
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error ?? 'Send failed',
+          humanReadable: `Failed to send message to ${p.channel}`,
+        }
+      }
+      return {
+        success: true,
+        data: { channel: p.channel, messageTs: result.ts },
+        humanReadable: `Sent message to ${p.channel}`,
+      }
+    } catch (err: unknown) {
+      return { success: false, error: String(err), humanReadable: 'Failed to send Slack message' }
     }
   },
 }
@@ -1884,51 +2084,90 @@ const getProjectHealthTool: LoopbrainTool = {
           }
         }
       }
-      const [project, tasks] = await Promise.all([
-        prisma.project.findFirst({
-          where: { id: p.projectId, workspaceId: context.workspaceId },
-          select: { id: true, name: true, status: true, updatedAt: true },
-        }),
-        prisma.task.findMany({
-          where: { projectId: p.projectId, workspaceId: context.workspaceId },
-          select: { id: true, title: true, status: true, priority: true, dueDate: true },
-          take: 200,
-        }),
-      ])
-      if (!project) {
-        return { success: false, error: `Project ${p.projectId} not found`, humanReadable: 'Project not found' }
-      }
-      const now = new Date()
-      const total = tasks.length
-      const done = tasks.filter((t) => t.status === 'DONE').length
-      const blocked = tasks.filter((t) => t.status === 'BLOCKED').length
-      const inProgress = tasks.filter((t) => t.status === 'IN_PROGRESS').length
-      const overdue = tasks.filter(
-        (t) => t.dueDate && t.dueDate < now && t.status !== 'DONE'
-      ).length
-      const completionRate = total > 0 ? Math.round((done / total) * 100) : 0
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-      const isStalled = project.updatedAt < sevenDaysAgo && inProgress === 0
-      const rawHealth = 100 - blocked * 15 - overdue * 8 - (isStalled ? 20 : 0)
+
+      const snapshot = await buildProjectHealthSnapshot(context.workspaceId, p.projectId)
+
+      const { summary, progress, velocity, risks, blockers, momentum, resourceHealth } = snapshot
+      const healthScore100 = Math.round(summary.healthScore * 100)
+      const { total, completed, blocked, inProgress, todo, inReview } = progress.tasks
+      const overdue = blockers.filter((b) => b.daysBlocked > 0).length
+
+      const riskSummary = risks.length > 0
+        ? risks.map((r) => `${r.riskType} (${r.severity})`).join(', ')
+        : 'none'
+
+      const humanReadable = [
+        `Project Health: ${healthScore100}/100 (${summary.overallHealth}).`,
+        `${total} tasks — ${completed} done, ${inProgress} in progress, ${blocked} blocked, ${todo} todo${inReview ? `, ${inReview} in review` : ''}.`,
+        `Velocity: ${velocity.throughput.tasksPerWeek} tasks/week.`,
+        `Risks: ${riskSummary}.`,
+        `Blockers: ${blockers.length}. Momentum: ${momentum.trendDirection}.`,
+        `Team: ${resourceHealth.teamSize} members, ${resourceHealth.unassignedTaskCount} unassigned tasks.`,
+      ].join(' ')
+
       return {
         success: true,
         data: {
-          projectId: project.id,
-          name: project.name,
-          status: project.status,
-          healthScore: Math.max(0, Math.min(100, rawHealth)),
-          completionRate,
-          taskSummary: { total, done, blocked, inProgress, overdue },
-          isStalled,
-          blockers: tasks
-            .filter((t) => t.status === 'BLOCKED')
-            .slice(0, 5)
-            .map((t) => ({ id: t.id, title: t.title })),
+          projectId: snapshot.projectId,
+          name: snapshot.projectName,
+          status: snapshot.projectStatus,
+          healthScore: healthScore100,
+          overallHealth: summary.overallHealth,
+          onTrack: summary.onTrack,
+          completionRate: Math.round(velocity.completionRate * 100),
+          taskSummary: { total, done: completed, blocked, inProgress, todo, inReview: inReview ?? 0, overdue },
+          velocity: {
+            tasksPerWeek: velocity.throughput.tasksPerWeek,
+            pointsPerWeek: velocity.throughput.pointsPerWeek,
+            avgCycleDays: velocity.cycleTime.avgDays,
+          },
+          risks: risks.map((r) => ({ type: r.riskType, severity: r.severity, description: r.description })),
+          blockers: blockers.slice(0, 5).map((b) => ({ description: b.description, daysBlocked: b.daysBlocked, type: b.blockerType })),
+          momentum: momentum.trendDirection,
+          resourceHealth: {
+            teamSize: resourceHealth.teamSize,
+            unassignedTaskCount: resourceHealth.unassignedTaskCount,
+            bottlenecks: resourceHealth.bottlenecks.map((b) => ({ personId: b.personId, blockedTaskCount: b.blockedTaskCount })),
+          },
         },
-        humanReadable: `Got health for project "${project.name}"`,
+        humanReadable,
       }
     } catch (err: unknown) {
-      return { success: false, error: String(err), humanReadable: 'Failed to get project health' }
+      // Fallback: minimal response from direct task query so tool never hard-fails
+      logger.warn('getProjectHealth: full snapshot failed, falling back to task count', { err, projectId: p.projectId })
+      try {
+        const [project, tasks] = await Promise.all([
+          prisma.project.findFirst({
+            where: { id: p.projectId, workspaceId: context.workspaceId },
+            select: { id: true, name: true, status: true },
+          }),
+          prisma.task.findMany({
+            where: { projectId: p.projectId, workspaceId: context.workspaceId },
+            select: { status: true },
+            take: 200,
+          }),
+        ])
+        if (!project) {
+          return { success: false, error: `Project ${p.projectId} not found`, humanReadable: 'Project not found' }
+        }
+        const total = tasks.length
+        const done = tasks.filter((t) => t.status === 'DONE').length
+        const blocked = tasks.filter((t) => t.status === 'BLOCKED').length
+        const inProgress = tasks.filter((t) => t.status === 'IN_PROGRESS').length
+        return {
+          success: true,
+          data: {
+            projectId: project.id,
+            name: project.name,
+            status: project.status,
+            healthScore: null,
+            taskSummary: { total, done, blocked, inProgress },
+          },
+          humanReadable: `Project "${project.name}": ${total} tasks (${done} done, ${blocked} blocked, ${inProgress} in progress). Full health data unavailable.`,
+        }
+      } catch {
+        return { success: false, error: String(err), humanReadable: 'Failed to get project health' }
+      }
     }
   },
 }
@@ -2063,6 +2302,7 @@ const ALL_TOOLS: LoopbrainTool[] = [
   assignManagerTool,
   createPersonTool,
   updateTaskStatusTool,
+  updateTaskTool,
   updateProjectTool,
   linkProjectToGoalTool,
   addSubtaskTool,
@@ -2074,9 +2314,11 @@ const ALL_TOOLS: LoopbrainTool[] = [
   listSpacesTool,
   listPeopleTool,
   listTasksByAssigneeTool,
+  listProjectTasksTool,
   searchEmailTool,
   getCalendarEventsTool,
   searchSlackMessagesTool,
+  sendSlackMessageTool,
   getPersonProfileTool,
   searchWikiTool,
   queryOrgTool,
