@@ -56,16 +56,8 @@ async function verifySlackSignature(request: Request): Promise<boolean> {
 }
 
 export async function POST(request: NextRequest) {
-  // Clone before reading body — verifySlackSignature consumes the clone's stream
-  // while the original stream remains available for request.json() below.
-  const clonedRequest = request.clone()
-  const isValid = await verifySlackSignature(clonedRequest)
-  if (!isValid) {
-    logger.warn('[Slack Webhook] Signature verification failed')
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-  }
-
   try {
+    // Parse body first to check for URL verification challenge
     const body = await request.json()
     
     logger.info('[Slack Webhook] Received event', { 
@@ -74,9 +66,24 @@ export async function POST(request: NextRequest) {
     })
     
     // Slack URL verification challenge (required for setup)
+    // Must happen BEFORE HMAC check — Slack doesn't sign verification requests
     if (body.type === 'url_verification') {
       logger.info('[Slack Webhook] URL verification challenge')
       return NextResponse.json({ challenge: body.challenge })
+    }
+
+    // For all other event types, verify HMAC signature
+    // Clone the original request and reconstruct body for signature verification
+    const clonedRequest = new Request(request.url, {
+      method: request.method,
+      headers: request.headers,
+      body: JSON.stringify(body),
+    })
+    
+    const isValid = await verifySlackSignature(clonedRequest)
+    if (!isValid) {
+      logger.warn('[Slack Webhook] Signature verification failed')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
     // Handle different event types
