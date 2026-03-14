@@ -79,6 +79,40 @@ function isDuplicate(messageTs: string): boolean {
 }
 
 // =============================================================================
+// Quick Response (Fast-Path for Simple Conversational Messages)
+// =============================================================================
+
+/**
+ * Pattern-match simple conversational messages and return instant responses.
+ * Returns null for non-trivial messages that should go through the agent loop.
+ */
+function getQuickResponse(message: string): string | null {
+  const lower = message.toLowerCase().trim()
+  
+  // Greetings
+  if (/^(hi|hey|hello|good (morning|afternoon|evening|day)|howdy|yo|sup|what'?s up)(\s|!|,|\.|\?)*(\w+)?$/i.test(lower)) {
+    return "Hey! 👋 What can I help you with?"
+  }
+  
+  // Thanks
+  if (/^(thanks|thank you|thx|cheers|appreciate it|ty)(\s|!|\.)*$/i.test(lower)) {
+    return "You're welcome! Let me know if you need anything else."
+  }
+  
+  // What can you do
+  if (/^(what can you (do|help with)|help|what do you do|capabilities)\??$/i.test(lower)) {
+    return "I can help with:\n• 📋 Projects & tasks — create, update, check status\n• 👥 People & capacity — who's available, workload\n• 📧 Email — check inbox, draft replies\n• 📅 Calendar — check schedule, find conflicts\n• 📄 Wiki — search, create, summarize docs\n• 📊 Health & insights — project health, org issues\n\nJust ask me anything!"
+  }
+  
+  // Simple acknowledgments
+  if (/^(ok|okay|got it|understood|sure|cool|nice|great|perfect|awesome)(\s|!|\.)*$/i.test(lower)) {
+    return "👍 Let me know if you need anything!"
+  }
+  
+  return null  // Not a simple message — proceed to agent loop
+}
+
+// =============================================================================
 // Main Handler
 // =============================================================================
 
@@ -124,6 +158,17 @@ export async function handleSlackLoopbrainMessage(
       await sendSlackMessage(workspaceId, {
         channel: channelId,
         text: "Hi! Ask me anything about your workspace, or tell me to do something like \"create a task for Sarah to review the design doc by Friday.\"",
+        threadTs: threadTs ?? messageTs,
+      })
+      return
+    }
+
+    // Fast-path for simple conversational messages — skip agent loop entirely
+    const quickResponse = getQuickResponse(cleanedText)
+    if (quickResponse) {
+      await sendSlackMessage(workspaceId, {
+        channel: channelId,
+        text: quickResponse,
         threadTs: threadTs ?? messageTs,
       })
       return

@@ -19,14 +19,13 @@ import { clearPendingPlan } from '@/lib/loopbrain/session-store'
 
 /**
  * Verify the Slack request signature using HMAC-SHA256.
- * Reads the raw body text from the provided request object.
+ * Accepts the raw body string (must be the exact bytes received, not re-serialized).
  * Uses constant-time comparison to prevent timing attacks.
  * Rejects requests with timestamps older than 5 minutes (replay attack prevention).
  */
-async function verifySlackSignature(request: Request): Promise<boolean> {
-  const body = await request.text()
-  const timestamp = request.headers.get('x-slack-request-timestamp')
-  const signature = request.headers.get('x-slack-signature')
+function verifySlackSignature(rawBody: string, headers: Headers): boolean {
+  const timestamp = headers.get('x-slack-request-timestamp')
+  const signature = headers.get('x-slack-signature')
   const signingSecret = process.env.SLACK_SIGNING_SECRET
 
   if (!timestamp || !signature || !signingSecret) {
@@ -39,7 +38,7 @@ async function verifySlackSignature(request: Request): Promise<boolean> {
     return false
   }
 
-  const sigBaseString = `v0:${timestamp}:${body}`
+  const sigBaseString = `v0:${timestamp}:${rawBody}`
   const expectedSignature =
     'v0=' +
     crypto.createHmac('sha256', signingSecret).update(sigBaseString).digest('hex')
@@ -57,14 +56,15 @@ async function verifySlackSignature(request: Request): Promise<boolean> {
 
 export async function POST(request: NextRequest) {
   try {
-    // Parse body first to check for URL verification challenge
-    const body = await request.json()
-    
-    logger.info('[Slack Webhook] Received event', { 
+    // Read raw body once — required for HMAC verification on the exact bytes received
+    const rawBody = await request.text()
+    const body = JSON.parse(rawBody)
+
+    logger.info('[Slack Webhook] Received event', {
       type: body.type,
-      hasPayload: !!body.payload 
+      hasPayload: !!body.payload
     })
-    
+
     // Slack URL verification challenge (required for setup)
     // Must happen BEFORE HMAC check — Slack doesn't sign verification requests
     if (body.type === 'url_verification') {
@@ -72,15 +72,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ challenge: body.challenge })
     }
 
-    // For all other event types, verify HMAC signature
-    // Clone the original request and reconstruct body for signature verification
-    const clonedRequest = new Request(request.url, {
-      method: request.method,
-      headers: request.headers,
-      body: JSON.stringify(body),
-    })
-    
-    const isValid = await verifySlackSignature(clonedRequest)
+    // For all other event types, verify HMAC signature against the original raw body bytes
+    const isValid = verifySlackSignature(rawBody, request.headers)
     if (!isValid) {
       logger.warn('[Slack Webhook] Signature verification failed')
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
