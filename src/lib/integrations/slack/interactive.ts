@@ -203,6 +203,7 @@ export async function handleSlackLoopbrainMessage(
       })
       return { ok: false as const }
     })
+    console.log('[SlackLoopbrain] Thinking message posted', { ok: thinkingMsg.ok, ts: thinkingMsg.ts, channelId, replyThreadTs })
 
     // 6. Call agent loop
     logger.info('[SlackInteractive] Dispatching to agent loop', {
@@ -227,6 +228,13 @@ export async function handleSlackLoopbrainMessage(
     })
 
     // 7. Handle result — update or replace the thinking message
+    console.log('[SlackLoopbrain] Agent loop completed', {
+      hasResponse: !!result.response,
+      hasPendingPlan: !!result.pendingPlan,
+      responseLength: result.response?.length,
+      thinkingMsgTs: thinkingMsg?.ts,
+    })
+
     const userContext = {
       name: user?.name ?? 'Unknown',
       email: user?.email ?? '',
@@ -256,23 +264,33 @@ export async function handleSlackLoopbrainMessage(
           ts: thinkingMsg.ts,
           text: formattedResponse,
         })
+        console.log('[SlackLoopbrain] updateSlackMessage result', { ok: updated.ok, error: (updated as Record<string, unknown>).error })
         if (!updated.ok) {
           // Fallback: post as new message if update fails
-          await sendSlackMessage(workspaceId, {
+          const fallback = await sendSlackMessage(workspaceId, {
             channel: channelId,
             text: formattedResponse,
             threadTs: replyThreadTs,
           })
+          console.log('[SlackLoopbrain] Fallback sendSlackMessage result', { ok: fallback.ok, error: (fallback as Record<string, unknown>).error })
         }
       } else {
-        await sendSlackMessage(workspaceId, {
+        const sent = await sendSlackMessage(workspaceId, {
           channel: channelId,
           text: formattedResponse,
           threadTs: replyThreadTs,
         })
+        console.log('[SlackLoopbrain] sendSlackMessage result (no thinking ts)', { ok: sent.ok, error: (sent as Record<string, unknown>).error })
       }
     }
   } catch (error: unknown) {
+    console.error('[SlackLoopbrain] Handler failed', {
+      error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+      channelId,
+      slackUserId,
+      workspaceId: resolvedWorkspaceId,
+      thinkingMsgTs: thinkingMsg?.ts,
+    })
     logger.error('[SlackInteractive] Processing failed', {
       slackUserId,
       messageTs,
