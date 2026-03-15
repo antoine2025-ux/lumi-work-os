@@ -21,9 +21,9 @@ AI context engine that orchestrates questions about organizational data using in
 | Policy engine | **LIVE** | Compiler → executor → scheduler → event-matcher. 7 API routes + cron. |
 | Permissions | **LIVE** | Role-based tool gating, context filtering, hierarchy checks, resource ACLs |
 | Indexing | **LIVE** | 7 entity builders (org, project, task, epic, page, time-off, leave-request) |
-| Embedding service | **LIVE** | OpenAI text-embedding-3-small (1536 dim). pgvector search PLACEHOLDER. |
+| Embedding service | **LIVE (JS fallback)** | OpenAI text-embedding-3-small (1536 dim). Column is `Float[]` not `vector` — pgvector `<=>` fails at runtime, gracefully falls back to JS cosine over ≤500 candidates. Fine at beta scale. No backfill wired for pre-existing entities. |
 | Settings UI | **LIVE** | Policy editor (654L), execution history (278L), policy list (318L) |
-| Proactive insights | **LIVE** | Contract defined (627L), API routes for generation + dismissal |
+| Proactive insights | **LIVE (cron missing)** | Pipeline wired: 7 generators, storage, dismiss, dashboard card. Cron route exists but not in vercel.json — never auto-runs. Manual trigger works. |
 
 ## Key Files
 
@@ -58,6 +58,22 @@ AI context engine that orchestrates questions about organizational data using in
 - `gmail.ts` (631L) + `gmail-search.ts` (166L) — Inbox + search
 - `slack.ts` (690L) + `slack-search.ts` (245L) — Channels + search
 - `pm/projects.ts` (124L), `pm/tasks.ts` (160L), `pm/epics.ts` (111L)
+
+### Proactive Insights (`src/lib/loopbrain/` — 2 core files)
+- `insight-detector.ts` — Orchestrator: `detectInsights()`, `storeInsights()`, `expireStaleInsights()`, `buildInsightBatch()`. Runs 4 category generators (CAPACITY, WORKLOAD, PROJECT, DEPENDENCY) via parallel DB queries. Called by cron and POST route.
+- `reasoning/proactiveInsights.ts` — 7 user-facing generators run in parallel: `detectOverdueTasks`, `detectAtRiskGoals`, `detectOverloadedTeam`, `detectUpcomingReviews`, `detectUpcoming1on1s`, `detectStaleWikiPages`, `detectProjectHealthAlerts`. Called by daily-briefing scenario (separate from cron path).
+- `scenarios/project-health-scanner.ts` — Feeds PROJECT_HEALTH_ALERT generator.
+
+**API Routes:**
+- `GET /api/loopbrain/insights` — Fetch insights (MEMBER+), filterable by status/category/priority, paginated
+- `POST /api/loopbrain/insights` — Trigger detection + store (ADMIN+ only)
+- `POST /api/loopbrain/insights/dismiss` — Dismiss by IDs (MEMBER+, workspace-scoped)
+- `POST /api/cron/insights` — Cron handler: expire stale → detect → store, all active workspaces. **⚠️ Not in vercel.json — never auto-runs.** See Known Gaps.
+- `GET /api/cron/insights` — Health check: last 24h stats + recommended schedule
+
+**UI:** `src/components/dashboard/insights-card.tsx` — Renders ACTIVE insights on dashboard, supports inline dismiss.
+
+**Data model:** `ProactiveInsight` (workspaceId, trigger, category, priority, title, description, confidence, recommendations[], evidence[], affectedEntities[], status, expiresAt, dismissedAt, dismissedBy, dismissalReason)
 
 ### Policies (`src/lib/loopbrain/policies/` — 9 files, 1,090L)
 - `compiler.ts` (215L) — Compiles rules to executables
@@ -127,7 +143,9 @@ Loopbrain consumes data from every other module:
 
 | Gap | Severity | Location |
 |-----|----------|----------|
-| pgvector search is PLACEHOLDER | P1 | `store/embedding-repository.ts:7` — vector search stubbed |
+| pgvector column is `Float[]`, `<=>` fails, JS fallback active | P1 | `prisma/schema.prisma` ContextEmbedding — needs `Vector(1536)` + HNSW index. Fallback works at beta scale (≤500 embeddings). Fix post-beta: enable pgvector in Supabase, migrate column, add index. |
+| Proactive insights cron not scheduled | P1 | `/api/cron/insights` absent from `vercel.json`. Insights card always empty unless admin manually POSTs `/api/loopbrain/insights`. Pre-demo: trigger manually. Fix: add cron entry + `LOOPBRAIN_CRON_SECRET`. |
+| Embedding backfill not wired | P1 | `embedding-backfill.ts` exists but no API route/cron. Pre-indexer entities not in `search_wiki`. Fix: one-off admin route calling `backfillWorkspaceEmbeddings()`. |
 | Calendar event model doesn't exist | P2 | `context-sources/capacity.ts:250` — calendar events placeholder |
 | 5 contracts missing Zod validation | P2 | `proactiveInsight.v0.ts:617`, `calendarAvailability.v0.ts:506`, `entityLinks.v0.ts:333`, `projectHealth.v0.ts:533`, `workloadAnalysis.v0.ts:671` |
 | Epic context inline-loaded | P2 | Agent loop — temporary fix, needs refactor back to `getProjectEpicsContext` |
@@ -151,5 +169,5 @@ Loopbrain consumes data from every other module:
 | **Org Intelligence** | `/loopbrain/org/ask`, Q3, Q4 | Org-specific questions |
 | **Projects** | `/loopbrain/project-health/[id]` | Project health scoring |
 | **Settings** | Policy editor UI | Policy CRUD + execution history |
-| **Cron** | `/api/cron/insights`, `/api/cron/policies` | Scheduled insight generation + policy runs |
+| **Cron** | `/api/cron/policies` (scheduled), `/api/cron/insights` (**not scheduled — missing from vercel.json**) | Policy runs every 15 min. Insights cron exists but never fires — see Known Gaps. |
 | **Onboarding** | `handleOnboardingBriefingMode()` | Post-setup briefing |

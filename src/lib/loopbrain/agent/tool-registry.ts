@@ -465,6 +465,124 @@ const createTaskTool: LoopbrainTool = {
   },
 }
 
+const BulkCreateTasksSchema = z.object({
+  projectId: z.string().min(1),
+  tasks: z.array(z.object({
+    title: z.string().min(1).max(500),
+    priority: z.preprocess(normalizeEnum, z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])).optional().default('MEDIUM'),
+    assigneeId: z.string().optional(),
+    dueDate: z.string().optional(),
+    epicId: z.string().optional(),
+    estimatedHours: z.number().optional(),
+    description: z.string().optional(),
+  })).min(1).max(100),
+})
+
+const bulkCreateTasksTool: LoopbrainTool = {
+  name: 'bulkCreateTasks',
+  description: 'Create multiple tasks in a project at once in a single transaction',
+  category: 'task',
+  parameters: BulkCreateTasksSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: ['projectMembership'] },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = BulkCreateTasksSchema.parse(params)
+    scope(context)
+    try {
+      // Verify project exists in workspace
+      const project = await prisma.project.findFirst({
+        where: { id: p.projectId, workspaceId: context.workspaceId },
+        select: { id: true, name: true },
+      })
+      if (!project) {
+        return { success: false, error: 'Project not found', humanReadable: 'Project not found in this workspace.' }
+      }
+
+      const created = await prisma.$transaction(
+        p.tasks.map((t) =>
+          prisma.task.create({
+            data: {
+              workspaceId: context.workspaceId,
+              projectId: p.projectId,
+              title: t.title,
+              description: t.description ?? null,
+              assigneeId: t.assigneeId ?? null,
+              epicId: t.epicId ?? null,
+              dueDate: t.dueDate ? new Date(t.dueDate) : null,
+              priority: t.priority,
+              estimatedHours: t.estimatedHours ?? null,
+              status: 'TODO',
+              createdById: context.userId,
+            },
+          })
+        )
+      )
+
+      const taskSummary = created.map((t) => t.title).join(', ')
+      return {
+        success: true,
+        data: { created: created.length, tasks: created.map((t) => ({ id: t.id, title: t.title })) },
+        humanReadable: `Created ${created.length} tasks in "${project.name}": ${taskSummary}`,
+      }
+    } catch (err: unknown) {
+      logger.error('bulkCreateTasks tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to create tasks in bulk' }
+    }
+  },
+}
+
+const BulkUpdateTasksSchema = z.object({
+  tasks: z.array(z.object({
+    taskId: z.string().min(1),
+    title: z.string().min(1).max(500).optional(),
+    priority: z.preprocess(normalizeEnum, z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])).optional(),
+    dueDate: z.string().optional(),
+    status: z.preprocess(normalizeTaskStatus, z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED'])).optional(),
+    assigneeId: z.string().optional(),
+    estimatedHours: z.number().optional(),
+  })).min(1).max(100),
+})
+
+const bulkUpdateTasksTool: LoopbrainTool = {
+  name: 'bulkUpdateTasks',
+  description: 'Update multiple tasks at once in a single transaction',
+  category: 'task',
+  parameters: BulkUpdateTasksSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: [] },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = BulkUpdateTasksSchema.parse(params)
+    scope(context)
+    try {
+      const updated = await prisma.$transaction(
+        p.tasks.map((t) => {
+          const data: Record<string, unknown> = {}
+          if (t.title !== undefined) data.title = t.title
+          if (t.priority !== undefined) data.priority = t.priority
+          if (t.dueDate !== undefined) data.dueDate = new Date(t.dueDate)
+          if (t.status !== undefined) data.status = t.status
+          if (t.assigneeId !== undefined) data.assigneeId = t.assigneeId || null
+          if (t.estimatedHours !== undefined) data.estimatedHours = t.estimatedHours
+          return prisma.task.update({
+            where: { id: t.taskId },
+            data,
+            select: { id: true, title: true },
+          })
+        })
+      )
+
+      return {
+        success: true,
+        data: { updated: updated.length, tasks: updated.map((t) => ({ id: t.id, title: t.title })) },
+        humanReadable: `Updated ${updated.length} tasks: ${updated.map((t) => t.title).join(', ')}`,
+      }
+    } catch (err: unknown) {
+      logger.error('bulkUpdateTasks tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to update tasks in bulk' }
+    }
+  },
+}
+
 const createEpicTool: LoopbrainTool = {
   name: 'createEpic',
   description: 'Create an epic (a group of related tasks) within a project. Epics organize multiple related tasks under a common theme or goal.',
@@ -2289,6 +2407,8 @@ const removeProjectMemberTool: LoopbrainTool = {
 const ALL_TOOLS: LoopbrainTool[] = [
   createProjectTool,
   createTaskTool,
+  bulkCreateTasksTool,
+  bulkUpdateTasksTool,
   createEpicTool,
   assignTaskTool,
   createTodoTool,

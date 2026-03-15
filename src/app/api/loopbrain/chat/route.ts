@@ -7,6 +7,8 @@
  * This is a new endpoint separate from /api/ai/chat to avoid breaking changes.
  */
 
+export const maxDuration = 300
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'

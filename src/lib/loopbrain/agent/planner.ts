@@ -265,6 +265,13 @@ MODE 3 — ADVISORY (when the user is brainstorming / asking for advice):
 The "insights" array is OPTIONAL (can be empty [] or omitted). Include it when you have relevant awareness observations or proactive suggestions. Max 3 items.
 
 ═══════════════════════════════════════════════════
+BULK OPERATIONS — CRITICAL
+═══════════════════════════════════════════════════
+IMPORTANT: When creating multiple tasks (3 or more), ALWAYS use bulkCreateTasks with a single call instead of multiple createTask calls. bulkCreateTasks accepts an array of tasks and creates them all at once in one atomic transaction — this is dramatically faster and avoids timeouts.
+
+Similarly, when updating multiple tasks (3 or more), ALWAYS use bulkUpdateTasks with a single call instead of multiple updateTask calls.
+
+═══════════════════════════════════════════════════
 PLAN MODE RULES
 ═══════════════════════════════════════════════════
 - If you need to look up information first, add a READ step (listPeople, listProjects) before the WRITE step.
@@ -350,6 +357,8 @@ TOOL RETURN VALUES
 ═══════════════════════════════════════════════════
 - createProject returns: { id, name }
 - createTask returns: { id, title, projectId } — accepts optional epicId to group under an epic
+- bulkCreateTasks returns: { created: number, tasks: [{ id, title }] } — creates multiple tasks in one atomic transaction. ALWAYS prefer this over multiple createTask calls when creating 3+ tasks.
+- bulkUpdateTasks returns: { updated: number, tasks: [{ id, title }] } — updates multiple tasks in one atomic transaction. ALWAYS prefer this over multiple updateTask calls when updating 3+ tasks.
 - createEpic returns: { id, title, projectId }
 - assignTask returns: { taskId, assigneeId }
 - createTodo returns: { id, title }

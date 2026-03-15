@@ -753,6 +753,79 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
     requiredRole: 'ADMIN',
   },
   {
+    name: 'bulkCreateTasks',
+    description:
+      'Create multiple tasks in a project at once. Much faster than calling createTask multiple times. Use when creating 3 or more tasks. Supports assigning different priorities, assignees, due dates, and epic per task.',
+    parameters: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID to create tasks in' },
+        tasks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'Task title' },
+              priority: {
+                type: 'string',
+                enum: ['URGENT', 'HIGH', 'MEDIUM', 'LOW'],
+                description: 'Priority level (default MEDIUM)',
+              },
+              assigneeId: { type: 'string', description: 'Person ID to assign to (optional)' },
+              dueDate: { type: 'string', description: 'Due date (ISO 8601, optional)' },
+              epicId: { type: 'string', description: 'Epic ID to group under (optional)' },
+              estimatedHours: { type: 'number', description: 'Hour estimate (optional)' },
+              description: { type: 'string', description: 'Task description (optional)' },
+            },
+            required: ['title'],
+          },
+          description: 'Array of tasks to create (1-100)',
+        },
+      },
+      required: ['projectId', 'tasks'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'bulkUpdateTasks',
+    description:
+      'Update multiple tasks at once. Use when updating 3 or more tasks — e.g., setting due dates, reassigning, or changing status/priority in bulk. Much faster than calling updateTask multiple times.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tasks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              taskId: { type: 'string', description: 'Task UUID to update' },
+              title: { type: 'string', description: 'New title (optional)' },
+              priority: {
+                type: 'string',
+                enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
+                description: 'New priority (optional)',
+              },
+              dueDate: { type: 'string', description: 'New due date ISO 8601 (optional)' },
+              status: {
+                type: 'string',
+                enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED'],
+                description: 'New status (optional)',
+              },
+              assigneeId: { type: 'string', description: 'New assignee user ID (optional)' },
+              estimatedHours: { type: 'number', description: 'Hour estimate (optional)' },
+            },
+            required: ['taskId'],
+          },
+          description: 'Array of task updates (1-100)',
+        },
+      },
+      required: ['tasks'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
     name: 'bulkReassignTasks',
     description:
       'Reassign multiple tasks to a new assignee. Accepts either an array of task IDs or an array of task objects (from listTasksByAssignee). Use after listTasksByAssignee to get the tasks.',

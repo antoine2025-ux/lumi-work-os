@@ -7,6 +7,8 @@
  * Used when user confirms a pending plan; fetches plan from session.
  */
 
+export const maxDuration = 300
+
 import { NextRequest } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
