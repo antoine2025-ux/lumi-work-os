@@ -472,7 +472,8 @@ const BulkCreateTasksSchema = z.object({
     priority: z.preprocess(normalizeEnum, z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])).optional().default('MEDIUM'),
     assigneeId: z.string().optional(),
     dueDate: z.string().optional(),
-    epicId: z.string().optional(),
+    epicId: z.string().optional().describe('Epic UUID if known, or epic title/name if not'),
+    epicTitle: z.string().optional().describe('Epic title/name — used when epicId is not a UUID or when creating new epics'),
     estimatedHours: z.number().optional(),
     description: z.string().optional(),
   })).min(1).max(100),
@@ -480,7 +481,7 @@ const BulkCreateTasksSchema = z.object({
 
 const bulkCreateTasksTool: LoopbrainTool = {
   name: 'bulkCreateTasks',
-  description: 'Create multiple tasks in a project at once in a single transaction',
+  description: 'Create multiple tasks in a project at once in a single transaction. Automatically creates epics if they don\'t exist.',
   category: 'task',
   parameters: BulkCreateTasksSchema,
   requiresConfirmation: true,
@@ -498,16 +499,83 @@ const bulkCreateTasksTool: LoopbrainTool = {
         return { success: false, error: 'Project not found', humanReadable: 'Project not found in this workspace.' }
       }
 
+      // Helper: check if a string looks like a UUID
+      const isUUID = (str: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
+
+      // Step 1: Collect all unique epic references from tasks
+      const epicReferences = new Map<string, string>() // key → title
+      for (const task of p.tasks) {
+        const epicRef = task.epicId ?? task.epicTitle
+        if (!epicRef) continue
+        const epicTitle = task.epicTitle ?? task.epicId ?? ''
+        epicReferences.set(epicRef, epicTitle)
+      }
+
+      // Step 2: Resolve epic references to real epic IDs
+      const epicIdMap = new Map<string, string>() // reference → real epic ID
+      let createdEpicCount = 0
+
+      if (epicReferences.size > 0) {
+        // Check which epic IDs already exist (if they're UUIDs)
+        const possibleUUIDs = Array.from(epicReferences.keys()).filter(isUUID)
+        const existingEpics = possibleUUIDs.length > 0
+          ? await prisma.epic.findMany({
+              where: { id: { in: possibleUUIDs }, projectId: p.projectId, workspaceId: context.workspaceId },
+              select: { id: true, title: true },
+            })
+          : []
+
+        const existingEpicIds = new Set(existingEpics.map((e) => e.id))
+
+        // For each reference, either use existing ID or create new epic
+        for (const [ref, title] of epicReferences.entries()) {
+          if (isUUID(ref) && existingEpicIds.has(ref)) {
+            // UUID exists — use it directly
+            epicIdMap.set(ref, ref)
+          } else {
+            // Either not a UUID, or UUID doesn't exist — check by title first
+            const existingByTitle = await prisma.epic.findFirst({
+              where: {
+                projectId: p.projectId,
+                workspaceId: context.workspaceId,
+                title: { equals: title, mode: 'insensitive' },
+              },
+              select: { id: true },
+            })
+
+            if (existingByTitle) {
+              epicIdMap.set(ref, existingByTitle.id)
+            } else {
+              // Create new epic
+              const newEpic = await prisma.epic.create({
+                data: {
+                  workspaceId: context.workspaceId,
+                  projectId: p.projectId,
+                  title: title || ref,
+                },
+                select: { id: true },
+              })
+              epicIdMap.set(ref, newEpic.id)
+              createdEpicCount++
+            }
+          }
+        }
+      }
+
+      // Step 3: Create tasks with resolved epic IDs
       const created = await prisma.$transaction(
-        p.tasks.map((t) =>
-          prisma.task.create({
+        p.tasks.map((t) => {
+          const epicRef = t.epicId ?? t.epicTitle
+          const resolvedEpicId = epicRef ? epicIdMap.get(epicRef) ?? null : null
+
+          return prisma.task.create({
             data: {
               workspaceId: context.workspaceId,
               projectId: p.projectId,
               title: t.title,
               description: t.description ?? null,
               assigneeId: t.assigneeId ?? null,
-              epicId: t.epicId ?? null,
+              epicId: resolvedEpicId,
               dueDate: t.dueDate ? new Date(t.dueDate) : null,
               priority: t.priority,
               estimatedHours: t.estimatedHours ?? null,
@@ -515,14 +583,22 @@ const bulkCreateTasksTool: LoopbrainTool = {
               createdById: context.userId,
             },
           })
-        )
+        })
       )
 
       const taskSummary = created.map((t) => t.title).join(', ')
+      const epicCount = epicIdMap.size
+      const epicMsg = epicCount > 0 ? ` (${createdEpicCount > 0 ? `created ${createdEpicCount} epic(s), ` : ''}assigned to ${epicCount} epic(s))` : ''
+
       return {
         success: true,
-        data: { created: created.length, tasks: created.map((t) => ({ id: t.id, title: t.title })) },
-        humanReadable: `Created ${created.length} tasks in "${project.name}": ${taskSummary}`,
+        data: { 
+          created: created.length, 
+          tasks: created.map((t) => ({ id: t.id, title: t.title })),
+          epicsCreated: createdEpicCount,
+          epicsUsed: epicCount,
+        },
+        humanReadable: `Created ${created.length} tasks in "${project.name}"${epicMsg}: ${taskSummary}`,
       }
     } catch (err: unknown) {
       logger.error('bulkCreateTasks tool failed', { err, context })

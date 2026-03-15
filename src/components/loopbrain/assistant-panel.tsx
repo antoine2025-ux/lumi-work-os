@@ -56,6 +56,39 @@ interface Message {
   timestamp: Date
 }
 
+const THINKING_STEPS = [
+  { text: 'Analyzing your request...', duration: 2000 },
+  { text: 'Gathering workspace context...', duration: 2500 },
+  { text: 'Reasoning about the best approach...', duration: 3000 },
+  { text: 'Building response...', duration: 4000 },
+  { text: 'Almost there...', duration: 5000 },
+]
+
+function ThinkingIndicator() {
+  const [currentStepIndex, setCurrentStepIndex] = useState(0)
+
+  useEffect(() => {
+    const step = THINKING_STEPS[currentStepIndex]
+    const timer = setTimeout(() => {
+      setCurrentStepIndex((prev) => (prev + 1) % THINKING_STEPS.length)
+    }, step.duration)
+
+    return () => clearTimeout(timer)
+  }, [currentStepIndex])
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative flex h-4 w-4">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+        <span className="relative inline-flex rounded-full h-4 w-4 bg-purple-500" />
+      </div>
+      <span className="text-sm text-muted-foreground transition-opacity duration-300">
+        {THINKING_STEPS[currentStepIndex].text}
+      </span>
+    </div>
+  )
+}
+
 export interface LoopbrainAssistantPanelProps {
   /** Operating mode */
   mode: LoopbrainMode
@@ -140,7 +173,6 @@ export function LoopbrainAssistantPanel({
     }
     return null
   })
-  const [loadingStatusLabel, setLoadingStatusLabel] = useState<string>('Analyzing request...')
   const [pendingClientAction, setPendingClientAction] = useState<LoopbrainClientAction | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -567,17 +599,6 @@ export function LoopbrainAssistantPanel({
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
-
-  // Progressive loading status: "Analyzing request..." → "Building execution plan..." (after 750ms)
-  useEffect(() => {
-    if (!isLoading) {
-      setLoadingStatusLabel('Analyzing request...')
-      return
-    }
-    setLoadingStatusLabel('Analyzing request...')
-    const t = setTimeout(() => setLoadingStatusLabel('Building execution plan...'), 750)
-    return () => clearTimeout(t)
-  }, [isLoading])
 
   useEffect(() => {
     if (isOpen && messages.length > 0) {
@@ -1360,10 +1381,7 @@ export function LoopbrainAssistantPanel({
                 {isLoading && (
                   <div className="flex justify-start">
                     <div className="bg-muted rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">{loadingStatusLabel}</span>
-                      </div>
+                      <ThinkingIndicator />
                     </div>
                   </div>
                 )}
